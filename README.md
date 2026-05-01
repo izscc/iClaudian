@@ -98,7 +98,7 @@ claude-haiku-4.5
 
 1. 安装并启用 [BRAT](https://github.com/TfTHacker/obsidian42-brat)。
 2. 在 BRAT 设置中点击 “Add Beta plugin”。
-3. 填入仓库地址：`https://github.com/YishenTu/claudian`。
+3. 填入仓库地址：`https://github.com/izscc/iclaudian`。
 4. 添加完成后，在社区插件中启用 **iClaudian**。
 
 ### 从源码开发
