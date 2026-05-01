@@ -1253,7 +1253,7 @@ describe('Tab - Event Wiring', () => {
 
       wireTabInputEvents(tab, options.plugin);
 
-      expect(tab.dom.eventCleanups.length).toBe(4); // keydown, input, focus, scroll
+      expect(tab.dom.eventCleanups.length).toBe(5); // keydown, stop button, input, focus, scroll
     });
   });
 });

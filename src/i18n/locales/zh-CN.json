@@ -71,7 +71,8 @@
       "claude": "Claude",
       "codex": "Codex",
       "opencode": "OpenCode",
-      "gemini": "Gemini"
+      "gemini": "Gemini",
+      "copilot": "Copilot"
     },
     "display": "显示",
     "conversations": "对话",
@@ -423,6 +424,46 @@
       "environment": {
         "name": "Gemini 环境",
         "desc": "仅限 Gemini 运行时变量。用于 GEMINI_*、GOOGLE_* 和 Vertex AI 设置。共享 PATH 变更应写入共享环境设置。"
+      }
+    },
+    "copilot": {
+      "enable": {
+        "name": "启用 Copilot 提供方",
+        "desc": "以 GitHub Copilot CLI ACP 模式作为 iClaudian 提供方。"
+      },
+      "cliPath": {
+        "name": "Copilot CLI 路径（{host}）",
+        "desc": "此电脑上的 Copilot CLI 绝对路径。留空则使用 PATH 中的 copilot。"
+      },
+      "approvalMode": {
+        "name": "权限模式",
+        "desc": "映射到 Copilot CLI 默认安全模式、--mode plan 或 --allow-all。",
+        "default": "安全",
+        "plan": "计划模式"
+      },
+      "autopilot": {
+        "name": "Autopilot 模式",
+        "desc": "非 Plan 模式下启动时附加 --autopilot。"
+      },
+      "customVisibleModels": {
+        "name": "模型 ID",
+        "desc": "每行一个 Copilot CLI 模型 ID，会传给 copilot --model。"
+      },
+      "experimental": {
+        "name": "实验性功能"
+      },
+      "remote": {
+        "name": "远程控制"
+      },
+      "reasoningSummaries": {
+        "name": "推理摘要"
+      },
+      "agent": {
+        "name": "自定义 Agent"
+      },
+      "environment": {
+        "name": "Copilot 环境",
+        "desc": "仅限 Copilot 运行时变量。共享 PATH 变更应写入共享环境设置。"
       }
     }
   }

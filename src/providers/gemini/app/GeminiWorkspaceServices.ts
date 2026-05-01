@@ -2,8 +2,8 @@ import type { ProviderCommandCatalog } from '../../../core/providers/commands/Pr
 import { ProviderWorkspaceRegistry } from '../../../core/providers/ProviderWorkspaceRegistry';
 import type { ProviderTabWarmupPolicy, ProviderWorkspaceRegistration, ProviderWorkspaceServices } from '../../../core/providers/types';
 import { GeminiCommandCatalog } from '../commands/GeminiCommandCatalog';
-import { GeminiCliResolver } from '../runtime/GeminiCliResolver';
 import { GeminiChatRuntime } from '../runtime/GeminiChatRuntime';
+import { GeminiCliResolver } from '../runtime/GeminiCliResolver';
 import { geminiSettingsTabRenderer } from '../ui/GeminiSettingsTab';
 import { GeminiRuntimeCommandLoader } from './GeminiRuntimeCommandLoader';
 

@@ -40,6 +40,8 @@ function resolveConfiguredCliPath(cliPath: string): string | null {
   try {
     const expanded = expandHomePath(cliPath);
     if (fs.existsSync(expanded) && fs.statSync(expanded).isFile()) return expanded;
-  } catch {}
+  } catch {
+    return null;
+  }
   return null;
 }

@@ -6,8 +6,8 @@ import {
   resolveEnvironmentSnippetScope,
 } from '../../../core/providers/providerEnvironment';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
-import { VIEW_TYPE_CLAUDIAN } from '../../../core/types';
 import type { EnvironmentScope, EnvSnippet } from '../../../core/types';
+import { VIEW_TYPE_CLAUDIAN } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import type ClaudianPlugin from '../../../main';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../../utils/env';

@@ -227,3 +227,31 @@
 .claudian-input-wrapper.claudian-input-bang-bash-mode .claudian-input {
   font-family: var(--font-monospace);
 }
+
+.claudian-stop-button {
+  position: absolute;
+  right: 10px;
+  bottom: 42px;
+  z-index: 2;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.92;
+}
+
+.claudian-stop-button:hover {
+  color: var(--text-error);
+  border-color: var(--text-error);
+  background: var(--background-modifier-error);
+}
+
+.claudian-input-streaming .claudian-input {
+  padding-right: 48px;
+}

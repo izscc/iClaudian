@@ -8,9 +8,13 @@ describe('getBuiltInProviderDefaultConfigs', () => {
     expect(first).toHaveProperty('claude');
     expect(first).toHaveProperty('codex');
     expect(first).toHaveProperty('opencode');
+    expect(first).toHaveProperty('gemini');
+    expect(first).toHaveProperty('copilot');
     expect(first).not.toBe(second);
     expect(first.claude).not.toBe(second.claude);
     expect(first.codex).not.toBe(second.codex);
+    expect(first.copilot).not.toBe(second.copilot);
+    expect(first.gemini).not.toBe(second.gemini);
     expect(first.opencode).not.toBe(second.opencode);
   });
 });

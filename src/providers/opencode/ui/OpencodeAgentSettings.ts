@@ -2,7 +2,6 @@ import type { App } from 'obsidian';
 import { Modal, Notice, setIcon, Setting } from 'obsidian';
 
 import { t } from '../../../i18n/i18n';
-
 import { confirmDelete } from '../../../shared/modals/ConfirmModal';
 import type { OpencodeAgentStorage } from '../storage/OpencodeAgentStorage';
 import type { OpencodeAgentDefinition } from '../types/agent';

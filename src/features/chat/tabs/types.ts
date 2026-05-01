@@ -155,6 +155,7 @@ export interface TabDOMElements {
   queueIndicatorEl: HTMLElement;
   inputWrapper: HTMLElement;
   inputEl: HTMLTextAreaElement;
+  stopButtonEl: HTMLButtonElement;
 
   /** Nav row for tab badges and header icons (above input wrapper). */
   navRowEl: HTMLElement;

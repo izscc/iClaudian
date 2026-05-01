@@ -71,7 +71,8 @@
       "claude": "Claude",
       "codex": "Codex",
       "opencode": "OpenCode",
-      "gemini": "Gemini"
+      "gemini": "Gemini",
+      "copilot": "Copilot"
     },
     "display": "Отображение",
     "conversations": "Разговоры",
@@ -423,6 +424,46 @@
       "environment": {
         "name": "Gemini environment",
         "desc": "Gemini-owned runtime variables only. Use this for GEMINI_*, GOOGLE_* and Vertex AI settings. Shared PATH changes should go in the shared environment section."
+      }
+    },
+    "copilot": {
+      "enable": {
+        "name": "Enable Copilot provider",
+        "desc": "Launch GitHub Copilot CLI ACP as an iClaudian provider."
+      },
+      "cliPath": {
+        "name": "Copilot CLI path ({host})",
+        "desc": "Absolute path to Copilot CLI on this computer. Leave empty to use copilot from PATH."
+      },
+      "approvalMode": {
+        "name": "Permission mode",
+        "desc": "Maps to Copilot CLI safe defaults, --mode plan, or --allow-all.",
+        "default": "Safe",
+        "plan": "Plan"
+      },
+      "autopilot": {
+        "name": "Autopilot mode",
+        "desc": "Start with --autopilot when not in Plan mode."
+      },
+      "customVisibleModels": {
+        "name": "Model IDs",
+        "desc": "One Copilot CLI model ID per line. Passed to copilot --model."
+      },
+      "experimental": {
+        "name": "Experimental features"
+      },
+      "remote": {
+        "name": "Remote control"
+      },
+      "reasoningSummaries": {
+        "name": "Reasoning summaries"
+      },
+      "agent": {
+        "name": "Custom agent"
+      },
+      "environment": {
+        "name": "Copilot environment",
+        "desc": "Copilot-owned runtime variables only. Put shared PATH changes in shared environment settings."
       }
     }
   }

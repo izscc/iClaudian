@@ -6,7 +6,7 @@
 
 ![Preview](Preview.png)
 
-An Obsidian plugin that embeds AI coding agents (Claude Code, Codex, OpenCode, and Gemini CLI, Codex, Opencode and more to come) in your vault. Your vault becomes the agent's working directory — file read/write, search, bash, and multi-step workflows all work out of the box.
+An Obsidian plugin that embeds AI coding agents (Claude Code, Codex, OpenCode, Gemini CLI, and GitHub Copilot CLI) in your vault. Your vault becomes the agent's working directory — file read/write, search, bash, and multi-step workflows all work out of the box.
 
 ## Features & Usage
 
@@ -29,7 +29,7 @@ Open the chat sidebar from the ribbon icon or command palette. Select text and u
 ## Requirements
 
 - **Claude provider**: [Claude Code CLI](https://code.claude.com/docs/en/overview) installed (native install recommended). Claude subscription/API or compatible provider ([Openrouter](https://openrouter.ai/docs/guides/guides/claude-code-integration), [Kimi](https://platform.moonshot.ai/docs/guide/agent-support), etc.).
-- **Optional providers**: [Codex CLI](https://github.com/openai/codex), [Opencode](https://opencode.ai/).
+- **Optional providers**: [Codex CLI](https://github.com/openai/codex), [Opencode](https://opencode.ai/), [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli).
 - Obsidian v1.4.5+
 - Desktop only (macOS, Linux, Windows)
 

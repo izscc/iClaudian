@@ -71,6 +71,14 @@ describe('ProviderRegistry', () => {
     expect(caps.reasoningControl).toBe('effort');
   });
 
+  it('returns Copilot capabilities', () => {
+    const caps = ProviderRegistry.getCapabilities('copilot');
+    expect(caps.providerId).toBe('copilot');
+    expect(caps.supportsProviderCommands).toBe(true);
+    expect(caps.supportsPlanMode).toBe(true);
+    expect(caps.reasoningControl).toBe('effort');
+  });
+
   it('returns OpenCode capabilities', () => {
     const caps = ProviderRegistry.getCapabilities('opencode');
     expect(caps.providerId).toBe('opencode');
@@ -83,6 +91,8 @@ describe('ProviderRegistry', () => {
     const ids = ProviderRegistry.getRegisteredProviderIds();
     expect(ids).toContain('claude');
     expect(ids).toContain('codex');
+    expect(ids).toContain('copilot');
+    expect(ids).toContain('gemini');
   });
 
   it('filters enabled provider ids using registration metadata', () => {
@@ -107,5 +117,6 @@ describe('ProviderRegistry', () => {
   it('returns the display name from provider registration metadata', () => {
     expect(ProviderRegistry.getProviderDisplayName('claude')).toBe('Claude');
     expect(ProviderRegistry.getProviderDisplayName('codex')).toBe('Codex');
+    expect(ProviderRegistry.getProviderDisplayName('copilot')).toBe('Copilot');
   });
 });

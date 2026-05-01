@@ -19,7 +19,6 @@ import type {
 import type { ApprovalDecision, ChatMessage, Conversation, ExitPlanModeCallback, SlashCommand, StreamChunk, ToolCallInfo } from '../../../core/types';
 import type ClaudianPlugin from '../../../main';
 import { getVaultPath } from '../../../utils/path';
-import { buildContextFromHistory, buildPromptWithHistoryContext } from '../../../utils/session';
 import {
   AcpClientConnection,
   AcpJsonRpcTransport,
@@ -35,16 +34,18 @@ import {
   type AcpUsage,
   type AcpUsageUpdate,
   type AcpWriteTextFileRequest,
+  buildAcpPromptBlocks,
+  buildAcpPromptText,
   buildAcpUsageInfo,
   extractAcpSessionModelState,
   extractAcpSessionModeState,
 } from '../../acp';
 import { GEMINI_PROVIDER_CAPABILITIES } from '../capabilities';
-import { GeminiCommandCatalog } from '../commands/GeminiCommandCatalog';
+import type { GeminiCommandCatalog } from '../commands/GeminiCommandCatalog';
 import { decodeGeminiModelId, encodeGeminiModelId, isGeminiModelSelectionId } from '../models';
-import { geminiApprovalModeToAcpModeId, geminiApprovalModeToPermissionMode, permissionModeToGeminiApprovalMode } from '../modes';
+import { geminiApprovalModeToAcpModeId, geminiApprovalModeToPermissionMode } from '../modes';
 import { getGeminiProviderSettings, normalizeGeminiDiscoveredModels, updateGeminiProviderSettings } from '../settings';
-import { getGeminiState, type GeminiProviderState } from '../types';
+import { type GeminiProviderState,getGeminiState } from '../types';
 import { buildGeminiRuntimeEnv } from './GeminiRuntimeEnvironment';
 
 interface ActiveTurn { queue: StreamChunkQueue; sessionId: string }
@@ -103,7 +104,7 @@ export class GeminiChatRuntime implements ChatRuntime {
       isCompact: false,
       mcpMentions: request.enabledMcpServers ?? new Set(),
       persistedContent: '',
-      prompt: request.text,
+      prompt: buildAcpPromptText(request),
       request,
     };
   }
@@ -220,11 +221,13 @@ export class GeminiChatRuntime implements ChatRuntime {
       return;
     }
 
-    const promptText = shouldBootstrapHistory
-      ? buildPromptWithHistoryContext(buildContextFromHistory(previousMessages), turn.prompt, turn.prompt, previousMessages)
-      : turn.prompt;
-
-    const promptPromise = this.connection.prompt({ prompt: [{ type: 'text', text: promptText }], sessionId })
+    const promptPromise = this.connection.prompt({
+      prompt: buildAcpPromptBlocks(
+        turn.request,
+        shouldBootstrapHistory ? previousMessages : [],
+      ),
+      sessionId,
+    })
       .then((response) => {
         if (response.userMessageId) this.currentTurnMetadata.userMessageId = response.userMessageId;
         this.promptUsage = response.usage ?? null;
@@ -252,7 +255,10 @@ export class GeminiChatRuntime implements ChatRuntime {
     }
   }
 
-  cancel(): void { if (this.connection && this.sessionId) this.connection.cancel({ sessionId: this.sessionId }); }
+  cancel(): void {
+    if (this.connection && this.sessionId) this.connection.cancel({ sessionId: this.sessionId });
+    this.activeTurn?.queue.close();
+  }
   resetSession(): void { this.clearActiveSession(); this.sessionInvalidated = false; }
   getSessionId(): string | null { return this.sessionId; }
   consumeSessionInvalidation(): boolean { const v = this.sessionInvalidated; this.sessionInvalidated = false; return v; }
@@ -421,7 +427,11 @@ export class GeminiChatRuntime implements ChatRuntime {
   private emitPermissionModeSync(modeId: string): void {
     const mode = modeId === 'autoEdit' ? 'auto_edit' : modeId;
     const permissionMode = geminiApprovalModeToPermissionMode(mode);
-    try { this.permissionModeSyncCallback?.(permissionMode); } catch {}
+    try {
+      this.permissionModeSyncCallback?.(permissionMode);
+    } catch {
+      // Best-effort UI sync; ignore callback failures.
+    }
   }
 
   private async createSession(cwd: string): Promise<string | null> {

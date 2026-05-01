@@ -1,9 +1,8 @@
 import { Modal, Notice, setIcon, Setting } from 'obsidian';
 
-import { t } from '../../../i18n/i18n';
-
 import type { ProviderCommandCatalog } from '../../../core/providers/commands/ProviderCommandCatalog';
 import type { ProviderCommandEntry } from '../../../core/providers/commands/ProviderCommandEntry';
+import { t } from '../../../i18n/i18n';
 import { validateCommandName } from '../../../utils/slashCommand';
 import {
   CODEX_SKILL_ROOT_OPTIONS,

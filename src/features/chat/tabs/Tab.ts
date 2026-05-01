@@ -1,5 +1,5 @@
 import type { Component } from 'obsidian';
-import { Notice } from 'obsidian';
+import { Notice, setIcon } from 'obsidian';
 
 import { getHiddenProviderCommandSet } from '../../../core/providers/commands/hiddenCommands';
 import type { ProviderCommandDropdownConfig } from '../../../core/providers/commands/ProviderCommandCatalog';
@@ -488,6 +488,16 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
       dir: 'auto',
     },
   });
+  const stopButtonEl = inputWrapper.createEl('button', {
+    cls: 'claudian-stop-button',
+    attr: {
+      'aria-label': 'Stop current task',
+      title: 'Stop current task',
+      type: 'button',
+    },
+  });
+  setIcon(stopButtonEl, 'square');
+  stopButtonEl.style.display = 'none';
 
   return {
     contentEl,
@@ -498,6 +508,7 @@ function buildTabDOM(contentEl: HTMLElement): TabDOMElements {
     queueIndicatorEl,
     inputWrapper,
     inputEl,
+    stopButtonEl,
     navRowEl,
     contextRowEl,
     selectionIndicatorEl: null,
@@ -964,6 +975,7 @@ export function initializeTabUI(
   initializeInstructionAndTodo(tab, plugin);
   initializeInputToolbar(tab, plugin, options.getProviderCatalogConfig, options.onProviderChanged);
 
+  const previousStreamingStateHandler = state.callbacks.onStreamingStateChanged;
   state.callbacks = {
     ...state.callbacks,
     onUsageChanged: (usage) => {
@@ -971,6 +983,11 @@ export function initializeTabUI(
     },
     onTodosChanged: (todos) => tab.ui.statusPanel?.updateTodos(todos),
     onAutoScrollChanged: () => tab.ui.navigationSidebar?.updateVisibility(),
+    onStreamingStateChanged: (isStreaming) => {
+      previousStreamingStateHandler?.(isStreaming);
+      tab.dom.stopButtonEl.style.display = isStreaming ? 'inline-flex' : 'none';
+      tab.dom.inputWrapper.toggleClass('claudian-input-streaming', isStreaming);
+    },
   };
 
   // ResizeObserver to detect overflow changes (e.g., content growth)
@@ -1473,6 +1490,14 @@ export function wireTabInputEvents(tab: TabData, plugin: ClaudianPlugin): void {
   };
   dom.inputEl.addEventListener('keydown', keydownHandler);
   dom.eventCleanups.push(() => dom.inputEl.removeEventListener('keydown', keydownHandler));
+
+  const stopHandler = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    controllers.inputController?.cancelStreaming();
+  };
+  dom.stopButtonEl.addEventListener('click', stopHandler);
+  dom.eventCleanups.push(() => dom.stopButtonEl.removeEventListener('click', stopHandler));
 
   const inputHandler = () => {
     if (!ui.bangBashModeManager?.isActive()) {

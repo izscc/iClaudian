@@ -4,7 +4,7 @@ import type {
   ProviderPermissionModeToggleConfig,
   ProviderUIOption,
 } from '../../../core/providers/types';
-import { GEMINI_MODEL_PREFIX, GEMINI_SYNTHETIC_MODEL_ID, decodeGeminiModelId, encodeGeminiModelId, isGeminiModelSelectionId } from '../models';
+import { decodeGeminiModelId, encodeGeminiModelId, GEMINI_FALLBACK_MODELS, GEMINI_MODEL_PREFIX, GEMINI_SYNTHETIC_MODEL_ID, isGeminiModelSelectionId } from '../models';
 import { geminiApprovalModeToPermissionMode, permissionModeToGeminiApprovalMode } from '../modes';
 import { getGeminiProviderSettings, updateGeminiProviderSettings } from '../settings';
 
@@ -24,10 +24,12 @@ const GEMINI_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
 };
 
 const FALLBACK_MODELS: ProviderUIOption[] = [
-  { value: GEMINI_SYNTHETIC_MODEL_ID, label: 'Gemini', description: 'ACP runtime' },
-  { value: encodeGeminiModelId('auto-gemini-3'), label: 'Auto (Gemini 3)' },
-  { value: encodeGeminiModelId('gemini-2.5-pro'), label: 'gemini-2.5-pro' },
-  { value: encodeGeminiModelId('gemini-2.5-flash'), label: 'gemini-2.5-flash' },
+  { value: GEMINI_SYNTHETIC_MODEL_ID, label: 'Gemini', description: 'ACP runtime default model' },
+  ...GEMINI_FALLBACK_MODELS.map(model => ({
+    value: encodeGeminiModelId(model.rawId),
+    label: model.label,
+    ...(model.description ? { description: model.description } : {}),
+  })),
 ];
 
 export const geminiChatUIConfig: ProviderChatUIConfig = {

@@ -2,6 +2,7 @@ import { getProviderConfig, setProviderConfig } from '../../core/providers/provi
 import { getProviderEnvironmentVariables } from '../../core/providers/providerEnvironment';
 import type { HostnameCliPaths } from '../../core/types/settings';
 import { getHostnameKey } from '../../utils/env';
+import { normalizeGeminiRawModelId } from './models';
 
 export type GeminiApprovalMode = 'default' | 'auto_edit' | 'yolo' | 'plan';
 
@@ -53,7 +54,7 @@ export function normalizeGeminiDiscoveredModels(value: unknown): GeminiDiscovere
   for (const entry of value) {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
     const raw = entry as Record<string, unknown>;
-    const rawId = typeof raw.rawId === 'string' ? raw.rawId.trim() : '';
+    const rawId = typeof raw.rawId === 'string' ? normalizeGeminiRawModelId(raw.rawId) : '';
     const label = typeof raw.label === 'string' && raw.label.trim() ? raw.label.trim() : rawId;
     if (!rawId || seen.has(rawId)) continue;
     seen.add(rawId);
@@ -75,7 +76,7 @@ export function normalizeGeminiVisibleModels(value: unknown, discoveredModels: G
     if (typeof entry !== 'string') continue;
     const trimmed = entry.trim();
     if (!trimmed) continue;
-    const normalized = aliases.get(trimmed.toLowerCase()) ?? trimmed;
+    const normalized = aliases.get(trimmed.toLowerCase()) ?? normalizeGeminiRawModelId(trimmed);
     if (seen.has(normalized)) continue;
     seen.add(normalized);
     result.push(normalized);
