@@ -33,7 +33,7 @@
 
 ## GitHub Copilot CLI 模型 ID
 
-已根据本机 `copilot help config` 的模型清单确认，Copilot CLI 当前可用的真实模型 ID 包括：
+根据 `copilot help config` 的模型清单确认，Copilot CLI 当前可用的真实模型 ID 包括：
 
 ```text
 claude-sonnet-4.6
