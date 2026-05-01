@@ -1,8 +1,8 @@
 # iClaudian
 
-![GitHub stars](https://img.shields.io/github/stars/YishenTu/claudian?style=social)
-![GitHub release](https://img.shields.io/github/v/release/YishenTu/claudian)
-![License](https://img.shields.io/github/license/YishenTu/claudian)
+![GitHub stars](https://img.shields.io/github/stars/izscc/iclaudian?style=social)
+![GitHub release](https://img.shields.io/github/v/release/izscc/iclaudian)
+![License](https://img.shields.io/github/license/izscc/iclaudian)
 
 ![预览](Preview.png)
 
