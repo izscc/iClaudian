@@ -31,7 +31,7 @@ import {
 describe('types.ts', () => {
   describe('VIEW_TYPE_CLAUDIAN', () => {
     it('should be defined as the correct view type', () => {
-      expect(VIEW_TYPE_CLAUDIAN).toBe('claudian-view');
+      expect(VIEW_TYPE_CLAUDIAN).toBe('iclaudian-view');
     });
   });
 

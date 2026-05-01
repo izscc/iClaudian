@@ -1,4 +1,4 @@
-# Claudian
+# iClaudian
 
 ![GitHub stars](https://img.shields.io/github/stars/YishenTu/claudian?style=social)
 ![GitHub release](https://img.shields.io/github/v/release/YishenTu/claudian)
@@ -6,7 +6,7 @@
 
 ![Preview](Preview.png)
 
-An Obsidian plugin that embeds AI coding agents (Claude Code, Codex, Opencode and more to come) in your vault. Your vault becomes the agent's working directory — file read/write, search, bash, and multi-step workflows all work out of the box.
+An Obsidian plugin that embeds AI coding agents (Claude Code, Codex, OpenCode, and Gemini CLI, Codex, Opencode and more to come) in your vault. Your vault becomes the agent's working directory — file read/write, search, bash, and multi-step workflows all work out of the box.
 
 ## Features & Usage
 
@@ -44,7 +44,7 @@ Open the chat sidebar from the ribbon icon or command palette. Select text and u
    ```
 3. Copy the downloaded files into the `claudian` folder
 4. Enable the plugin in Obsidian:
-   - Settings → Community plugins → Enable "Claudian"
+   - Settings → Community plugins → Enable "iClaudian"
 
 ### Using BRAT
 
@@ -54,8 +54,8 @@ Open the chat sidebar from the ribbon icon or command palette. Select text and u
 2. Enable BRAT in Settings → Community plugins
 3. Open BRAT settings and click "Add Beta plugin"
 4. Enter the repository URL: `https://github.com/YishenTu/claudian`
-5. Click "Add Plugin" and BRAT will install Claudian automatically
-6. Enable Claudian in Settings → Community plugins
+5. Click "Add Plugin" and BRAT will install iClaudian automatically
+6. Enable iClaudian in Settings → Community plugins
 
 > **Tip**: BRAT will automatically check for updates and notify you when a new version is available.
 
@@ -75,7 +75,7 @@ Open the chat sidebar from the ribbon icon or command palette. Select text and u
    ```
 
 3. Enable the plugin in Obsidian:
-   - Settings → Community plugins → Enable "Claudian"
+   - Settings → Community plugins → Enable "iClaudian"
 
 ### Development
 
@@ -92,7 +92,7 @@ npm run build
 ## Privacy & Data Use
 
 - **Sent to API**: Your input, attached files, images, and tool call outputs. Default: Anthropic (Claude) or OpenAI (Codex); configurable via environment variables.
-- **Local storage**: Claudian settings and session metadata in `vault/.claudian/`; Claude provider files in `vault/.claude/`; transcripts in `~/.claude/projects/` (Claude) and `~/.codex/sessions/` (Codex).
+- **Local storage**: iClaudian settings and session metadata in `vault/.claudian/`; Claude provider files in `vault/.claude/`; transcripts in `~/.claude/projects/` (Claude) and `~/.codex/sessions/` (Codex).
 - **No telemetry**: No tracking beyond your configured API provider.
 
 ## Troubleshooting
@@ -101,7 +101,7 @@ npm run build
 
 If you encounter `spawn claude ENOENT` or `Claude CLI not found`, the plugin can't auto-detect your Claude installation. Common with Node version managers (nvm, fnm, volta).
 
-**Solution**: Leave the setting empty first so Claudian can auto-detect Claude Code. If auto-detection fails, find your CLI path and set it in Settings → Advanced → Claude CLI path.
+**Solution**: Leave the setting empty first so iClaudian can auto-detect Claude Code. If auto-detection fails, find your CLI path and set it in Settings → Advanced → Claude CLI path.
 
 | Platform | Command | Example Path |
 |----------|---------|--------------|

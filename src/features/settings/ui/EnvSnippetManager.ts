@@ -6,6 +6,7 @@ import {
   resolveEnvironmentSnippetScope,
 } from '../../../core/providers/providerEnvironment';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
+import { VIEW_TYPE_CLAUDIAN } from '../../../core/types';
 import type { EnvironmentScope, EnvSnippet } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import type ClaudianPlugin from '../../../main';
@@ -328,7 +329,7 @@ export class EnvSnippetManager {
     await this.plugin.saveSettings();
 
     this.onContextLimitsChange?.();
-    const view = this.plugin.app.workspace.getLeavesOfType('claudian-view')[0]?.view as ClaudianView | undefined;
+    const view = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN)[0]?.view as ClaudianView | undefined;
     view?.refreshModelSelector();
   }
 

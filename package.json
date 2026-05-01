@@ -1,7 +1,7 @@
 {
-  "name": "claudian",
+  "name": "iclaudian",
   "version": "2.0.10",
-  "description": "Claudian - Claude Code embedded in Obsidian sidebar",
+  "description": "iClaudian - Claude, Codex, OpenCode, and Gemini CLI embedded in Obsidian sidebar",
   "main": "main.js",
   "scripts": {
     "postinstall": "node scripts/postinstall.mjs",
@@ -23,7 +23,7 @@
     "productivity",
     "ide"
   ],
-  "author": "Yishen Tu",
+  "author": "izscc",
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^10.0.1",

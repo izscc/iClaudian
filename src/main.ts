@@ -54,13 +54,13 @@ export default class ClaudianPlugin extends Plugin {
       (leaf) => new ClaudianView(leaf, this)
     );
 
-    this.addRibbonIcon('bot', 'Open Claudian', () => {
+    this.addRibbonIcon('bot', 'Open iClaudian', () => {
       this.activateView();
     });
 
     this.addCommand({
       id: 'open-view',
-      name: 'Open chat view',
+      name: 'Open iClaudian chat view',
       callback: () => {
         this.activateView();
       },
@@ -127,7 +127,7 @@ export default class ClaudianPlugin extends Plugin {
 
     this.addCommand({
       id: 'new-session',
-      name: 'New session (in current tab)',
+      name: 'New iClaudian session (in current tab)',
       checkCallback: (checking: boolean) => {
         const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN)[0];
         if (!leaf) return false;

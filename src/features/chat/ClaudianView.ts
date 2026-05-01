@@ -77,7 +77,7 @@ export class ClaudianView extends ItemView {
   }
 
   getDisplayText(): string {
-    return 'Claudian';
+    return 'iClaudian';
   }
 
   getIcon(): string {
@@ -241,7 +241,7 @@ export class ClaudianView extends ItemView {
     this.syncHeaderLogo(DEFAULT_CHAT_PROVIDER_ID);
 
     // Title text (hidden in header mode when 2+ tabs)
-    this.titleTextEl = this.titleSlotEl.createEl('h4', { text: 'Claudian', cls: 'claudian-title-text' });
+    this.titleTextEl = this.titleSlotEl.createEl('h4', { text: 'iClaudian', cls: 'claudian-title-text' });
 
     // Header actions container (for header mode - initially hidden)
     this.headerActionsEl = header.createDiv({ cls: 'claudian-header-actions claudian-header-actions-slot' });

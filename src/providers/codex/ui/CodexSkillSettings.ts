@@ -1,5 +1,7 @@
 import { Modal, Notice, setIcon, Setting } from 'obsidian';
 
+import { t } from '../../../i18n/i18n';
+
 import type { ProviderCommandCatalog } from '../../../core/providers/commands/ProviderCommandCatalog';
 import type { ProviderCommandEntry } from '../../../core/providers/commands/ProviderCommandEntry';
 import { validateCommandName } from '../../../utils/slashCommand';
@@ -183,26 +185,26 @@ export class CodexSkillSettings {
     }
 
     const headerEl = this.containerEl.createDiv({ cls: 'claudian-sp-header' });
-    headerEl.createSpan({ text: 'Codex Skills', cls: 'claudian-sp-label' });
+    headerEl.createSpan({ text: t('settings.codex.skills.name' as any), cls: 'claudian-sp-label' });
 
     const actionsEl = headerEl.createDiv({ cls: 'claudian-sp-header-actions' });
     const refreshBtn = actionsEl.createEl('button', {
       cls: 'claudian-settings-action-btn',
-      attr: { 'aria-label': 'Refresh' },
+      attr: { 'aria-label': t('common.refresh' as any) },
     });
     setIcon(refreshBtn, 'refresh-cw');
     refreshBtn.addEventListener('click', () => { void this.refresh(); });
 
     const addBtn = actionsEl.createEl('button', {
       cls: 'claudian-settings-action-btn',
-      attr: { 'aria-label': 'Add' },
+      attr: { 'aria-label': t('common.add' as any) },
     });
     setIcon(addBtn, 'plus');
     addBtn.addEventListener('click', () => this.openModal(null));
 
     if (this.entries.length === 0) {
       const emptyEl = this.containerEl.createDiv({ cls: 'claudian-sp-empty-state' });
-      emptyEl.setText('No Codex skills in vault. Click + to create one.');
+      emptyEl.setText(t('settings.codex.skillsExtra.empty' as any));
       return;
     }
 

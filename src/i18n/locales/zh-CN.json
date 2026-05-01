@@ -65,11 +65,13 @@
     }
   },
   "settings": {
-    "title": "Claudian 设置",
+    "title": "iClaudian 设置",
     "tabs": {
       "general": "通用",
       "claude": "Claude",
-      "codex": "Codex"
+      "codex": "Codex",
+      "opencode": "OpenCode",
+      "gemini": "Gemini"
     },
     "display": "显示",
     "conversations": "对话",
@@ -79,7 +81,7 @@
     "models": "模型",
     "experimental": "实验性功能",
     "userName": {
-      "name": "Claudian 应该如何称呼你？",
+      "name": "iClaudian 应该如何称呼你？",
       "desc": "用于个性化问候的用户名（留空使用通用问候）"
     },
     "excludedTags": {
@@ -149,7 +151,7 @@
     },
     "hiddenSlashCommands": {
       "name": "隐藏命令与技能",
-      "desc": "从下拉菜单中隐藏特定的命令与技能。适用于隐藏与 Claudian 无关的 Claude Code 条目。每行输入一个名称，无需前导斜杠。",
+      "desc": "从下拉菜单中隐藏特定的命令与技能。适用于隐藏与 iClaudian 无关的 Claude Code 条目。每行输入一个名称，无需前导斜杠。",
       "placeholder": "commit\nbuild\ntest"
     },
     "mcpServers": {
@@ -204,12 +206,12 @@
       "desc": "加载 ~/.claude/settings.json。启用后，用户的 Claude Code 权限规则可能绕过安全模式。"
     },
     "claudeSafeMode": {
-      "name": "Safe mode",
-      "desc": "Permission mode used when the Safe toggle is active."
+      "name": "安全模式",
+      "desc": "启用 Safe 开关时使用的权限模式。"
     },
     "codexSafeMode": {
-      "name": "Safe mode",
-      "desc": "Sandbox mode used when the Safe toggle is active."
+      "name": "安全模式",
+      "desc": "启用 Safe 开关时使用的沙盒模式。"
     },
     "environment": "环境",
     "customVariables": {
@@ -249,8 +251,8 @@
       "desc": "在模型选择器中显示 Sonnet 1M。Max、Team 和 Enterprise 计划需要额外用量。API 和 Pro 用户需要额外用量。"
     },
     "customModels": {
-      "name": "Custom models",
-      "desc": "Append additional Claude model IDs to the picker, one per line. Environment model overrides still replace the picker.",
+      "name": "自定义模型",
+      "desc": "向模型选择器追加 Claude 模型 ID，每行一个。环境变量模型覆盖仍会优先生效。",
       "placeholder": "claude-opus-4-6\nclaude-opus-4-6[1m]\nclaude-opus-4-5-20251101"
     },
     "enableChrome": {
@@ -296,6 +298,132 @@
     "language": {
       "name": "语言",
       "desc": "更改插件界面的显示语言"
+    },
+    "codex": {
+      "enable": {
+        "name": "启用 Codex 提供方",
+        "desc": "启用后，新对话的模型选择器会显示 Codex 模型。已有 Codex 会话会保留。"
+      },
+      "installationMethod": {
+        "name": "安装方式",
+        "desc": "iClaudian 在 Windows 上启动 Codex 的方式。原生 Windows 使用 Windows 可执行文件路径；WSL 会在选定发行版内启动 Linux CLI。"
+      },
+      "cliPath": {
+        "desc": "本机 Codex CLI 的自定义路径。留空则从 PATH 自动检测。"
+      },
+      "reasoningSummary": {
+        "name": "推理摘要",
+        "desc": "在 thinking 块中显示模型推理过程摘要。"
+      },
+      "skills": {
+        "name": "Codex 技能",
+        "desc": "管理存储在 .codex/skills/ 或 .agents/skills/ 的 Vault 级 Codex 技能。这里不包含用户主目录级技能。"
+      },
+      "hiddenSkills": {
+        "name": "隐藏技能",
+        "desc": "从下拉菜单隐藏指定 Codex 技能。每行输入一个技能名，不带前导 $。"
+      },
+      "subagents": {
+        "name": "Codex 子代理",
+        "desc": "管理存储在 .codex/agents/ 中的 Vault 级 Codex 子代理。每个 TOML 文件定义一个自定义代理。"
+      },
+      "mcp": {
+        "desc": "Codex 通过自己的 CLI 管理 MCP 服务器。使用 codex mcp 配置后即可在 iClaudian 中使用。"
+      },
+      "environment": {
+        "name": "Codex 环境",
+        "desc": "仅限 Codex 运行时变量。用于 OPENAI_* 和 CODEX_* 设置。如需帮助自动检测 Codex，请把安装目录加入共享 PATH，而不是写在此提供方环境中。"
+      },
+      "customModels": {
+        "name": "自定义模型",
+        "desc": "向模型选择器追加 Codex 模型 ID，每行一个。设置 OPENAI_MODEL 时仍会优先生效。"
+      },
+      "skillsExtra": {
+        "empty": "Vault 中暂无 Codex 技能。点击 + 创建一个。"
+      },
+      "subagentsExtra": {
+        "empty": "Vault 中暂无 Codex 子代理。点击 + 创建一个。"
+      }
+    },
+    "opencode": {
+      "enable": {
+        "name": "启用 OpenCode",
+        "desc": "以提供方形式启动 `opencode acp`。"
+      },
+      "cliPath": {
+        "name": "CLI 路径（{host}）",
+        "desc": "此电脑上的 OpenCode CLI 绝对路径。留空则使用 PATH 中的 `opencode`。"
+      },
+      "visibleModels": {
+        "name": "可见模型",
+        "desc": "选择聊天模型列表中显示哪些 OpenCode 模型。可按提供方或类型筛选搜索。当前会话模型即使未选中也会固定显示。"
+      },
+      "browseModels": "浏览模型",
+      "filterPlaceholder": "按模型、提供方或 ID 筛选…",
+      "noModels": "尚未发现模型",
+      "selected": "已选择（{count}）",
+      "clearAll": "清除全部",
+      "commandsSkills": {
+        "name": "命令与技能",
+        "desc": "OpenCode 可自动检测 Vault 级 Claude 斜杠命令（.claude/commands/）以及 .claude/skills/、.codex/skills/、.agents/skills/ 中的技能。请在 Claude 或 Codex 设置页管理这些条目；此处只控制它们是否在 OpenCode 下拉菜单中隐藏。"
+      },
+      "hiddenCommands": {
+        "name": "隐藏命令与技能",
+        "desc": "从下拉菜单隐藏指定 OpenCode 命令和技能。每行输入一个名称，不带前导斜杠。"
+      },
+      "subagents": {
+        "name": "子代理",
+        "desc": "管理 .opencode/agent/ 和旧版 .opencode/agents/ 中的 Vault 级 OpenCode 子代理。新条目会保存为仅子代理文件，并显示在 @ 提及菜单中。"
+      },
+      "environment": {
+        "name": "OpenCode 环境",
+        "desc": "仅限 OpenCode 运行时变量。默认启用 OPENCODE_ENABLE_EXA=1。共享 PATH 变更应写入共享环境设置。"
+      },
+      "subagentsExtra": {
+        "empty": "Vault 中暂无 OpenCode 子代理。点击 + 创建一个。"
+      }
+    },
+    "gemini": {
+      "enable": {
+        "name": "启用 Gemini 提供方",
+        "desc": "以提供方形式启动 `gemini --acp`。新对话的模型选择器会显示 Gemini 模型。"
+      },
+      "cliPath": {
+        "name": "Gemini CLI 路径（{host}）",
+        "desc": "此电脑上的 Gemini CLI 绝对路径。留空则使用 PATH 中的 `gemini`。"
+      },
+      "approvalMode": {
+        "name": "审批模式",
+        "desc": "Gemini CLI 启动 ACP 会话时使用的权限模式。工具栏 Safe/YOLO/Plan 开关也会同步此值。",
+        "default": "默认",
+        "autoEdit": "自动批准编辑",
+        "plan": "计划模式"
+      },
+      "visibleModels": {
+        "name": "可见模型",
+        "desc": "选择聊天模型列表中显示哪些 Gemini 模型。Gemini 启动一次后，iClaudian 会从 ACP 模型目录填充此列表。"
+      },
+      "customVisibleModels": {
+        "name": "模型 ID",
+        "desc": "每行一个 Gemini 模型 ID。留空则使用 Gemini CLI 发现的全部模型。"
+      },
+      "discovered": "已从 ACP 运行时发现 {count} 个 Gemini 模型。",
+      "notDiscovered": "尚未发现 Gemini 模型。启动 Gemini 一次即可加载模型目录。",
+      "commandsSkills": {
+        "name": "命令与技能",
+        "desc": "Gemini CLI 会暴露 memory、init、restore、扩展管理等运行时斜杠命令。Gemini 技能和 MCP 服务器由 Gemini CLI 自身管理。"
+      },
+      "hiddenCommands": {
+        "name": "隐藏命令",
+        "desc": "从下拉菜单隐藏指定 Gemini 运行时命令。每行输入一个名称，不带前导斜杠。"
+      },
+      "mcp": {
+        "desc": "Gemini 通过自己的 CLI 管理 MCP 服务器。使用 gemini mcp 配置后即可在 iClaudian ACP 会话中使用。"
+      },
+      "environment": {
+        "name": "Gemini 环境",
+        "desc": "仅限 Gemini 运行时变量。用于 GEMINI_*、GOOGLE_* 和 Vertex AI 设置。共享 PATH 变更应写入共享环境设置。"
+      }
     }
   }
 }

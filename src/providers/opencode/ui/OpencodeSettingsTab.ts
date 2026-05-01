@@ -3,6 +3,7 @@ import { Setting } from 'obsidian';
 
 import type { ProviderSettingsTabRenderer } from '../../../core/providers/types';
 import { renderEnvironmentSettingsSection } from '../../../features/settings/ui/EnvironmentSettingsSection';
+import { t } from '../../../i18n/i18n';
 import { getHostnameKey } from '../../../utils/env';
 import { expandHomePath } from '../../../utils/path';
 import { maybeGetOpencodeWorkspaceServices } from '../app/OpencodeWorkspaceServices';
@@ -22,6 +23,7 @@ import {
 import { OpencodeAgentSettings } from './OpencodeAgentSettings';
 
 const ALL_PROVIDERS_KEY = 'all';
+const tt = (key: string, fallback?: string): string => { const value = t(key as any); return value === key ? (fallback ?? key) : value; };
 
 interface EnrichedModel {
   description: string;
@@ -39,11 +41,11 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     const opencodeSettings = getOpencodeProviderSettings(settingsBag);
     const hostnameKey = getHostnameKey();
 
-    new Setting(container).setName('Setup').setHeading();
+    new Setting(container).setName(tt('settings.setup', 'Setup')).setHeading();
 
     new Setting(container)
-      .setName('Enable OpenCode')
-      .setDesc('Launch `opencode acp` as a provider.')
+      .setName(tt('settings.opencode.enable.name', 'Enable OpenCode'))
+      .setDesc(tt('settings.opencode.enable.desc', 'Launch `opencode acp` as a provider.'))
       .addToggle((toggle) =>
         toggle
           .setValue(opencodeSettings.enabled)
@@ -55,8 +57,8 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       );
 
     const cliPathSetting = new Setting(container)
-      .setName(`CLI Path (${hostnameKey})`)
-      .setDesc('Optional absolute path to the OpenCode CLI for this computer. Leave empty to use `opencode` from PATH.');
+      .setName(tt('settings.opencode.cliPath.name').replace('{host}', hostnameKey))
+      .setDesc(tt('settings.opencode.cliPath.desc'));
 
     const validationEl = container.createDiv({ cls: 'claudian-cli-path-validation' });
     validationEl.style.color = 'var(--text-error)';
@@ -73,12 +75,12 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
       const expandedPath = expandHomePath(trimmed);
       if (!fs.existsSync(expandedPath)) {
-        return 'Path does not exist';
+        return tt('settings.cliPath.validation.notExist');
       }
 
       const stat = fs.statSync(expandedPath);
       if (!stat.isFile()) {
-        return 'Path must point to a file';
+        return tt('settings.cliPath.validation.isDirectory');
       }
 
       return null;
@@ -159,11 +161,11 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       updateCliPathValidation(currentValue, text.inputEl);
     });
 
-    new Setting(container).setName('Models').setHeading();
+    new Setting(container).setName(tt('settings.models', 'Models')).setHeading();
 
     new Setting(container)
-      .setName('Visible Models')
-      .setDesc('Choose which OpenCode models appear in the chat selector. Filter by provider or type to search. The current session model stays pinned even if it is not selected here.');
+      .setName(tt('settings.opencode.visibleModels.name', 'Visible Models'))
+      .setDesc(tt('settings.opencode.visibleModels.desc'));
 
     const pickerEl = container.createDiv({ cls: 'claudian-opencode-model-picker' });
 
@@ -183,7 +185,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
     });
     catalogSummaryEl.createSpan({
       cls: 'claudian-opencode-model-picker-catalog-title',
-      text: 'Browse models',
+      text: tt('settings.opencode.browseModels', 'Browse models'),
     });
     const catalogSummaryCountEl = catalogSummaryEl.createSpan({
       cls: 'claudian-opencode-model-picker-catalog-count',
@@ -195,7 +197,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       cls: 'claudian-opencode-model-picker-search',
       type: 'search',
     });
-    searchInput.placeholder = 'Filter by model, provider, or id…';
+    searchInput.placeholder = tt('settings.opencode.filterPlaceholder');
     searchInput.addEventListener('input', () => {
       searchQuery = searchInput.value.trim().toLowerCase();
       renderList();
@@ -277,7 +279,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       catalogSummaryCountEl.setText(
         current.discoveredModels.length > 0
           ? `${current.discoveredModels.length} available`
-          : 'No models discovered yet',
+          : tt('settings.opencode.noModels'),
       );
     };
 
@@ -297,13 +299,13 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       const headerEl = selectedEl.createDiv({ cls: 'claudian-opencode-model-picker-selected-header' });
       headerEl.createEl('span', {
         cls: 'claudian-opencode-model-picker-selected-label',
-        text: `Selected (${current.visibleModels.length})`,
+        text: tt('settings.opencode.selected').replace('{count}', String(current.visibleModels.length)),
       });
       const clearAllBtn = headerEl.createEl('button', {
         cls: 'claudian-opencode-model-picker-selected-clear',
-        text: 'Clear all',
+        text: tt('settings.opencode.clearAll'),
       });
-      clearAllBtn.setAttribute('aria-label', 'Clear all selected models');
+      clearAllBtn.setAttribute('aria-label', tt('settings.opencode.clearAll'));
       clearAllBtn.addEventListener('click', () => {
         void persistVisibleModels([]);
       });
@@ -342,7 +344,7 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
         if (enriched && !enriched.isAvailable) {
           infoEl.createEl('div', {
             cls: 'claudian-opencode-model-picker-selected-unavailable',
-            text: 'Not currently reported by OpenCode',
+            text: tt('settings.opencode.notDiscovered'),
           });
         }
 
@@ -445,8 +447,8 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       if (filtered.length === 0) {
         const emptyEl = listEl.createDiv({ cls: 'claudian-opencode-model-picker-empty' });
         emptyEl.setText(enriched.length === 0
-          ? 'Start OpenCode once to load its model catalog. Claudian will then let you pick visible models.'
-          : 'No models match your filter.');
+          ? tt('settings.opencode.noModels')
+          : tt('settings.opencode.noModels'));
         return;
       }
 
@@ -509,27 +511,27 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     renderAll();
 
-    new Setting(container).setName('Commands and Skills').setHeading();
+    new Setting(container).setName(tt('settings.opencode.commandsSkills.name', 'Commands and Skills')).setHeading();
 
     const commandsDesc = container.createDiv({ cls: 'claudian-sp-settings-desc' });
     commandsDesc.createEl('p', {
       cls: 'setting-item-description',
-      text: 'OpenCode can auto-detect vault-level Claude slash commands from .claude/commands/ and skills from .claude/skills/, .codex/skills/, and .agents/skills/. Manage those entries in the Claude or Codex settings tab. This setting only hides entries from the OpenCode dropdown.',
+      text: tt('settings.opencode.commandsSkills.desc'),
     });
 
     context.renderHiddenProviderCommandSetting(container, 'opencode', {
-      name: 'Hidden Commands and Skills',
-      desc: 'Hide specific OpenCode commands and skills from the dropdown. Enter names without the leading slash, one per line.',
+      name: tt('settings.opencode.hiddenCommands.name'),
+      desc: tt('settings.opencode.hiddenCommands.desc'),
       placeholder: 'compact\nreview\nfix',
     });
 
     if (opencodeWorkspace?.agentStorage) {
-      new Setting(container).setName('Subagents').setHeading();
+      new Setting(container).setName(tt('settings.opencode.subagents.name', 'Subagents')).setHeading();
 
       const subagentsDesc = container.createDiv({ cls: 'claudian-sp-settings-desc' });
       subagentsDesc.createEl('p', {
         cls: 'setting-item-description',
-        text: 'Manage vault-level OpenCode subagents from .opencode/agent/ and legacy .opencode/agents/. New entries are saved as subagent-only files and appear in the @mention menu.',
+        text: tt('settings.opencode.subagents.desc'),
       });
 
       const subagentsContainer = container.createDiv({ cls: 'claudian-slash-commands-container' });
@@ -548,9 +550,9 @@ export const opencodeSettingsTabRenderer: ProviderSettingsTabRenderer = {
       container,
       plugin: context.plugin,
       scope: 'provider:opencode',
-      heading: 'Environment',
-      name: 'Environment Variables',
-      desc: 'Extra environment variables passed to OpenCode. `OPENCODE_ENABLE_EXA=1` is enabled by default.',
+      heading: tt('settings.environment', 'Environment'),
+      name: tt('settings.opencode.environment.name', 'OpenCode environment'),
+      desc: tt('settings.opencode.environment.desc', `Extra environment variables passed to OpenCode. ${OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES} is enabled by default.`),
       placeholder: `${OPENCODE_DEFAULT_ENVIRONMENT_VARIABLES}\nOPENCODE_DB=/path/to/opencode.db`,
       renderCustomContextLimits: (target) => context.renderCustomContextLimits(target, 'opencode'),
     });

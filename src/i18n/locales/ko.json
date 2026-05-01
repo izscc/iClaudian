@@ -65,11 +65,13 @@
     }
   },
   "settings": {
-    "title": "Claudian 설정",
+    "title": "iClaudian Settings",
     "tabs": {
       "general": "일반",
       "claude": "Claude",
-      "codex": "Codex"
+      "codex": "Codex",
+      "opencode": "OpenCode",
+      "gemini": "Gemini"
     },
     "display": "표시",
     "conversations": "대화",
@@ -296,6 +298,132 @@
     "language": {
       "name": "언어",
       "desc": "플러그인 인터페이스의 표시 언어 변경"
+    },
+    "codex": {
+      "enable": {
+        "name": "Enable Codex provider",
+        "desc": "When enabled, Codex models appear in the model selector for new conversations. Existing Codex sessions are preserved."
+      },
+      "installationMethod": {
+        "name": "Installation method",
+        "desc": "How iClaudian should launch Codex on Windows. Native Windows uses a Windows executable path. WSL launches the Linux CLI inside a selected distro."
+      },
+      "cliPath": {
+        "desc": "Custom path to the local Codex CLI. Leave empty for auto-detection from PATH."
+      },
+      "reasoningSummary": {
+        "name": "Reasoning summary",
+        "desc": "Show a summary of the model's reasoning process in the thinking block."
+      },
+      "skills": {
+        "name": "Codex Skills",
+        "desc": "Manage vault-level Codex skills stored in .codex/skills/ or .agents/skills/. Home-level skills are excluded here."
+      },
+      "hiddenSkills": {
+        "name": "Hidden Skills",
+        "desc": "Hide specific Codex skills from the dropdown. Enter skill names without the leading $, one per line."
+      },
+      "subagents": {
+        "name": "Codex Subagents",
+        "desc": "Manage vault-level Codex subagents stored in .codex/agents/. Each TOML file defines one custom agent."
+      },
+      "mcp": {
+        "desc": "Codex manages MCP servers via its own CLI. Configure with codex mcp and they will be available in iClaudian."
+      },
+      "environment": {
+        "name": "Codex environment",
+        "desc": "Codex-owned runtime variables only. Use this for OPENAI_* and CODEX_* settings. If Codex auto-detection needs help, add its install directory to shared PATH instead of this provider section."
+      },
+      "customModels": {
+        "name": "Custom models",
+        "desc": "Append additional Codex model IDs to the picker, one per line. OPENAI_MODEL still takes precedence when set."
+      },
+      "skillsExtra": {
+        "empty": "No Codex skills in vault. Click + to create one."
+      },
+      "subagentsExtra": {
+        "empty": "No Codex subagents in vault. Click + to create one."
+      }
+    },
+    "opencode": {
+      "enable": {
+        "name": "Enable OpenCode",
+        "desc": "Launch `opencode acp` as a provider."
+      },
+      "cliPath": {
+        "name": "CLI Path ({host})",
+        "desc": "Optional absolute path to the OpenCode CLI for this computer. Leave empty to use `opencode` from PATH."
+      },
+      "visibleModels": {
+        "name": "Visible Models",
+        "desc": "Choose which OpenCode models appear in the chat selector. Filter by provider or type to search. The current session model stays pinned even if it is not selected here."
+      },
+      "browseModels": "Browse models",
+      "filterPlaceholder": "Filter by model, provider, or id…",
+      "noModels": "No models discovered yet",
+      "selected": "Selected ({count})",
+      "clearAll": "Clear all",
+      "commandsSkills": {
+        "name": "Commands and Skills",
+        "desc": "OpenCode can auto-detect vault-level Claude slash commands from .claude/commands/ and skills from .claude/skills/, .codex/skills/, and .agents/skills/. Manage those entries in the Claude or Codex settings tab. This setting only hides entries from the OpenCode dropdown."
+      },
+      "hiddenCommands": {
+        "name": "Hidden Commands and Skills",
+        "desc": "Hide specific OpenCode commands and skills from the dropdown. Enter names without the leading slash, one per line."
+      },
+      "subagents": {
+        "name": "Subagents",
+        "desc": "Manage vault-level OpenCode subagents from .opencode/agent/ and legacy .opencode/agents/. New entries are saved as subagent-only files and appear in the @mention menu."
+      },
+      "environment": {
+        "name": "OpenCode environment",
+        "desc": "OpenCode-owned runtime variables only. OPENCODE_ENABLE_EXA=1 is enabled by default. Shared PATH changes should go in the shared environment section."
+      },
+      "subagentsExtra": {
+        "empty": "No OpenCode subagents in vault. Click + to create one."
+      }
+    },
+    "gemini": {
+      "enable": {
+        "name": "Enable Gemini provider",
+        "desc": "Launch `gemini --acp` as a provider. Gemini models will appear in the model selector for new conversations."
+      },
+      "cliPath": {
+        "name": "Gemini CLI path ({host})",
+        "desc": "Optional absolute path to the Gemini CLI for this computer. Leave empty to use `gemini` from PATH."
+      },
+      "approvalMode": {
+        "name": "Approval mode",
+        "desc": "Permission mode used by Gemini CLI when starting ACP sessions. The toolbar Safe/YOLO/Plan toggle also syncs this value.",
+        "default": "Default",
+        "autoEdit": "Auto Edit",
+        "plan": "Plan"
+      },
+      "visibleModels": {
+        "name": "Visible Models",
+        "desc": "Choose which Gemini models appear in the chat selector. After Gemini starts once, iClaudian can seed this list from the ACP model catalog."
+      },
+      "customVisibleModels": {
+        "name": "Model IDs",
+        "desc": "One Gemini model ID per line. Leave empty to use all models discovered from Gemini CLI."
+      },
+      "discovered": "Discovered {count} Gemini models from the ACP runtime.",
+      "notDiscovered": "No Gemini models discovered yet. Start Gemini once to load its model catalog.",
+      "commandsSkills": {
+        "name": "Commands and Skills",
+        "desc": "Gemini CLI exposes runtime slash commands such as memory, init, restore, and extension management. Gemini skills and MCP servers are managed by the Gemini CLI."
+      },
+      "hiddenCommands": {
+        "name": "Hidden Commands",
+        "desc": "Hide specific Gemini runtime commands from the dropdown. Enter names without the leading slash, one per line."
+      },
+      "mcp": {
+        "desc": "Gemini manages MCP servers via its own CLI. Configure with gemini mcp and they will be available in iClaudian ACP sessions."
+      },
+      "environment": {
+        "name": "Gemini environment",
+        "desc": "Gemini-owned runtime variables only. Use this for GEMINI_*, GOOGLE_* and Vertex AI settings. Shared PATH changes should go in the shared environment section."
+      }
     }
   }
 }

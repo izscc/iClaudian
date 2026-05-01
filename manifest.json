@@ -1,10 +1,10 @@
 {
-  "id": "claudian",
-  "name": "Claudian",
+  "id": "iclaudian",
+  "name": "iClaudian",
   "version": "2.0.10",
   "minAppVersion": "1.4.5",
-  "description": "Embeds Claude Code as an AI collaborator in your vault. Your vault becomes Claude's working directory, giving it full agentic capabilities: file read/write, search, bash commands, and multi-step workflows.",
-  "author": "Yishen Tu",
-  "authorUrl": "https://github.com/YishenTu",
+  "description": "Embeds Claude Code, Codex, OpenCode, and Gemini CLI as AI collaborators in your vault. Your vault becomes the working directory for agentic file read/write, search, shell commands, and multi-step workflows.",
+  "author": "izscc",
+  "authorUrl": "https://github.com/izscc",
   "isDesktopOnly": true
 }

@@ -1,6 +1,8 @@
 import type { App } from 'obsidian';
 import { Modal, Notice, setIcon, Setting } from 'obsidian';
 
+import { t } from '../../../i18n/i18n';
+
 import { confirmDelete } from '../../../shared/modals/ConfirmModal';
 import type { CodexSubagentStorage } from '../storage/CodexSubagentStorage';
 import { DEFAULT_CODEX_PRIMARY_MODEL } from '../types/models';
@@ -294,27 +296,27 @@ export class CodexSubagentSettings {
     }
 
     const headerEl = this.containerEl.createDiv({ cls: 'claudian-sp-header' });
-    headerEl.createSpan({ text: 'Codex Subagents', cls: 'claudian-sp-label' });
+    headerEl.createSpan({ text: t('settings.codex.subagents.name' as any), cls: 'claudian-sp-label' });
 
     const actionsEl = headerEl.createDiv({ cls: 'claudian-sp-header-actions' });
 
     const refreshBtn = actionsEl.createEl('button', {
       cls: 'claudian-settings-action-btn',
-      attr: { 'aria-label': 'Refresh' },
+      attr: { 'aria-label': t('common.refresh' as any) },
     });
     setIcon(refreshBtn, 'refresh-cw');
     refreshBtn.addEventListener('click', () => { void this.render(); });
 
     const addBtn = actionsEl.createEl('button', {
       cls: 'claudian-settings-action-btn',
-      attr: { 'aria-label': 'Add' },
+      attr: { 'aria-label': t('common.add' as any) },
     });
     setIcon(addBtn, 'plus');
     addBtn.addEventListener('click', () => this.openModal(null));
 
     if (this.agents.length === 0) {
       const emptyEl = this.containerEl.createDiv({ cls: 'claudian-sp-empty-state' });
-      emptyEl.setText('No Codex subagents in vault. Click + to create one.');
+      emptyEl.setText(t('settings.codex.subagentsExtra.empty' as any));
       return;
     }
 
