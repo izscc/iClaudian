@@ -4,186 +4,212 @@
 ![GitHub release](https://img.shields.io/github/v/release/YishenTu/claudian)
 ![License](https://img.shields.io/github/license/YishenTu/claudian)
 
-![Preview](Preview.png)
+![预览](Preview.png)
 
-An Obsidian plugin that embeds AI coding agents (Claude Code, Codex, OpenCode, Gemini CLI, and GitHub Copilot CLI) in your vault. Your vault becomes the agent's working directory — file read/write, search, bash, and multi-step workflows all work out of the box.
+**iClaudian** 是一个 Obsidian 桌面端插件，把常用 AI 编程代理直接嵌入到你的 Vault 侧边栏和行内编辑流程中。当前支持 Claude Code、Codex CLI、OpenCode、Gemini CLI，以及 GitHub Copilot CLI（ACP）。你的 Vault 会作为代理工作目录，代理可以在授权范围内读取、搜索、编辑文件并执行多步骤任务。
 
-## Features & Usage
+## 核心功能
 
-Open the chat sidebar from the ribbon icon or command palette. Select text and use the hotkey for inline edit. Everything works like your familiar coding agent, Claude Code, Codex and Opencode — talk to the agent, and it reads, writes, edits, and searches files in your vault.
+- **多提供方聊天**：在同一个聊天体验中切换 Claude、Codex、OpenCode、Gemini、Copilot 等运行时。
+- **行内编辑**：选中文本或在光标位置触发快捷键，使用代理直接改写笔记，并显示词级 diff 预览。
+- **对话与多标签**：支持多个聊天标签、历史会话、恢复、分叉、压缩上下文等工作流。
+- **计划模式**：通过 `Shift+Tab` 切换 Plan 模式，让代理先探索和设计，再执行实现。
+- **指令模式（`#`）**：在输入框中使用 `#` 精炼/追加本轮自定义指令。
+- **命令与 Skills**：输入 `/` 或 `$` 调用 Vault 级、用户级命令与 Skills。
+- **`@mention` 上下文**：可提及 Vault 文件、外部文件、子代理、MCP 服务器等上下文。
+- **MCP 工具**：支持 Model Context Protocol。Claude 可在插件内管理 Vault MCP；Codex、Gemini、Copilot、OpenCode 使用各自 CLI 的 MCP/工具配置。
+- **模型与推理配置**：提供方设置页可配置模型列表、上下文窗口、推理强度或权限模式。
+- **本地优先存储**：会话元数据、提供方配置、命令、Skills 均保存在本地 Vault 或 CLI 原生目录中。
 
-**Inline Edit** — Select text or start at the cursor position + hotkey to edit directly in notes with word-level diff preview.
+## 已支持提供方
 
-**Slash Commands & Skills** — Type `/` or `$` for reusable prompt templates or Skills from user- and vault-level scopes.
+| 提供方 | 启动方式 | 当前能力概览 |
+|---|---|---|
+| Claude Code | Claude Agent SDK / Claude Code CLI | 最完整：流式对话、取消、恢复、历史、分叉、rewind、Plan、图片、行内编辑、`#`、`/`、`$`、子代理、MCP、插件等 |
+| Codex CLI | `codex app-server` | 发送、流式、取消、恢复、历史重载、分叉、Plan、图片、行内编辑、`#`、`$` Skills、子代理；部分运行时命令、MCP 管理、Claude 插件能力不适用 |
+| OpenCode | OpenCode CLI | ACP/运行时模型发现、模型筛选、模式选择、命令下拉、行内编辑和标题生成等基础代理能力 |
+| Gemini CLI | `gemini --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、运行时命令、MCP 由 Gemini CLI 管理 |
+| GitHub Copilot CLI | `copilot --acp` | ACP 会话、模型选择、Plan/YOLO 权限模式、运行时命令；插件、MCP、BYOK 等由 Copilot CLI 管理 |
 
-**`@mention`** - Type `@` to mention anything you want the agent to work with, vault files, subagents, MCP servers, or files in external directories.
+## GitHub Copilot CLI 模型 ID
 
-**Plan Mode** — Toggle via `Shift+Tab`. The agent explores and designs before implementing, then presents a plan for approval.
+已根据本机 `copilot help config` 的模型清单确认，Copilot CLI 当前可用的真实模型 ID 包括：
 
-**Instruction Mode (`#`)** — Refined custom instructions added from the chat input.
+```text
+claude-sonnet-4.6
+claude-sonnet-4.5
+claude-haiku-4.5
+claude-opus-4.7
+claude-opus-4.6
+claude-opus-4.6-fast
+claude-opus-4.5
+claude-sonnet-4
+gpt-5.5
+gpt-5.4
+gpt-5.3-codex
+gpt-5.2-codex
+gpt-5.2
+gpt-5.1
+gpt-5.4-mini
+gpt-5-mini
+gpt-4.1
+```
 
-**MCP Servers** — Connect external tools via Model Context Protocol (stdio, SSE, HTTP). Claude manages vault MCP in-app; Codex uses its own CLI-managed MCP configuration.
+iClaudian 的 Copilot 设置页默认展示以下常用模型：
 
-**Multi-Tab & Conversations** — Multiple chat tabs, conversation history, fork, resume, and compact.
+```text
+gpt-5.5
+gpt-5.4-mini
+gpt-5-mini
+gpt-4.1
+claude-opus-4.7
+claude-sonnet-4.6
+claude-haiku-4.5
+```
 
-## Requirements
+如需使用其他 Copilot CLI 模型，可在 **Settings → iClaudian → Copilot → Model IDs** 中每行填写一个模型 ID。
 
-- **Claude provider**: [Claude Code CLI](https://code.claude.com/docs/en/overview) installed (native install recommended). Claude subscription/API or compatible provider ([Openrouter](https://openrouter.ai/docs/guides/guides/claude-code-integration), [Kimi](https://platform.moonshot.ai/docs/guide/agent-support), etc.).
-- **Optional providers**: [Codex CLI](https://github.com/openai/codex), [Opencode](https://opencode.ai/), [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli).
+## 安装要求
+
 - Obsidian v1.4.5+
-- Desktop only (macOS, Linux, Windows)
+- 桌面端系统：macOS、Linux、Windows
+- 至少安装一个你要使用的 CLI：
+  - Claude provider：安装 [Claude Code CLI](https://code.claude.com/docs/en/overview)
+  - Codex provider：安装 [Codex CLI](https://github.com/openai/codex)
+  - OpenCode provider：安装 [OpenCode](https://opencode.ai/)
+  - Gemini provider：安装 Gemini CLI，并支持 `gemini --acp`
+  - Copilot provider：安装 [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli)，并完成 `copilot login`
 
-## Installation
+## 安装方式
 
-### From GitHub Release (recommended)
+### 从 GitHub Release 安装（推荐）
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/YishenTu/claudian/releases/latest)
-2. Create a folder called `claudian` in your vault's plugins folder:
-   ```
+1. 从 [latest release](https://github.com/YishenTu/claudian/releases/latest) 下载 `main.js`、`manifest.json`、`styles.css`。
+2. 在你的 Vault 中创建插件目录：
+
+   ```text
    /path/to/vault/.obsidian/plugins/claudian/
    ```
-3. Copy the downloaded files into the `claudian` folder
-4. Enable the plugin in Obsidian:
-   - Settings → Community plugins → Enable "iClaudian"
 
-### Using BRAT
+3. 把下载的三个文件复制到该目录。
+4. 在 Obsidian 中启用：Settings → Community plugins → Enable **iClaudian**。
 
-[BRAT](https://github.com/TfTHacker/obsidian42-brat) (Beta Reviewers Auto-update Tester) allows you to install and automatically update plugins directly from GitHub.
+### 使用 BRAT 安装
 
-1. Install the BRAT plugin from Obsidian Community Plugins
-2. Enable BRAT in Settings → Community plugins
-3. Open BRAT settings and click "Add Beta plugin"
-4. Enter the repository URL: `https://github.com/YishenTu/claudian`
-5. Click "Add Plugin" and BRAT will install iClaudian automatically
-6. Enable iClaudian in Settings → Community plugins
+1. 安装并启用 [BRAT](https://github.com/TfTHacker/obsidian42-brat)。
+2. 在 BRAT 设置中点击 “Add Beta plugin”。
+3. 填入仓库地址：`https://github.com/YishenTu/claudian`。
+4. 添加完成后，在社区插件中启用 **iClaudian**。
 
-> **Tip**: BRAT will automatically check for updates and notify you when a new version is available.
-
-### From source (development)
-
-1. Clone this repository into your vault's plugins folder:
-   ```bash
-   cd /path/to/vault/.obsidian/plugins
-   git clone https://github.com/YishenTu/claudian.git
-   cd claudian
-   ```
-
-2. Install dependencies and build:
-   ```bash
-   npm install
-   npm run build
-   ```
-
-3. Enable the plugin in Obsidian:
-   - Settings → Community plugins → Enable "iClaudian"
-
-### Development
+### 从源码开发
 
 ```bash
-# Watch mode
-npm run dev
-
-# Production build
+cd /path/to/vault/.obsidian/plugins
+git clone https://github.com/YishenTu/claudian.git
+cd claudian
+npm install
 npm run build
 ```
 
-> **Tip**: Copy `.env.local.example` to `.env.local` or `npm install` and setup your vault path to auto-copy files during development.
+开发模式：
 
-## Privacy & Data Use
-
-- **Sent to API**: Your input, attached files, images, and tool call outputs. Default: Anthropic (Claude) or OpenAI (Codex); configurable via environment variables.
-- **Local storage**: iClaudian settings and session metadata in `vault/.claudian/`; Claude provider files in `vault/.claude/`; transcripts in `~/.claude/projects/` (Claude) and `~/.codex/sessions/` (Codex).
-- **No telemetry**: No tracking beyond your configured API provider.
-
-## Troubleshooting
-
-### Claude CLI not found
-
-If you encounter `spawn claude ENOENT` or `Claude CLI not found`, the plugin can't auto-detect your Claude installation. Common with Node version managers (nvm, fnm, volta).
-
-**Solution**: Leave the setting empty first so iClaudian can auto-detect Claude Code. If auto-detection fails, find your CLI path and set it in Settings → Advanced → Claude CLI path.
-
-| Platform | Command | Example Path |
-|----------|---------|--------------|
-| macOS/Linux | `which claude` | `/Users/you/.volta/bin/claude` |
-| Windows (native) | `where.exe claude` | `C:\Users\you\AppData\Local\Claude\claude.exe` |
-| Windows (npm) | `npm root -g` | `{root}\@anthropic-ai\claude-code\cli-wrapper.cjs` |
-
-> **Note**: On Windows, avoid `.cmd` and `.ps1` wrappers. Use `claude.exe` for native installs, or `cli-wrapper.cjs` for package-manager installs. `cli.js` is only a legacy fallback for older Claude Code npm packages.
-
-**Alternative**: Add your Node.js bin directory to PATH in Settings → Environment → Custom variables.
-
-### npm CLI and Node.js not in same directory
-
-If using npm-installed CLI, check if `claude` and `node` are in the same directory:
 ```bash
-dirname $(which claude)
-dirname $(which node)
+npm run dev
 ```
 
-If different, GUI apps like Obsidian may not find Node.js.
+## 常用配置
 
-**Solutions**:
-1. Install native binary (recommended)
-2. Add Node.js path to Settings → Environment: `PATH=/path/to/node/bin`
+### CLI 路径
 
-### Other providers
+如果 Obsidian 无法从 GUI 环境的 PATH 中找到 CLI，可在对应提供方设置页填写绝对路径：
 
-Codex and Opencode support are live but features might be incomplete, and still need more testing across platforms and installation methods. If you have feature request or run into any bugs, please [submit a GitHub issue](https://github.com/YishenTu/claudian/issues).
+| 提供方 | macOS/Linux 示例 | Windows 示例 |
+|---|---|---|
+| Claude | `/Users/you/.volta/bin/claude` | `C:\Users\you\AppData\Local\Claude\claude.exe` |
+| Codex | `/Users/you/bin/codex` | `C:\Users\you\AppData\Roaming\npm\codex.cmd` |
+| Gemini | `/usr/local/bin/gemini` | `C:\Users\you\AppData\Roaming\npm\gemini.cmd` |
+| Copilot | `/Users/you/.local/bin/copilot` | `C:\Users\you\AppData\Local\GitHubCopilot\copilot.exe` |
+| OpenCode | `/usr/local/bin/opencode` | `C:\Users\you\AppData\Roaming\npm\opencode.cmd` |
 
-## Architecture
+> Windows 使用 Claude 时，优先使用 `claude.exe` 或 npm 包中的 `cli-wrapper.cjs`，不要使用 `.cmd` / `.ps1` 包装脚本。
 
+### Copilot CLI 权限模式
+
+Copilot provider 通过 ACP 启动：
+
+- 默认：`copilot --acp --model <model>`
+- YOLO：追加 `--allow-all`
+- Plan：追加 `--plan`
+- Auto Edit：追加 `--allow-tool write`
+
+Copilot 的 MCP、插件、BYOK provider、登录状态等仍由 GitHub Copilot CLI 自身管理。
+
+## 隐私与数据
+
+- **会发送给模型提供方的数据**：你的输入、被引用/附加的文件、图片、工具调用结果，以及代理执行上下文。
+- **本地存储**：
+  - iClaudian 设置与会话元数据：`vault/.claudian/`
+  - Claude Vault 配置：`vault/.claude/`
+  - Codex Vault Skills/Agents：`vault/.codex/`、`vault/.agents/`
+  - Claude 原生日志：`~/.claude/projects/`
+  - Codex 原生日志：`~/.codex/sessions/`
+  - Copilot 原生配置：`~/.copilot/`
+- **无遥测**：插件本身不做额外追踪；实际请求由你配置的 CLI/provider 决定。
+
+## 开发命令
+
+```bash
+npm run dev
+npm run build
+npm run typecheck
+npm run lint
+npm run lint:fix
+npm run test
+npm run test:watch
+npm run test:coverage
 ```
+
+## 目录结构
+
+```text
 src/
-├── main.ts                      # Plugin entry point
-├── app/                         # Shared defaults and plugin-level storage
-├── core/                        # Provider-neutral runtime, registry, and type contracts
-│   ├── runtime/                 # ChatRuntime interface and approval types
-│   ├── providers/               # Provider registry and workspace services
-│   ├── auxiliary/               # Shared provider auxiliary services
-│   ├── bootstrap/               # Plugin bootstrap wiring
-│   ├── security/                # Approval utilities
-│   └── ...                      # commands, mcp, prompt, storage, tools, types
+├── main.ts                      # 插件入口
+├── app/                         # 默认设置与插件级存储
+├── core/                        # 提供方无关的 runtime、registry、类型契约
 ├── providers/
-│   ├── claude/                  # Claude SDK adaptor, prompt encoding, storage, MCP, plugins
-│   ├── codex/                   # Codex app-server adaptor, JSON-RPC transport, JSONL history
-│   ├── opencode/                # Opencode adaptor
-│   └── acp/                     # Agent Client Protocol shared transport
+│   ├── claude/                  # Claude SDK 适配、历史、MCP、插件、设置页
+│   ├── codex/                   # Codex app-server、JSON-RPC、JSONL 历史、Skills、子代理
+│   ├── opencode/                # OpenCode 适配、模型发现、模式管理
+│   ├── gemini/                  # Gemini ACP 适配
+│   ├── copilot/                 # GitHub Copilot CLI ACP 适配
+│   └── acp/                     # ACP 共享客户端、传输、事件归一化
 ├── features/
-│   ├── chat/                    # Sidebar chat: tabs, controllers, renderers
-│   ├── inline-edit/             # Inline edit modal and provider-backed edit services
-│   └── settings/                # Settings shell with provider tabs
-├── shared/                      # Reusable UI components and modals
-├── i18n/                        # Internationalization (10 locales)
-├── types/                       # Shared ambient types
-├── utils/                       # Cross-cutting utilities
-└── style/                       # Modular CSS
+│   ├── chat/                    # 侧边栏聊天、多标签、渲染器
+│   ├── inline-edit/             # 行内编辑 Modal 与服务
+│   └── settings/                # 设置页框架与通用设置区块
+├── shared/                      # 通用 UI 组件
+├── i18n/                        # 多语言翻译
+├── utils/                       # 路径、环境变量、Markdown、图片、会话等工具
+└── style/                       # 模块化 CSS
 ```
 
-## Roadmap
+## 路线图
 
-- [x] 1M Opus and Sonnet models
-- [x] Codex provider integration
-- [x] Opencode support
-- [ ] More to come!
+- [x] Claude Opus/Sonnet 1M 上下文模型
+- [x] Codex provider 集成
+- [x] OpenCode provider 集成
+- [x] Gemini CLI ACP provider 集成
+- [x] GitHub Copilot CLI ACP provider 集成
+- [ ] 持续补齐各 provider 的原生命令、MCP、历史和跨平台安装体验
 
 ## License
 
-Licensed under the [MIT License](LICENSE).
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=YishenTu%2Fclaudian&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=YishenTu/claudian&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=YishenTu/claudian&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=YishenTu/claudian&type=date&legend=top-left" />
- </picture>
-</a>
+基于 [MIT License](LICENSE) 发布。
 
 ## Acknowledgments
 
-- [Obsidian](https://obsidian.md) for the plugin API
-- [Anthropic](https://anthropic.com) for Claude and the [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview)
-- [OpenAI](https://openai.com) for [Codex](https://github.com/openai/codex)
-- [Opencode](https://opencode.ai/) 
+- [Obsidian](https://obsidian.md)
+- [Anthropic](https://anthropic.com) 与 Claude Agent SDK
+- [OpenAI](https://openai.com) 与 Codex
+- [OpenCode](https://opencode.ai/)
+- [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli)
