@@ -48,6 +48,8 @@ import { getGeminiProviderSettings, normalizeGeminiDiscoveredModels, updateGemin
 import { type GeminiProviderState,getGeminiState } from '../types';
 import { buildGeminiRuntimeEnv } from './GeminiRuntimeEnvironment';
 
+const GEMINI_ACP_INITIALIZE_TIMEOUT_MS = 120_000;
+
 interface ActiveTurn { queue: StreamChunkQueue; sessionId: string }
 
 class StreamChunkQueue {
@@ -315,8 +317,17 @@ export class GeminiChatRuntime implements ChatRuntime {
       transport: this.transport,
     });
     this.transport.start();
-    await this.connection.initialize();
-    this.setReady(true);
+    try {
+      await this.connection.initialize({}, { timeoutMs: GEMINI_ACP_INITIALIZE_TIMEOUT_MS });
+      this.setReady(true);
+    } catch (error) {
+      const formatted = this.formatRuntimeError(error);
+      await this.shutdownProcess();
+      throw new Error(
+        formatted,
+        error instanceof Error ? { cause: error } : undefined,
+      );
+    }
   }
 
   private async shutdownProcess(): Promise<void> {

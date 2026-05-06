@@ -129,6 +129,7 @@ export class AcpClientConnection {
 
   async initialize(
     partialRequest: Partial<AcpInitializeRequest> = {},
+    requestOptions?: JsonRpcRequestOptions,
   ): Promise<AcpInitializeResponse> {
     const request: AcpInitializeRequest = {
       clientCapabilities: mergeCapabilities(
@@ -139,7 +140,11 @@ export class AcpClientConnection {
       protocolVersion: partialRequest.protocolVersion ?? 1,
     };
 
-    const response = await this.requestWithFallback<AcpInitializeResponse>('initialize', request);
+    const response = await this.requestWithFallback<AcpInitializeResponse>(
+      'initialize',
+      request,
+      requestOptions,
+    );
     this.agentInfo = response.agentInfo ?? null;
     this.agentCapabilities = response.agentCapabilities ?? null;
     this.authMethods = response.authMethods ?? null;
