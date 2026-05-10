@@ -49,6 +49,34 @@ describe('CopilotChatRuntime', () => {
     ]);
   });
 
+  it('uses Copilot ACP URL mode ids when applying permission modes', async () => {
+    const runtime = new CopilotChatRuntime(createMockPlugin({
+      providerConfigs: { copilot: { enabled: true, selectedApprovalMode: 'default' } },
+    }));
+    const setMode = jest.fn().mockResolvedValue({});
+    const syncPermission = jest.fn();
+    (runtime as any).connection = { setMode };
+    runtime.setPermissionModeSyncCallback(syncPermission);
+
+    await (runtime as any).applySelectedMode('session-1');
+
+    expect(setMode).toHaveBeenCalledWith({
+      modeId: 'https://agentclientprotocol.com/protocol/session-modes#agent',
+      sessionId: 'session-1',
+    });
+    expect(syncPermission).toHaveBeenCalledWith('normal');
+  });
+
+  it('maps Copilot plan mode URL back to the shared permission toggle', async () => {
+    const runtime = new CopilotChatRuntime(createMockPlugin());
+    const syncPermission = jest.fn();
+    runtime.setPermissionModeSyncCallback(syncPermission);
+
+    (runtime as any).emitPermissionModeSync('https://agentclientprotocol.com/protocol/session-modes#plan');
+
+    expect(syncPermission).toHaveBeenCalledWith('plan');
+  });
+
   it('sends ACP cancel and closes the active queue', async () => {
     const runtime = new CopilotChatRuntime(createMockPlugin());
     const cancel = jest.fn();
