@@ -1141,6 +1141,9 @@ export class PromptPresetMenu {
     this.buttonEl = buttonEl;
 
     this.dropdownEl = this.container.createDiv({ cls: 'claudian-prompt-preset-dropdown' });
+    this.dropdownEl.addEventListener('mouseleave', () => {
+      this.dismissPanel();
+    });
     this.renderDropdown();
   }
 
@@ -1218,7 +1221,7 @@ export class PromptPresetMenu {
       event.preventDefault?.();
       event.stopPropagation?.();
       await this.callbacks.onSelectPromptPreset?.(preset, this.getMode());
-      this.dismissAfterSelection();
+      this.dismissPanel();
     };
     itemEl.addEventListener('click', selectPreset);
     itemEl.addEventListener('keydown', (event) => {
@@ -1336,7 +1339,7 @@ export class PromptPresetMenu {
     this.renderDropdown();
   }
 
-  private dismissAfterSelection(): void {
+  private dismissPanel(): void {
     this.isAdding = false;
     this.editingPreset = null;
     this.pinned = false;

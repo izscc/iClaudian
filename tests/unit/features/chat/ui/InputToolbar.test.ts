@@ -243,6 +243,30 @@ describe('PromptPresetMenu', () => {
     expect(menuEl?.hasClass('is-dismissed')).toBe(false);
   });
 
+  it('dismisses the floating panel when the mouse leaves the panel window', () => {
+    const parentEl = createMockEl();
+
+    new PromptPresetMenu(parentEl, createMockCallbacks({
+      getSettings: jest.fn().mockReturnValue({
+        promptPresets: [{ id: 'p1', name: '翻译', content: '翻译' }],
+        promptPresetMode: 'fill',
+      }),
+    }));
+
+    const menuEl = parentEl.querySelector('.claudian-prompt-preset-menu');
+    const buttonEl = parentEl.querySelector('.claudian-prompt-preset-button');
+    const dropdownEl = parentEl.querySelector('.claudian-prompt-preset-dropdown');
+
+    buttonEl?.click();
+    expect(menuEl?.hasClass('is-pinned')).toBe(true);
+
+    dropdownEl?.dispatchEvent('mouseleave');
+
+    expect(menuEl?.hasClass('is-pinned')).toBe(false);
+    expect(menuEl?.hasClass('is-dismissed')).toBe(true);
+    expect(buttonEl?.getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('adds, edits, and deletes presets through the menu callbacks', async () => {
     const settings = {
       promptPresets: [
