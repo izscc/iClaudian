@@ -1105,6 +1105,8 @@ export class PromptPresetMenu {
   private buttonEl: HTMLElement | null = null;
   private dropdownEl: HTMLElement | null = null;
   private callbacks: ToolbarCallbacks;
+  private editingPreset: PromptPreset | null = null;
+  private isAdding = false;
   private pinned = false;
 
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
@@ -1164,6 +1166,11 @@ export class PromptPresetMenu {
     const listEl = this.dropdownEl.createDiv({ cls: 'claudian-prompt-preset-list' });
     for (const preset of this.getPresets()) {
       this.renderPresetItem(listEl, preset);
+    }
+
+    if (this.isAdding || this.editingPreset) {
+      this.renderEditor(this.dropdownEl, this.editingPreset);
+      return;
     }
 
     const footerEl = this.dropdownEl.createDiv({ cls: 'claudian-prompt-preset-footer' });
@@ -1244,19 +1251,84 @@ export class PromptPresetMenu {
   }
 
   private promptAddPreset(): void {
-    const name = window.prompt('提示词名称', '');
-    if (name === null) return;
-    const content = window.prompt('提示词内容', name.trim());
-    if (content === null) return;
-    void this.addPreset(name, content);
+    this.isAdding = true;
+    this.editingPreset = null;
+    this.pinned = true;
+    this.container.addClass('is-pinned');
+    this.buttonEl?.setAttribute('aria-expanded', 'true');
+    this.renderDropdown();
   }
 
   private promptEditPreset(preset: PromptPreset): void {
-    const name = window.prompt('提示词名称', preset.name);
-    if (name === null) return;
-    const content = window.prompt('提示词内容', preset.content);
-    if (content === null) return;
-    void this.updatePreset(preset.id, name, content);
+    this.editingPreset = preset;
+    this.isAdding = false;
+    this.pinned = true;
+    this.container.addClass('is-pinned');
+    this.buttonEl?.setAttribute('aria-expanded', 'true');
+    this.renderDropdown();
+  }
+
+  private renderEditor(parentEl: HTMLElement, preset: PromptPreset | null): void {
+    const editorEl = parentEl.createDiv({ cls: 'claudian-prompt-preset-editor' });
+    editorEl.createDiv({
+      cls: 'claudian-prompt-preset-editor-title',
+      text: preset ? '编辑提示词' : '新增提示词',
+    });
+
+    const nameInput = editorEl.createEl('input', {
+      cls: 'claudian-prompt-preset-input',
+      attr: {
+        'aria-label': '提示词名称',
+        placeholder: '名称',
+        type: 'text',
+      },
+    }) as HTMLInputElement;
+    nameInput.value = preset?.name ?? '';
+
+    const contentInput = editorEl.createEl('textarea', {
+      cls: 'claudian-prompt-preset-textarea',
+      attr: {
+        'aria-label': '提示词内容',
+        placeholder: '提示词内容',
+        rows: '3',
+      },
+    }) as HTMLTextAreaElement;
+    contentInput.value = preset?.content ?? '';
+
+    const actionsEl = editorEl.createDiv({ cls: 'claudian-prompt-preset-editor-actions' });
+    const cancelButton = actionsEl.createEl('button', {
+      cls: 'claudian-prompt-preset-editor-cancel',
+      text: '取消',
+      attr: { type: 'button' },
+    });
+    cancelButton.addEventListener('click', (event) => {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      this.closeEditor();
+    });
+
+    const saveButton = actionsEl.createEl('button', {
+      cls: 'claudian-prompt-preset-editor-save',
+      text: '保存',
+      attr: { type: 'button' },
+    });
+    saveButton.addEventListener('click', async (event) => {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      if (preset) {
+        await this.updatePreset(preset.id, nameInput.value, contentInput.value);
+      } else {
+        await this.addPreset(nameInput.value, contentInput.value);
+      }
+    });
+
+    setTimeout(() => nameInput.focus(), 0);
+  }
+
+  private closeEditor(): void {
+    this.isAdding = false;
+    this.editingPreset = null;
+    this.renderDropdown();
   }
 
   private async addPreset(name: string, content: string): Promise<void> {
@@ -1268,6 +1340,8 @@ export class PromptPresetMenu {
     }
     const presets = [...this.getPresets(), { id: createPromptPresetId(), name: trimmedName, content: trimmedContent }];
     await this.callbacks.onPromptPresetSettingsChange?.({ presets });
+    this.isAdding = false;
+    this.editingPreset = null;
     this.renderDropdown();
   }
 
@@ -1282,6 +1356,8 @@ export class PromptPresetMenu {
       preset.id === id ? { ...preset, name: trimmedName, content: trimmedContent } : preset
     );
     await this.callbacks.onPromptPresetSettingsChange?.({ presets });
+    this.isAdding = false;
+    this.editingPreset = null;
     this.renderDropdown();
   }
 

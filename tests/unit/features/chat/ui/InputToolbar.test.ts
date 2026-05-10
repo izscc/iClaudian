@@ -253,6 +253,49 @@ describe('PromptPresetMenu', () => {
       presets: [{ id: 'p1', name: '总结', content: '请总结' }],
     });
   });
+
+  it('opens inline add and edit forms from the visible menu controls', async () => {
+    const settings = {
+      promptPresets: [{ id: 'p1', name: '总结', content: '请总结' }],
+      promptPresetMode: 'fill',
+    };
+    const onPromptPresetSettingsChange = jest.fn().mockResolvedValue(undefined);
+    const parentEl = createMockEl();
+
+    new PromptPresetMenu(parentEl, createMockCallbacks({
+      getSettings: jest.fn().mockReturnValue(settings),
+      onPromptPresetSettingsChange,
+    }));
+
+    parentEl.querySelector('.claudian-prompt-preset-add')?.click();
+    const addNameInput = parentEl.querySelector('.claudian-prompt-preset-input') as any;
+    const addContentInput = parentEl.querySelector('.claudian-prompt-preset-textarea') as any;
+    expect(addNameInput).not.toBeNull();
+    addNameInput.value = '翻译';
+    addContentInput.value = '翻译成中文';
+    parentEl.querySelector('.claudian-prompt-preset-editor-save')?.click();
+    await Promise.resolve();
+
+    expect(onPromptPresetSettingsChange).toHaveBeenLastCalledWith({
+      presets: [
+        { id: 'p1', name: '总结', content: '请总结' },
+        expect.objectContaining({ name: '翻译', content: '翻译成中文' }),
+      ],
+    });
+
+    parentEl.querySelector('.claudian-prompt-preset-action')?.click();
+    const editNameInput = parentEl.querySelector('.claudian-prompt-preset-input') as any;
+    const editContentInput = parentEl.querySelector('.claudian-prompt-preset-textarea') as any;
+    expect(editNameInput.value).toBe('总结');
+    editNameInput.value = '总结一下';
+    editContentInput.value = '请总结一下';
+    parentEl.querySelector('.claudian-prompt-preset-editor-save')?.click();
+    await Promise.resolve();
+
+    expect(onPromptPresetSettingsChange).toHaveBeenLastCalledWith({
+      presets: [{ id: 'p1', name: '总结一下', content: '请总结一下' }],
+    });
+  });
 });
 
 describe('ModelSelector', () => {
