@@ -66,6 +66,11 @@
   visibility: visible;
 }
 
+.claudian-prompt-preset-menu.is-dismissed .claudian-prompt-preset-dropdown {
+  opacity: 0;
+  visibility: hidden;
+}
+
 .claudian-prompt-preset-header {
   display: flex;
   align-items: center;

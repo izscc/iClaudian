@@ -1112,6 +1112,9 @@ export class PromptPresetMenu {
   constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
     this.callbacks = callbacks;
     this.container = parentEl.createDiv({ cls: 'claudian-prompt-preset-menu' });
+    this.container.addEventListener('mouseleave', () => {
+      this.container.removeClass('is-dismissed');
+    });
     this.render();
   }
 
@@ -1130,6 +1133,7 @@ export class PromptPresetMenu {
     buttonEl.addEventListener('click', (event) => {
       event.preventDefault?.();
       event.stopPropagation?.();
+      this.container.removeClass('is-dismissed');
       this.pinned = !this.pinned;
       this.container.toggleClass('is-pinned', this.pinned);
       buttonEl.setAttribute('aria-expanded', this.pinned ? 'true' : 'false');
@@ -1214,6 +1218,7 @@ export class PromptPresetMenu {
       event.preventDefault?.();
       event.stopPropagation?.();
       await this.callbacks.onSelectPromptPreset?.(preset, this.getMode());
+      this.dismissAfterSelection();
     };
     itemEl.addEventListener('click', selectPreset);
     itemEl.addEventListener('keydown', (event) => {
@@ -1329,6 +1334,17 @@ export class PromptPresetMenu {
     this.isAdding = false;
     this.editingPreset = null;
     this.renderDropdown();
+  }
+
+  private dismissAfterSelection(): void {
+    this.isAdding = false;
+    this.editingPreset = null;
+    this.pinned = false;
+    this.container.removeClass('is-pinned');
+    this.container.addClass('is-dismissed');
+    this.buttonEl?.setAttribute('aria-expanded', 'false');
+    this.buttonEl?.blur();
+    this.dropdownEl?.blur();
   }
 
   private async addPreset(name: string, content: string): Promise<void> {

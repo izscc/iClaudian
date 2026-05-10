@@ -215,6 +215,34 @@ describe('PromptPresetMenu', () => {
     expect(onPromptPresetSettingsChange).toHaveBeenCalledWith({ mode: 'send' });
   });
 
+  it('dismisses the floating panel after choosing a prompt preset', async () => {
+    const settings = {
+      promptPresets: [{ id: 'p1', name: '翻译', content: '翻译' }],
+      promptPresetMode: 'send',
+    };
+    const parentEl = createMockEl();
+
+    new PromptPresetMenu(parentEl, createMockCallbacks({
+      getSettings: jest.fn().mockReturnValue(settings),
+      onSelectPromptPreset: jest.fn().mockResolvedValue(undefined),
+    }));
+
+    const menuEl = parentEl.querySelector('.claudian-prompt-preset-menu');
+    const buttonEl = parentEl.querySelector('.claudian-prompt-preset-button');
+    buttonEl?.click();
+    expect(menuEl?.hasClass('is-pinned')).toBe(true);
+
+    parentEl.querySelector('.claudian-prompt-preset-item')?.click();
+    await Promise.resolve();
+
+    expect(menuEl?.hasClass('is-pinned')).toBe(false);
+    expect(menuEl?.hasClass('is-dismissed')).toBe(true);
+    expect(buttonEl?.getAttribute('aria-expanded')).toBe('false');
+
+    menuEl?.dispatchEvent('mouseleave');
+    expect(menuEl?.hasClass('is-dismissed')).toBe(false);
+  });
+
   it('adds, edits, and deletes presets through the menu callbacks', async () => {
     const settings = {
       promptPresets: [
