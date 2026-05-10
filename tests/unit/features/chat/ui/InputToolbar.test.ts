@@ -4,10 +4,13 @@ import type { UsageInfo } from '@/core/types';
 import {
   ContextUsageMeter,
   createInputToolbar,
+  getPromptPresetMode,
+  getPromptPresets,
   McpServerSelector,
   ModelSelector,
   ModeSelector,
   PermissionToggle,
+  PromptPresetMenu,
   ServiceTierToggle,
   ThinkingBudgetSelector,
 } from '@/features/chat/ui/InputToolbar';
@@ -181,6 +184,76 @@ function createMockCallbacks(overrides: Record<string, any> = {}) {
     ...overrides,
   };
 }
+
+
+
+describe('PromptPresetMenu', () => {
+  it('returns the default translation preset and fill mode when settings are missing', () => {
+    expect(getPromptPresets({})).toEqual([{ id: 'translate', name: '翻译', content: '翻译' }]);
+    expect(getPromptPresetMode({})).toBe('fill');
+  });
+
+  it('selects presets and saves mode changes', async () => {
+    const settings = {
+      promptPresets: [{ id: 'p1', name: '总结', content: '请总结' }],
+      promptPresetMode: 'fill',
+    };
+    const onSelectPromptPreset = jest.fn();
+    const onPromptPresetSettingsChange = jest.fn().mockResolvedValue(undefined);
+    const parentEl = createMockEl();
+
+    new PromptPresetMenu(parentEl, createMockCallbacks({
+      getSettings: jest.fn().mockReturnValue(settings),
+      onSelectPromptPreset,
+      onPromptPresetSettingsChange,
+    }));
+
+    parentEl.querySelector('.claudian-prompt-preset-item')?.click();
+    expect(onSelectPromptPreset).toHaveBeenCalledWith({ id: 'p1', name: '总结', content: '请总结' }, 'fill');
+
+    parentEl.querySelector('.claudian-prompt-preset-mode-send')?.click();
+    expect(onPromptPresetSettingsChange).toHaveBeenCalledWith({ mode: 'send' });
+  });
+
+  it('adds, edits, and deletes presets through the menu callbacks', async () => {
+    const settings = {
+      promptPresets: [
+        { id: 'p1', name: '总结', content: '请总结' },
+        { id: 'p2', name: '翻译', content: '翻译' },
+      ],
+      promptPresetMode: 'fill',
+    };
+    const onPromptPresetSettingsChange = jest.fn().mockResolvedValue(undefined);
+    const parentEl = createMockEl();
+
+    const menu = new PromptPresetMenu(parentEl, createMockCallbacks({
+      getSettings: jest.fn().mockReturnValue(settings),
+      onPromptPresetSettingsChange,
+    }));
+
+    await (menu as any).addPreset('润色', '请润色');
+    expect(onPromptPresetSettingsChange).toHaveBeenLastCalledWith({
+      presets: [
+        { id: 'p1', name: '总结', content: '请总结' },
+        { id: 'p2', name: '翻译', content: '翻译' },
+        expect.objectContaining({ name: '润色', content: '请润色' }),
+      ],
+    });
+
+    await (menu as any).updatePreset('p1', '总结一下', '请总结一下');
+    expect(onPromptPresetSettingsChange).toHaveBeenLastCalledWith({
+      presets: [
+        { id: 'p1', name: '总结一下', content: '请总结一下' },
+        { id: 'p2', name: '翻译', content: '翻译' },
+      ],
+    });
+
+    await (menu as any).deletePreset('p2');
+    expect(onPromptPresetSettingsChange).toHaveBeenLastCalledWith({
+      presets: [{ id: 'p1', name: '总结', content: '请总结' }],
+    });
+  });
+});
 
 describe('ModelSelector', () => {
   let parentEl: any;
@@ -1121,6 +1194,7 @@ describe('createInputToolbar', () => {
     expect(toolbar.contextUsageMeter).toBeInstanceOf(ContextUsageMeter);
     expect(toolbar.mcpServerSelector).toBeInstanceOf(McpServerSelector);
     expect(toolbar.permissionToggle).toBeInstanceOf(PermissionToggle);
+    expect(toolbar.promptPresetMenu).toBeInstanceOf(PromptPresetMenu);
     expect(toolbar.serviceTierToggle).toBeInstanceOf(ServiceTierToggle);
   });
 
@@ -1130,9 +1204,11 @@ describe('createInputToolbar', () => {
 
     createInputToolbar(parentEl, callbacks);
 
+    const promptIndex = parentEl.children.findIndex((child: any) => child.hasClass('claudian-prompt-preset-menu'));
     const permissionIndex = parentEl.children.findIndex((child: any) => child.hasClass('claudian-permission-toggle'));
     const modeIndex = parentEl.children.findIndex((child: any) => child.hasClass('claudian-mode-selector'));
-    expect(permissionIndex).toBeGreaterThanOrEqual(0);
+    expect(promptIndex).toBeGreaterThanOrEqual(0);
+    expect(permissionIndex).toBeGreaterThan(promptIndex);
     expect(modeIndex).toBeGreaterThan(permissionIndex);
     expect(modeIndex).toBe(parentEl.children.length - 1);
   });

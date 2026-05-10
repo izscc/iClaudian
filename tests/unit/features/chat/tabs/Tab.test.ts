@@ -177,6 +177,10 @@ const createMockPermissionToggle = () => ({
   updateDisplay: jest.fn(),
 });
 
+const createMockPromptPresetMenu = () => ({
+  refresh: jest.fn(),
+});
+
 const createMockServiceTierToggle = () => ({
   updateDisplay: jest.fn(),
 });
@@ -195,6 +199,7 @@ let mockContextUsageMeter: ReturnType<typeof createMockContextUsageMeter>;
 let mockExternalContextSelector: ReturnType<typeof createMockExternalContextSelector>;
 let mockMcpServerSelector: ReturnType<typeof createMockMcpServerSelector>;
 let mockPermissionToggle: ReturnType<typeof createMockPermissionToggle>;
+let mockPromptPresetMenu: ReturnType<typeof createMockPromptPresetMenu>;
 let mockServiceTierToggle: ReturnType<typeof createMockServiceTierToggle>;
 let mockMessageRenderer: { scrollToBottomIfNeeded: jest.Mock; setAsyncSubagentClickCallback: jest.Mock };
 let mockSelectionController: ReturnType<typeof createMockSelectionController>;
@@ -275,6 +280,7 @@ jest.mock('@/features/chat/ui/InputToolbar', () => ({
     mockExternalContextSelector = createMockExternalContextSelector();
     mockMcpServerSelector = createMockMcpServerSelector();
     mockPermissionToggle = createMockPermissionToggle();
+    mockPromptPresetMenu = createMockPromptPresetMenu();
     mockServiceTierToggle = createMockServiceTierToggle();
     return {
       modelSelector: mockModelSelector,
@@ -284,6 +290,7 @@ jest.mock('@/features/chat/ui/InputToolbar', () => ({
       externalContextSelector: mockExternalContextSelector,
       mcpServerSelector: mockMcpServerSelector,
       permissionToggle: mockPermissionToggle,
+      promptPresetMenu: mockPromptPresetMenu,
       serviceTierToggle: mockServiceTierToggle,
     };
   }),
@@ -411,6 +418,8 @@ function createMockPlugin(overrides: Record<string, any> = {}): any {
         focusInputKey: 'i',
       },
       persistentExternalContextPaths: [],
+      promptPresets: [{ id: 'translate', name: '翻译', content: '翻译' }],
+      promptPresetMode: 'fill',
       settingsProvider: 'claude',
       codexEnabled: true,
       savedProviderModel: {
@@ -4116,3 +4125,59 @@ describe('Tab - InputController getTabProviderId wiring', () => {
     expect(result).toBe('claude');
   });
 });
+
+
+  describe('prompt preset toolbar callbacks', () => {
+    it('appends selected prompt preset content to the input draft in fill mode', async () => {
+      const plugin = createMockPlugin();
+      const tab = createTab(createMockOptions({ plugin }));
+      initializeTabUI(tab, plugin);
+      const toolbarModule = jest.requireMock('@/features/chat/ui/InputToolbar') as {
+        createInputToolbar: jest.Mock;
+      };
+      const toolbarCallbacks = toolbarModule.createInputToolbar.mock.calls.at(-1)?.[1];
+
+      tab.dom.inputEl.value = '已有草稿  ';
+      await toolbarCallbacks.onSelectPromptPreset({ id: 'translate', name: '翻译', content: '翻译' }, 'fill');
+
+      expect(tab.dom.inputEl.value).toBe('已有草稿\n翻译');
+    });
+
+    it('sends selected prompt preset content without clearing the input draft in send mode', async () => {
+      const plugin = createMockPlugin();
+      const tab = createTab(createMockOptions({ plugin }));
+      initializeTabUI(tab, plugin);
+      const toolbarModule = jest.requireMock('@/features/chat/ui/InputToolbar') as {
+        createInputToolbar: jest.Mock;
+      };
+      const toolbarCallbacks = toolbarModule.createInputToolbar.mock.calls.at(-1)?.[1];
+      const sendSpy = jest.fn().mockResolvedValue(undefined);
+      tab.controllers.inputController = { sendMessage: sendSpy } as any;
+
+      tab.dom.inputEl.value = '保留草稿';
+      await toolbarCallbacks.onSelectPromptPreset({ id: 'translate', name: '翻译', content: '翻译' }, 'send');
+
+      expect(sendSpy).toHaveBeenCalledWith({ content: '翻译' });
+      expect(tab.dom.inputEl.value).toBe('保留草稿');
+    });
+
+    it('persists prompt preset mode and list changes', async () => {
+      const plugin = createMockPlugin();
+      const tab = createTab(createMockOptions({ plugin }));
+      initializeTabUI(tab, plugin);
+      const toolbarModule = jest.requireMock('@/features/chat/ui/InputToolbar') as {
+        createInputToolbar: jest.Mock;
+      };
+      const toolbarCallbacks = toolbarModule.createInputToolbar.mock.calls.at(-1)?.[1];
+
+      await toolbarCallbacks.onPromptPresetSettingsChange({ mode: 'send' });
+      expect(plugin.settings.promptPresetMode).toBe('send');
+      expect(plugin.saveSettings).toHaveBeenCalled();
+      expect(mockPromptPresetMenu.refresh).toHaveBeenCalled();
+
+      await toolbarCallbacks.onPromptPresetSettingsChange({
+        presets: [{ id: 'p1', name: '总结', content: '请总结' }],
+      });
+      expect(plugin.settings.promptPresets).toEqual([{ id: 'p1', name: '总结', content: '请总结' }]);
+    });
+  });

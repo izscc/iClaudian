@@ -19,7 +19,7 @@ import {
 } from '../../../core/providers/types';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
 import type { AutoTurnResult } from '../../../core/runtime/types';
-import type { ChatMessage, Conversation } from '../../../core/types';
+import type { ChatMessage, Conversation, PromptPreset, PromptPresetMode } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import type ClaudianPlugin from '../../../main';
 import { SlashCommandDropdown } from '../../../shared/components/SlashCommandDropdown';
@@ -238,6 +238,7 @@ function refreshTabProviderUI(tab: TabData, plugin: ClaudianPlugin): void {
   tab.ui.modeSelector?.renderOptions();
   tab.ui.thinkingBudgetSelector?.updateDisplay();
   tab.ui.permissionToggle?.updateDisplay();
+  tab.ui.promptPresetMenu?.refresh();
   tab.ui.serviceTierToggle?.updateDisplay();
   tab.dom.inputWrapper.toggleClass(
     'claudian-input-plan-mode',
@@ -419,6 +420,7 @@ export function createTab(options: TabCreateOptions): TabData {
       externalContextSelector: null,
       mcpServerSelector: null,
       permissionToggle: null,
+      promptPresetMenu: null,
       serviceTierToggle: null,
       slashCommandDropdown: null,
       instructionModeManager: null,
@@ -465,6 +467,17 @@ function autoResizeTextarea(textarea: HTMLTextAreaElement): void {
 
   // Always set max-height to enforce the cap
   textarea.style.maxHeight = `${maxHeight}px`;
+}
+
+function appendPromptPresetToInput(inputEl: HTMLTextAreaElement, content: string): void {
+  const trimmedContent = content.trim();
+  if (!trimmedContent) return;
+  const currentValue = inputEl.value;
+  inputEl.value = currentValue
+    ? `${currentValue.replace(/\s+$/, '')}\n${trimmedContent}`
+    : trimmedContent;
+  inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+  inputEl.focus();
 }
 
 /**
@@ -889,6 +902,24 @@ function initializeInputToolbar(
         mode === 'plan' && getTabCapabilities(tab, plugin).supportsPlanMode,
       );
     },
+    onPromptPresetSettingsChange: async (updates) => {
+      if (updates.presets) {
+        plugin.settings.promptPresets = updates.presets;
+      }
+      if (updates.mode) {
+        plugin.settings.promptPresetMode = updates.mode;
+      }
+      await plugin.saveSettings();
+      tab.ui.promptPresetMenu?.refresh();
+    },
+    onSelectPromptPreset: async (preset: PromptPreset, mode: PromptPresetMode) => {
+      if (mode === 'send') {
+        await tab.controllers.inputController?.sendMessage({ content: preset.content });
+        return;
+      }
+      appendPromptPresetToInput(dom.inputEl, preset.content);
+      autoResizeTextarea(dom.inputEl);
+    },
   });
 
   tab.ui.modelSelector = toolbarComponents.modelSelector;
@@ -897,6 +928,7 @@ function initializeInputToolbar(
   tab.ui.contextUsageMeter = toolbarComponents.contextUsageMeter;
   tab.ui.externalContextSelector = toolbarComponents.externalContextSelector;
   tab.ui.mcpServerSelector = toolbarComponents.mcpServerSelector;
+  tab.ui.promptPresetMenu = toolbarComponents.promptPresetMenu;
   tab.ui.permissionToggle = toolbarComponents.permissionToggle;
   tab.ui.serviceTierToggle = toolbarComponents.serviceTierToggle;
 

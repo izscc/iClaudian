@@ -23,6 +23,7 @@ import type {
   ModelSelector,
   ModeSelector,
   PermissionToggle,
+  PromptPresetMenu,
   ServiceTierToggle,
   ThinkingBudgetSelector,
 } from '../ui/InputToolbar';
@@ -131,6 +132,7 @@ export interface TabUIComponents {
   externalContextSelector: ExternalContextSelector | null;
   mcpServerSelector: McpServerSelector | null;
   permissionToggle: PermissionToggle | null;
+  promptPresetMenu: PromptPresetMenu | null;
   serviceTierToggle: ServiceTierToggle | null;
   slashCommandDropdown: SlashCommandDropdown | null;
   instructionModeManager: InstructionModeManager | null;

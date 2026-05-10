@@ -18,6 +18,8 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
   mediaFolder: '',
   systemPrompt: '',
   persistentExternalContextPaths: [],
+  promptPresets: [{ id: 'translate', name: '翻译', content: '翻译' }],
+  promptPresetMode: 'fill',
 
   sharedEnvironmentVariables: '',
   envSnippets: [],

@@ -45,6 +45,16 @@ export interface SlashCommand {
   hooks?: Record<string, unknown>;   // Pass-through to SDK
 }
 
+
+/** User-managed prompt preset for the chat composer. */
+export interface PromptPreset {
+  id: string;
+  name: string;
+  content: string;
+}
+
+export type PromptPresetMode = 'fill' | 'send';
+
 /** Keyboard navigation settings for vim-style scrolling. */
 export interface KeyboardNavigationSettings {
   scrollUpKey: string;         // Key to scroll up when focused on messages (default: 'w')
@@ -102,6 +112,8 @@ export interface ClaudianSettings {
   mediaFolder: string;
   systemPrompt: string;
   persistentExternalContextPaths: string[];
+  promptPresets?: PromptPreset[];
+  promptPresetMode?: PromptPresetMode;
 
   // Environment
   sharedEnvironmentVariables: string;

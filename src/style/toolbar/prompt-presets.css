@@ -1,0 +1,213 @@
+/* Prompt preset menu */
+.claudian-prompt-preset-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.claudian-prompt-preset-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.claudian-prompt-preset-button:hover,
+.claudian-prompt-preset-menu.is-pinned .claudian-prompt-preset-button {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.claudian-prompt-preset-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.claudian-prompt-preset-dropdown {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 100%;
+  margin-bottom: 4px;
+  width: min(320px, calc(100vw - 32px));
+  max-width: 320px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 100;
+}
+
+.claudian-prompt-preset-dropdown::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -8px;
+  height: 8px;
+}
+
+.claudian-prompt-preset-menu:hover .claudian-prompt-preset-dropdown,
+.claudian-prompt-preset-menu:focus-within .claudian-prompt-preset-dropdown,
+.claudian-prompt-preset-menu.is-pinned .claudian-prompt-preset-dropdown {
+  opacity: 1;
+  visibility: visible;
+}
+
+.claudian-prompt-preset-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.claudian-prompt-preset-title {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.claudian-prompt-preset-mode-group {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  background: var(--background-primary);
+}
+
+.claudian-prompt-preset-mode {
+  border: 0;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.claudian-prompt-preset-mode.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.claudian-prompt-preset-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.claudian-prompt-preset-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+  padding: 8px 10px 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--background-modifier-border-focus);
+  background: transparent;
+  color: var(--text-normal);
+  text-align: left;
+  cursor: pointer;
+}
+
+.claudian-prompt-preset-item:hover,
+.claudian-prompt-preset-item:focus-visible {
+  background: var(--background-modifier-hover);
+}
+
+.claudian-prompt-preset-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.claudian-prompt-preset-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.claudian-prompt-preset-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.claudian-prompt-preset-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.claudian-prompt-preset-item:hover .claudian-prompt-preset-actions,
+.claudian-prompt-preset-item:focus-within .claudian-prompt-preset-actions {
+  opacity: 1;
+}
+
+.claudian-prompt-preset-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.claudian-prompt-preset-action:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.claudian-prompt-preset-delete:hover {
+  color: var(--text-error);
+}
+
+.claudian-prompt-preset-action svg {
+  width: 13px;
+  height: 13px;
+}
+
+.claudian-prompt-preset-footer {
+  padding: 8px;
+}
+
+.claudian-prompt-preset-add {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.claudian-prompt-preset-add:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}

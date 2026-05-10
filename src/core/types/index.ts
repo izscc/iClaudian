@@ -24,6 +24,8 @@ export {
   type InstructionRefineResult,
   type KeyboardNavigationSettings,
   type PermissionMode,
+  type PromptPreset,
+  type PromptPresetMode,
   type SlashCommand,
   type TabBarPosition,
 } from './settings';

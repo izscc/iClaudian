@@ -13,6 +13,8 @@ import type {
 } from '../../../core/providers/types';
 import type {
   ManagedMcpServer,
+  PromptPreset,
+  PromptPresetMode,
   UsageInfo,
 } from '../../../core/types';
 import { CHECK_ICON_SVG, createProviderIconSvg, MCP_ICON_SVG } from '../../../shared/icons';
@@ -35,10 +37,38 @@ export interface ToolbarCallbacks {
   onEffortLevelChange: (effort: string) => Promise<void>;
   onServiceTierChange: (serviceTier: string) => Promise<void>;
   onPermissionModeChange: (mode: string) => Promise<void>;
+  onPromptPresetSettingsChange?: (updates: { mode?: PromptPresetMode; presets?: PromptPreset[] }) => Promise<void>;
+  onSelectPromptPreset?: (preset: PromptPreset, mode: PromptPresetMode) => void | Promise<void>;
   getSettings: () => ToolbarSettings;
   getEnvironmentVariables?: () => string;
   getUIConfig: () => ProviderChatUIConfig;
   getCapabilities: () => ProviderCapabilities;
+}
+
+const DEFAULT_PROMPT_PRESETS: readonly PromptPreset[] = Object.freeze([
+  { id: 'translate', name: '翻译', content: '翻译' },
+]);
+
+export function getPromptPresets(settings: Record<string, unknown>): PromptPreset[] {
+  const raw = settings.promptPresets;
+  if (!Array.isArray(raw)) return [...DEFAULT_PROMPT_PRESETS];
+  const presets = raw.flatMap((item): PromptPreset[] => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+    const candidate = item as Record<string, unknown>;
+    const id = typeof candidate.id === 'string' && candidate.id.trim() ? candidate.id.trim() : '';
+    const name = typeof candidate.name === 'string' && candidate.name.trim() ? candidate.name.trim() : '';
+    const content = typeof candidate.content === 'string' && candidate.content.trim() ? candidate.content.trim() : '';
+    return id && name && content ? [{ id, name, content }] : [];
+  });
+  return presets.length > 0 ? presets : [...DEFAULT_PROMPT_PRESETS];
+}
+
+export function getPromptPresetMode(settings: Record<string, unknown>): PromptPresetMode {
+  return settings.promptPresetMode === 'send' ? 'send' : 'fill';
+}
+
+function createPromptPresetId(): string {
+  return `preset-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export class ModelSelector {
@@ -1070,6 +1100,202 @@ export class McpServerSelector {
   }
 }
 
+export class PromptPresetMenu {
+  private container: HTMLElement;
+  private buttonEl: HTMLElement | null = null;
+  private dropdownEl: HTMLElement | null = null;
+  private callbacks: ToolbarCallbacks;
+  private pinned = false;
+
+  constructor(parentEl: HTMLElement, callbacks: ToolbarCallbacks) {
+    this.callbacks = callbacks;
+    this.container = parentEl.createDiv({ cls: 'claudian-prompt-preset-menu' });
+    this.render();
+  }
+
+  private render(): void {
+    this.container.empty();
+
+    const buttonEl = this.container.createEl('button', {
+      cls: 'claudian-prompt-preset-button',
+      attr: {
+        'aria-label': 'Prompt presets',
+        title: '提示词预设',
+        type: 'button',
+      },
+    });
+    setIcon(buttonEl, 'list-plus');
+    buttonEl.addEventListener('click', (event) => {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      this.pinned = !this.pinned;
+      this.container.toggleClass('is-pinned', this.pinned);
+      buttonEl.setAttribute('aria-expanded', this.pinned ? 'true' : 'false');
+    });
+    this.buttonEl = buttonEl;
+
+    this.dropdownEl = this.container.createDiv({ cls: 'claudian-prompt-preset-dropdown' });
+    this.renderDropdown();
+  }
+
+  refresh(): void {
+    this.renderDropdown();
+  }
+
+  private getPresets(): PromptPreset[] {
+    return getPromptPresets(this.callbacks.getSettings());
+  }
+
+  private getMode(): PromptPresetMode {
+    return getPromptPresetMode(this.callbacks.getSettings());
+  }
+
+  private renderDropdown(): void {
+    if (!this.dropdownEl) return;
+    this.dropdownEl.empty();
+
+    const headerEl = this.dropdownEl.createDiv({ cls: 'claudian-prompt-preset-header' });
+    headerEl.createSpan({ cls: 'claudian-prompt-preset-title', text: '提示词预设' });
+
+    const modeGroupEl = headerEl.createDiv({ cls: 'claudian-prompt-preset-mode-group' });
+    this.createModeButton(modeGroupEl, 'fill', '填充');
+    this.createModeButton(modeGroupEl, 'send', '发送');
+
+    const listEl = this.dropdownEl.createDiv({ cls: 'claudian-prompt-preset-list' });
+    for (const preset of this.getPresets()) {
+      this.renderPresetItem(listEl, preset);
+    }
+
+    const footerEl = this.dropdownEl.createDiv({ cls: 'claudian-prompt-preset-footer' });
+    const addButton = footerEl.createEl('button', {
+      cls: 'claudian-prompt-preset-add',
+      text: '+ 新增提示词',
+      attr: { type: 'button' },
+    });
+    addButton.addEventListener('click', (event) => {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      this.promptAddPreset();
+    });
+  }
+
+  private createModeButton(parentEl: HTMLElement, mode: PromptPresetMode, label: string): void {
+    const button = parentEl.createEl('button', {
+      cls: `claudian-prompt-preset-mode claudian-prompt-preset-mode-${mode}`,
+      text: label,
+      attr: { type: 'button' },
+    });
+    const active = this.getMode() === mode;
+    button.toggleClass('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    button.addEventListener('click', async (event) => {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      await this.callbacks.onPromptPresetSettingsChange?.({ mode });
+      this.renderDropdown();
+    });
+  }
+
+  private renderPresetItem(parentEl: HTMLElement, preset: PromptPreset): void {
+    const itemEl = parentEl.createDiv({
+      cls: 'claudian-prompt-preset-item',
+    });
+    itemEl.setAttribute('role', 'button');
+    itemEl.setAttribute('tabindex', '0');
+    itemEl.setAttribute('title', preset.content);
+    const selectPreset = async (event: Event): Promise<void> => {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      await this.callbacks.onSelectPromptPreset?.(preset, this.getMode());
+    };
+    itemEl.addEventListener('click', selectPreset);
+    itemEl.addEventListener('keydown', (event) => {
+      const keyboardEvent = event as KeyboardEvent;
+      if (keyboardEvent.key !== 'Enter' && keyboardEvent.key !== ' ') return;
+      void selectPreset(event);
+    });
+
+    const textEl = itemEl.createDiv({ cls: 'claudian-prompt-preset-text' });
+    textEl.createSpan({ cls: 'claudian-prompt-preset-name', text: preset.name });
+    textEl.createSpan({ cls: 'claudian-prompt-preset-preview', text: preset.content });
+
+    const actionsEl = itemEl.createDiv({ cls: 'claudian-prompt-preset-actions' });
+    const editButton = actionsEl.createEl('button', {
+      cls: 'claudian-prompt-preset-action',
+      attr: { 'aria-label': `Edit ${preset.name}`, title: '编辑', type: 'button' },
+    });
+    setIcon(editButton, 'pencil');
+    editButton.addEventListener('click', (event) => {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      this.promptEditPreset(preset);
+    });
+
+    const deleteButton = actionsEl.createEl('button', {
+      cls: 'claudian-prompt-preset-action claudian-prompt-preset-delete',
+      attr: { 'aria-label': `Delete ${preset.name}`, title: '删除', type: 'button' },
+    });
+    setIcon(deleteButton, 'trash-2');
+    deleteButton.addEventListener('click', (event) => {
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      void this.deletePreset(preset.id);
+    });
+  }
+
+  private promptAddPreset(): void {
+    const name = window.prompt('提示词名称', '');
+    if (name === null) return;
+    const content = window.prompt('提示词内容', name.trim());
+    if (content === null) return;
+    void this.addPreset(name, content);
+  }
+
+  private promptEditPreset(preset: PromptPreset): void {
+    const name = window.prompt('提示词名称', preset.name);
+    if (name === null) return;
+    const content = window.prompt('提示词内容', preset.content);
+    if (content === null) return;
+    void this.updatePreset(preset.id, name, content);
+  }
+
+  private async addPreset(name: string, content: string): Promise<void> {
+    const trimmedName = name.trim();
+    const trimmedContent = content.trim();
+    if (!trimmedName || !trimmedContent) {
+      new Notice('提示词名称和内容不能为空。');
+      return;
+    }
+    const presets = [...this.getPresets(), { id: createPromptPresetId(), name: trimmedName, content: trimmedContent }];
+    await this.callbacks.onPromptPresetSettingsChange?.({ presets });
+    this.renderDropdown();
+  }
+
+  private async updatePreset(id: string, name: string, content: string): Promise<void> {
+    const trimmedName = name.trim();
+    const trimmedContent = content.trim();
+    if (!trimmedName || !trimmedContent) {
+      new Notice('提示词名称和内容不能为空。');
+      return;
+    }
+    const presets = this.getPresets().map((preset) =>
+      preset.id === id ? { ...preset, name: trimmedName, content: trimmedContent } : preset
+    );
+    await this.callbacks.onPromptPresetSettingsChange?.({ presets });
+    this.renderDropdown();
+  }
+
+  private async deletePreset(id: string): Promise<void> {
+    const presets = this.getPresets();
+    if (presets.length <= 1) {
+      new Notice('至少保留 1 条提示词预设。');
+      return;
+    }
+    await this.callbacks.onPromptPresetSettingsChange?.({ presets: presets.filter((preset) => preset.id !== id) });
+    this.renderDropdown();
+  }
+}
+
 export class ContextUsageMeter {
   private container: HTMLElement;
   private fillPath: SVGPathElement | null = null;
@@ -1174,6 +1400,7 @@ export function createInputToolbar(
   externalContextSelector: ExternalContextSelector;
   mcpServerSelector: McpServerSelector;
   permissionToggle: PermissionToggle;
+  promptPresetMenu: PromptPresetMenu;
   serviceTierToggle: ServiceTierToggle;
 } {
   const modelSelector = new ModelSelector(parentEl, callbacks);
@@ -1182,6 +1409,7 @@ export function createInputToolbar(
   const contextUsageMeter = new ContextUsageMeter(parentEl);
   const externalContextSelector = new ExternalContextSelector(parentEl, callbacks);
   const mcpServerSelector = new McpServerSelector(parentEl);
+  const promptPresetMenu = new PromptPresetMenu(parentEl, callbacks);
   const permissionToggle = new PermissionToggle(parentEl, callbacks);
   const modeSelector = new ModeSelector(parentEl, callbacks);
 
@@ -1193,6 +1421,7 @@ export function createInputToolbar(
     contextUsageMeter,
     externalContextSelector,
     mcpServerSelector,
+    promptPresetMenu,
     permissionToggle,
   };
 }
