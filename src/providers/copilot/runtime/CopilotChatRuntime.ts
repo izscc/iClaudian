@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import type { ProviderCapabilities } from '../../../core/providers/types';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
@@ -360,10 +361,10 @@ export class CopilotChatRuntime implements ChatRuntime {
     if (settings.selectedApprovalMode === 'plan') {
       args.push('--mode', 'plan');
     } else if (settings.selectedApprovalMode === 'yolo') {
-      args.push('--allow-all');
+      args.push('--mode', 'autopilot', '--autopilot', '--allow-all');
     }
 
-    if (settings.autopilot && settings.selectedApprovalMode !== 'plan') args.push('--autopilot');
+    if (settings.autopilot && settings.selectedApprovalMode === 'default') args.push('--autopilot');
     if (settings.experimental) args.push('--experimental');
     if (settings.remote) args.push('--remote');
     else args.push('--no-remote');
@@ -579,9 +580,10 @@ export class CopilotChatRuntime implements ChatRuntime {
   }
 
   private resolveSessionPath(sessionId: string, rawPath: string): string {
-    if (path.isAbsolute(rawPath)) return rawPath;
+    const normalizedPath = normalizeAcpFilePath(rawPath);
+    if (path.isAbsolute(normalizedPath)) return normalizedPath;
     const cwd = this.sessionCwds.get(sessionId) ?? getVaultPath(this.plugin.app) ?? process.cwd();
-    return path.resolve(cwd, rawPath);
+    return path.resolve(cwd, normalizedPath);
   }
 
   private formatRuntimeError(error: unknown): string {
@@ -596,6 +598,16 @@ export class CopilotChatRuntime implements ChatRuntime {
     this.currentSessionModelId = null;
     this.currentSessionModeId = null;
     this.setSupportedCommands([]);
+  }
+}
+
+
+function normalizeAcpFilePath(rawPath: string): string {
+  if (!rawPath.startsWith('file://')) return rawPath;
+  try {
+    return fileURLToPath(rawPath);
+  } catch {
+    return rawPath;
   }
 }
 

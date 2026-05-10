@@ -1,3 +1,8 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
+
 import { CopilotChatRuntime } from '@/providers/copilot/runtime/CopilotChatRuntime';
 
 function createMockPlugin(settings: Record<string, unknown> = {}): any {
@@ -36,8 +41,9 @@ describe('CopilotChatRuntime', () => {
       '--acp', '--stdio',
       '--model', 'gpt-5.4-mini',
       '--effort', 'xhigh',
-      '--allow-all',
+      '--mode', 'autopilot',
       '--autopilot',
+      '--allow-all',
       '--experimental',
       '--remote',
       '--enable-reasoning-summaries',
@@ -67,14 +73,49 @@ describe('CopilotChatRuntime', () => {
     expect(syncPermission).toHaveBeenCalledWith('normal');
   });
 
-  it('maps Copilot plan mode URL back to the shared permission toggle', async () => {
+  it('maps Copilot YOLO to ACP autopilot mode', async () => {
+    const runtime = new CopilotChatRuntime(createMockPlugin({
+      providerConfigs: { copilot: { enabled: true, selectedApprovalMode: 'yolo' } },
+    }));
+    const setMode = jest.fn().mockResolvedValue({});
+    const syncPermission = jest.fn();
+    (runtime as any).connection = { setMode };
+    runtime.setPermissionModeSyncCallback(syncPermission);
+
+    await (runtime as any).applySelectedMode('session-1');
+
+    expect(setMode).toHaveBeenCalledWith({
+      modeId: 'https://agentclientprotocol.com/protocol/session-modes#autopilot',
+      sessionId: 'session-1',
+    });
+    expect(syncPermission).toHaveBeenCalledWith('yolo');
+  });
+
+  it('maps Copilot plan and autopilot mode URLs back to the shared permission toggle', async () => {
     const runtime = new CopilotChatRuntime(createMockPlugin());
     const syncPermission = jest.fn();
     runtime.setPermissionModeSyncCallback(syncPermission);
 
     (runtime as any).emitPermissionModeSync('https://agentclientprotocol.com/protocol/session-modes#plan');
+    (runtime as any).emitPermissionModeSync('https://agentclientprotocol.com/protocol/session-modes#autopilot');
 
-    expect(syncPermission).toHaveBeenCalledWith('plan');
+    expect(syncPermission).toHaveBeenNthCalledWith(1, 'plan');
+    expect(syncPermission).toHaveBeenNthCalledWith(2, 'yolo');
+  });
+
+
+  it('overwrites absolute and file URL paths through the ACP filesystem delegate', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'iclaudian-copilot-'));
+    const absolutePath = path.join(tmpDir, 'note with spaces.md');
+    const fileUrlPath = path.join(tmpDir, '中文 note.md');
+    const runtime = new CopilotChatRuntime(createMockPlugin());
+
+    await (runtime as any).writeTextFile({ sessionId: 'session-1', path: absolutePath, content: 'old' });
+    await (runtime as any).writeTextFile({ sessionId: 'session-1', path: absolutePath, content: 'new content' });
+    await (runtime as any).writeTextFile({ sessionId: 'session-1', path: pathToFileURL(fileUrlPath).href, content: 'file url content' });
+
+    expect(fs.readFileSync(absolutePath, 'utf-8')).toBe('new content');
+    expect(fs.readFileSync(fileUrlPath, 'utf-8')).toBe('file url content');
   });
 
   it('sends ACP cancel and closes the active queue', async () => {
