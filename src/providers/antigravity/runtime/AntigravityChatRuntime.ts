@@ -142,7 +142,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
 
     const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
     const targetSessionId = this.sessionId;
-    const resolvedCliPath = this.plugin.getResolvedProviderCliPath('antigravity') ?? 'antigravity';
+    const resolvedCliPath = this.plugin.getResolvedProviderCliPath('antigravity') ?? 'agy';
     const runtimeEnv = buildAntigravityRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, resolvedCliPath);
     const approvalMode = this.resolveSelectedApprovalMode();
     const initialModel = this.resolveSelectedRawModelId();

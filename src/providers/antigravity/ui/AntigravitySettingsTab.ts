@@ -97,7 +97,7 @@ export const antigravitySettingsTabRenderer: ProviderSettingsTabRenderer = {
 
     cliPathSetting.addText(text => {
       text
-        .setPlaceholder(process.platform === 'win32' ? 'C:\\Users\\you\\AppData\\Roaming\\npm\\antigravity.cmd' : '/usr/local/bin/antigravity')
+        .setPlaceholder(process.platform === 'win32' ? 'C:\\Users\\you\\AppData\\Roaming\\npm\\agy.cmd' : '/usr/local/bin/agy')
         .setValue(currentValue)
         .onChange(async value => { await persistCliPath(value); });
       text.inputEl.addClass('claudian-settings-cli-path-input');

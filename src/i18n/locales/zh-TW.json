@@ -429,11 +429,11 @@
     "antigravity": {
       "enable": {
         "name": "启用 Antigravity 提供方",
-        "desc": "以提供方形式启动 `antigravity --acp`。新对话的模型选择器会显示 Antigravity 模型。"
+        "desc": "以提供方形式启动 `agy --acp`。新对话的模型选择器会显示 Antigravity 模型。"
       },
       "cliPath": {
         "name": "Antigravity CLI 路径（{host}）",
-        "desc": "此电脑上的 Antigravity CLI 绝对路径。留空则使用 PATH 中的 `antigravity`。"
+        "desc": "此电脑上的 Antigravity CLI 绝对路径。留空则使用 PATH 中的 `agy`。"
       },
       "approvalMode": {
         "name": "审批模式",
@@ -461,7 +461,7 @@
         "desc": "从下拉菜单隐藏指定 Antigravity 运行时命令。每行输入一个名称，不带前导斜杠。"
       },
       "mcp": {
-        "desc": "Antigravity 通过自己的 CLI 管理 MCP 服务器。使用 antigravity mcp 配置后即可在 iClaudian ACP 会话中使用。"
+        "desc": "Antigravity 通过自己的 CLI 管理 MCP 服务器。使用 agy mcp 配置后即可在 iClaudian ACP 会话中使用。"
       },
       "environment": {
         "name": "Antigravity 环境",

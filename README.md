@@ -29,7 +29,7 @@
 | Codex CLI | `codex app-server` | 发送、流式、取消、恢复、历史重载、分叉、Plan、图片、行内编辑、`#`、`$` Skills、子代理；部分运行时命令、MCP 管理、Claude 插件能力不适用 |
 | OpenCode | OpenCode CLI | ACP/运行时模型发现、模型筛选、模式选择、命令下拉、行内编辑和标题生成等基础代理能力 |
 | Gemini CLI | `gemini --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、运行时命令、MCP 由 Gemini CLI 管理 |
-| Antigravity CLI | `antigravity --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、推理强度配置、运行时命令、MCP 由 Antigravity 管理 |
+| Antigravity CLI | `agy --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、推理强度配置、运行时命令、MCP 由 Antigravity 管理 |
 | GitHub Copilot CLI | `copilot --acp` | ACP 会话、模型选择、Plan/YOLO 权限模式、运行时命令；插件、MCP、BYOK 等由 Copilot CLI 管理 |
 
 ## GitHub Copilot CLI 模型 ID

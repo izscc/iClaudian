@@ -25,6 +25,8 @@ export const ANTIGRAVITY_FALLBACK_MODELS = [
   { rawId: 'antigravity-2.5-pro', label: 'antigravity-2.5-pro', description: 'Antigravity 2.5 Pro model' },
   { rawId: 'antigravity-2.5-flash', label: 'antigravity-2.5-flash', description: 'Antigravity 2.5 Flash model' },
   { rawId: 'antigravity-2.5-flash-lite', label: 'antigravity-2.5-flash-lite', description: 'Antigravity 2.5 Flash Lite model' },
+  { rawId: 'gemini-2.0-flash-exp', label: 'gemini-2.0-flash-exp', description: 'Gemini 2.0 Flash experimental model' },
+  { rawId: 'gemini-2.0-flash-lite-preview-02-05', label: 'gemini-2.0-flash-lite-preview-02-05', description: 'Gemini 2.0 Flash Lite preview model' },
 ] as const;
 
 export function normalizeAntigravityRawModelId(rawId: string): string {

@@ -429,7 +429,7 @@
     "antigravity": {
       "enable": {
         "name": "Enable Antigravity provider",
-        "desc": "Launch `antigravity --acp` as a provider. Antigravity models will appear in the model selector for new conversations."
+        "desc": "Launch `agy --acp` as a provider. Antigravity models will appear in the model selector for new conversations."
       },
       "cliPath": {
         "name": "Antigravity CLI path ({host})",
@@ -461,7 +461,7 @@
         "desc": "Hide specific Antigravity runtime commands from the dropdown. Enter names without the leading slash, one per line."
       },
       "mcp": {
-        "desc": "Antigravity manages MCP servers via its own CLI. Configure with antigravity mcp and they will be available in iClaudian ACP sessions."
+        "desc": "Antigravity manages MCP servers via its own CLI. Configure with agy mcp and they will be available in iClaudian ACP sessions."
       },
       "environment": {
         "name": "Antigravity environment",
