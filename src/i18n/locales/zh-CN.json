@@ -426,6 +426,48 @@
         "desc": "仅限 Gemini 运行时变量。用于 GEMINI_*、GOOGLE_* 和 Vertex AI 设置。共享 PATH 变更应写入共享环境设置。"
       }
     },
+    "antigravity": {
+      "enable": {
+        "name": "启用 Antigravity 提供方",
+        "desc": "以提供方形式启动 `antigravity --acp`。新对话的模型选择器会显示 Antigravity 模型。"
+      },
+      "cliPath": {
+        "name": "Antigravity CLI 路径（{host}）",
+        "desc": "此电脑上的 Antigravity CLI 绝对路径。留空则使用 PATH 中的 `antigravity`。"
+      },
+      "approvalMode": {
+        "name": "审批模式",
+        "desc": "Antigravity CLI 启动 ACP 会话时使用的权限模式。工具栏 Safe/YOLO/Plan 开关也会同步此值。",
+        "default": "默认",
+        "autoEdit": "自动批准编辑",
+        "plan": "计划模式"
+      },
+      "visibleModels": {
+        "name": "可见模型",
+        "desc": "选择聊天模型列表中显示哪些 Antigravity 模型。Antigravity 启动一次后，iClaudian 会从 ACP 模型目录填充此列表。"
+      },
+      "customVisibleModels": {
+        "name": "模型 ID",
+        "desc": "每行一个 Antigravity 模型 ID。留空则使用 Antigravity CLI 发现的全部模型。"
+      },
+      "discovered": "已从 ACP 运行时发现 {count} 个 Antigravity 模型。",
+      "notDiscovered": "尚未发现 Antigravity 模型。启动 Antigravity 一次即可加载模型目录。",
+      "commandsSkills": {
+        "name": "命令与技能",
+        "desc": "Antigravity CLI 会暴露 memory、init、restore、扩展管理等运行时斜杠命令。Antigravity 技能和 MCP 服务器由 Antigravity CLI 自身管理。"
+      },
+      "hiddenCommands": {
+        "name": "隐藏命令",
+        "desc": "从下拉菜单隐藏指定 Antigravity 运行时命令。每行输入一个名称，不带前导斜杠。"
+      },
+      "mcp": {
+        "desc": "Antigravity 通过自己的 CLI 管理 MCP 服务器。使用 antigravity mcp 配置后即可在 iClaudian ACP 会话中使用。"
+      },
+      "environment": {
+        "name": "Antigravity 环境",
+        "desc": "仅限 Antigravity 运行时变量。用于 ANTIGRAVITY_*、GOOGLE_* 和 Vertex AI 设置。共享 PATH 变更应写入共享环境设置。"
+      }
+    },
     "copilot": {
       "enable": {
         "name": "启用 Copilot 提供方",

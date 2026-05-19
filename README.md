@@ -6,11 +6,11 @@
 
 ![预览](Preview.png)
 
-**iClaudian** 是一个 Obsidian 桌面端插件，把常用 AI 编程代理直接嵌入到你的 Vault 侧边栏和行内编辑流程中。当前支持 Claude Code、Codex CLI、OpenCode、Gemini CLI，以及 GitHub Copilot CLI（ACP）。你的 Vault 会作为代理工作目录，代理可以在授权范围内读取、搜索、编辑文件并执行多步骤任务。
+**iClaudian** 是一个 Obsidian 桌面端插件，把常用 AI 编程代理直接嵌入到你的 Vault 侧边栏和行内编辑流程中。当前支持 Claude Code、Codex CLI、OpenCode、Gemini CLI、Antigravity CLI，以及 GitHub Copilot CLI（ACP）。你的 Vault 会作为代理工作目录，代理可以在授权范围内读取、搜索、编辑文件并执行多步骤任务。
 
 ## 核心功能
 
-- **多提供方聊天**：在同一个聊天体验中切换 Claude、Codex、OpenCode、Gemini、Copilot 等运行时。
+- **多提供方聊天**：在同一个聊天体验中切换 Claude、Codex、OpenCode、Gemini、Antigravity、Copilot 等运行时。
 - **行内编辑**：选中文本或在光标位置触发快捷键，使用代理直接改写笔记，并显示词级 diff 预览。
 - **对话与多标签**：支持多个聊天标签、历史会话、恢复、分叉、压缩上下文等工作流。
 - **计划模式**：通过 `Shift+Tab` 切换 Plan 模式，让代理先探索和设计，再执行实现。
@@ -29,6 +29,7 @@
 | Codex CLI | `codex app-server` | 发送、流式、取消、恢复、历史重载、分叉、Plan、图片、行内编辑、`#`、`$` Skills、子代理；部分运行时命令、MCP 管理、Claude 插件能力不适用 |
 | OpenCode | OpenCode CLI | ACP/运行时模型发现、模型筛选、模式选择、命令下拉、行内编辑和标题生成等基础代理能力 |
 | Gemini CLI | `gemini --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、运行时命令、MCP 由 Gemini CLI 管理 |
+| Antigravity CLI | `antigravity --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、推理强度配置、运行时命令、MCP 由 Antigravity 管理 |
 | GitHub Copilot CLI | `copilot --acp` | ACP 会话、模型选择、Plan/YOLO 权限模式、运行时命令；插件、MCP、BYOK 等由 Copilot CLI 管理 |
 
 ## GitHub Copilot CLI 模型 ID

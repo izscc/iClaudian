@@ -426,6 +426,48 @@
         "desc": "Gemini-owned runtime variables only. Use this for GEMINI_*, GOOGLE_* and Vertex AI settings. Shared PATH changes should go in the shared environment section."
       }
     },
+    "antigravity": {
+      "enable": {
+        "name": "Enable Antigravity provider",
+        "desc": "Launch `antigravity --acp` as a provider. Antigravity models will appear in the model selector for new conversations."
+      },
+      "cliPath": {
+        "name": "Antigravity CLI path ({host})",
+        "desc": "Optional absolute path to the Antigravity CLI for this computer. Leave empty to use `antigravity` from PATH."
+      },
+      "approvalMode": {
+        "name": "Approval mode",
+        "desc": "Permission mode used by Antigravity CLI when starting ACP sessions. The toolbar Safe/YOLO/Plan toggle also syncs this value.",
+        "default": "Default",
+        "autoEdit": "Auto Edit",
+        "plan": "Plan"
+      },
+      "visibleModels": {
+        "name": "Visible Models",
+        "desc": "Choose which Antigravity models appear in the chat selector. After Antigravity starts once, iClaudian can seed this list from the ACP model catalog."
+      },
+      "customVisibleModels": {
+        "name": "Model IDs",
+        "desc": "One Antigravity model ID per line. Leave empty to use all models discovered from Antigravity CLI."
+      },
+      "discovered": "Discovered {count} Antigravity models from the ACP runtime.",
+      "notDiscovered": "No Antigravity models discovered yet. Start Antigravity once to load its model catalog.",
+      "commandsSkills": {
+        "name": "Commands and Skills",
+        "desc": "Antigravity CLI exposes runtime slash commands such as memory, init, restore, and extension management. Antigravity skills and MCP servers are managed by the Antigravity CLI."
+      },
+      "hiddenCommands": {
+        "name": "Hidden Commands",
+        "desc": "Hide specific Antigravity runtime commands from the dropdown. Enter names without the leading slash, one per line."
+      },
+      "mcp": {
+        "desc": "Antigravity manages MCP servers via its own CLI. Configure with antigravity mcp and they will be available in iClaudian ACP sessions."
+      },
+      "environment": {
+        "name": "Antigravity environment",
+        "desc": "Antigravity-owned runtime variables only. Use this for ANTIGRAVITY_*, GOOGLE_* and Vertex AI settings. Shared PATH changes should go in the shared environment section."
+      }
+    },
     "copilot": {
       "enable": {
         "name": "Enable Copilot provider",

@@ -3,6 +3,7 @@ import { DEFAULT_CLAUDE_PROVIDER_SETTINGS } from './claude/settings';
 import { DEFAULT_CODEX_PROVIDER_SETTINGS } from './codex/settings';
 import { DEFAULT_COPILOT_PROVIDER_SETTINGS } from './copilot/settings';
 import { DEFAULT_GEMINI_PROVIDER_SETTINGS } from './gemini/settings';
+import { DEFAULT_ANTIGRAVITY_PROVIDER_SETTINGS } from './antigravity/settings';
 import { DEFAULT_OPENCODE_PROVIDER_SETTINGS } from './opencode/settings';
 
 export function getBuiltInProviderDefaultConfigs(): ProviderConfigMap {
@@ -11,6 +12,7 @@ export function getBuiltInProviderDefaultConfigs(): ProviderConfigMap {
     codex: { ...DEFAULT_CODEX_PROVIDER_SETTINGS },
     copilot: { ...DEFAULT_COPILOT_PROVIDER_SETTINGS },
     gemini: { ...DEFAULT_GEMINI_PROVIDER_SETTINGS },
+    antigravity: { ...DEFAULT_ANTIGRAVITY_PROVIDER_SETTINGS },
     opencode: { ...DEFAULT_OPENCODE_PROVIDER_SETTINGS },
   };
 }
