@@ -95,6 +95,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
   private sessionCwds = new Map<string, string>();
   private sessionId: string | null = null;
   private readonly sessionUpdateNormalizer = new AcpSessionUpdateNormalizer();
+  private stdoutBuffer = '';
   private transport: AcpJsonRpcTransport | null = null;
 
   constructor(private readonly plugin: ClaudianPlugin) {}
@@ -148,7 +149,6 @@ export class AntigravityChatRuntime implements ChatRuntime {
     const initialModel = this.resolveSelectedRawModelId();
     const effortLevel = (this.plugin.settings as any).effortLevel || 'high';
     const launchArgs = [
-      '--acp', // Keep it for now, maybe it is supported in some versions or needs special environment
       ...(approvalMode === 'yolo' ? ['--dangerously-skip-permissions'] : []),
     ];
     const nextLaunchKey = JSON.stringify({ command: resolvedCliPath, cwd, env: this.getEnvFingerprint(runtimeEnv), args: launchArgs });
@@ -310,6 +310,14 @@ export class AntigravityChatRuntime implements ChatRuntime {
   private async startProcess(params: { command: string; args: string[]; cwd: string; runtimeEnv: NodeJS.ProcessEnv }): Promise<void> {
     this.process = new AcpSubprocess({ args: params.args, command: params.command, cwd: params.cwd, env: { ...process.env, ...params.runtimeEnv } });
     this.process.start();
+
+    // Capture stdout for debugging and authentication messages
+    this.stdoutBuffer = '';
+    this.process.stdout.on('data', (chunk: Buffer | string) => {
+      const text = typeof chunk === 'string' ? chunk : chunk.toString('utf-8');
+      this.stdoutBuffer = `${this.stdoutBuffer}${text}`.slice(-8000);
+    });
+
     this.transport = new AcpJsonRpcTransport({ input: this.process.stdout, onClose: (listener) => this.process!.onClose(listener), output: this.process.stdin });
     this.connection = new AcpClientConnection({
       clientInfo: { name: 'iclaudian', version: this.plugin.manifest?.version ?? '0.0.0' },
@@ -566,7 +574,16 @@ export class AntigravityChatRuntime implements ChatRuntime {
   private formatRuntimeError(error: unknown): string {
     const baseMessage = error instanceof Error ? error.message : 'Antigravity request failed';
     const stderr = this.process?.getStderrSnapshot();
-    return stderr ? `${baseMessage}\n\n${stderr}` : baseMessage;
+    const stdout = this.stdoutBuffer.trim();
+    
+    let message = baseMessage;
+    if (stdout) {
+      message += `\n\n[STDOUT]\n${stdout}`;
+    }
+    if (stderr) {
+      message += `\n\n[STDERR]\n${stderr}`;
+    }
+    return message;
   }
 
   private clearActiveSession(): void {

@@ -1,7 +1,7 @@
 {
   "id": "iclaudian",
   "name": "iClaudian",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "minAppVersion": "1.4.5",
   "description": "Embeds Claude Code, Codex, OpenCode, Gemini CLI, and GitHub Copilot CLI as AI collaborators in your vault. Your vault becomes the working directory for agentic file read/write, search, shell commands, and multi-step workflows.",
   "author": "izscc",
