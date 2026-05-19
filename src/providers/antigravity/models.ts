@@ -1,37 +1,50 @@
 export const ANTIGRAVITY_SYNTHETIC_MODEL_ID = 'antigravity';
 export const ANTIGRAVITY_MODEL_PREFIX = 'antigravity:';
 
-const ANTIGRAVITY_MODEL_ALIASES = new Map<string, string>([
-  ['antigravity-3.1-pro', 'antigravity-3.1-pro-preview'],
-  ['auto-antigravity-3', 'antigravity-3-pro-preview'],
-]);
-
+/**
+ * Fallback models for Antigravity provider.
+ * These match the list seen in the agy CLI model switcher.
+ */
 export const ANTIGRAVITY_FALLBACK_MODELS = [
   {
-    rawId: 'antigravity-3.1-pro-preview',
-    label: 'antigravity-3.1-pro-preview',
-    description: 'Latest Antigravity 3.1 Pro preview model in Antigravity CLI',
+    rawId: 'Gemini 3.5 Flash (High)',
+    label: 'Gemini 3.5 Flash (High)',
+    description: 'Antigravity Gemini 3.5 Flash - High Effort',
   },
   {
-    rawId: 'antigravity-3-pro-preview',
-    label: 'antigravity-3-pro-preview',
-    description: 'Antigravity 3 Pro preview model',
+    rawId: 'Gemini 3.5 Flash (Low)',
+    label: 'Gemini 3.5 Flash (Low)',
+    description: 'Antigravity Gemini 3.5 Flash - Low Effort',
   },
   {
-    rawId: 'antigravity-3-flash-preview',
-    label: 'antigravity-3-flash-preview',
-    description: 'Antigravity 3 Flash preview model',
+    rawId: 'Gemini 3.1 Pro (High)',
+    label: 'Gemini 3.1 Pro (High)',
+    description: 'Antigravity Gemini 3.1 Pro - High Effort',
   },
-  { rawId: 'antigravity-2.5-pro', label: 'antigravity-2.5-pro', description: 'Antigravity 2.5 Pro model' },
-  { rawId: 'antigravity-2.5-flash', label: 'antigravity-2.5-flash', description: 'Antigravity 2.5 Flash model' },
-  { rawId: 'antigravity-2.5-flash-lite', label: 'antigravity-2.5-flash-lite', description: 'Antigravity 2.5 Flash Lite model' },
-  { rawId: 'gemini-2.0-flash-exp', label: 'gemini-2.0-flash-exp', description: 'Gemini 2.0 Flash experimental model' },
-  { rawId: 'gemini-2.0-flash-lite-preview-02-05', label: 'gemini-2.0-flash-lite-preview-02-05', description: 'Gemini 2.0 Flash Lite preview model' },
+  {
+    rawId: 'Gemini 3.1 Pro (Low)',
+    label: 'Gemini 3.1 Pro (Low)',
+    description: 'Antigravity Gemini 3.1 Pro - Low Effort',
+  },
+  {
+    rawId: 'Claude Sonnet 4.6 (Thinking)',
+    label: 'Claude Sonnet 4.6 (Thinking)',
+    description: 'Antigravity Claude Sonnet 4.6 - Thinking Mode',
+  },
+  {
+    rawId: 'Claude Opus 4.6 (Thinking)',
+    label: 'Claude Opus 4.6 (Thinking)',
+    description: 'Antigravity Claude Opus 4.6 - Thinking Mode',
+  },
+  {
+    rawId: 'GPT-OSS 120B (Medium)',
+    label: 'GPT-OSS 120B (Medium)',
+    description: 'Antigravity GPT-OSS 120B - Medium Effort',
+  },
 ] as const;
 
 export function normalizeAntigravityRawModelId(rawId: string): string {
-  const trimmed = rawId.trim();
-  return ANTIGRAVITY_MODEL_ALIASES.get(trimmed.toLowerCase()) ?? trimmed;
+  return rawId.trim();
 }
 
 export function encodeAntigravityModelId(rawId: string): string {

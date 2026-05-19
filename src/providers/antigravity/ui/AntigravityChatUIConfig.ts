@@ -51,15 +51,11 @@ export const antigravityChatUIConfig: ProviderChatUIConfig = {
   },
 
   ownsModel(model: string): boolean { return isAntigravityModelSelectionId(model); },
-  isAdaptiveReasoningModel(): boolean { return true; },
+  isAdaptiveReasoningModel(): boolean { return false; },
   getReasoningOptions(): ProviderUIOption[] {
-    return [
-      { value: 'low', label: 'Low', description: 'Faster response, less thinking' },
-      { value: 'medium', label: 'Medium', description: 'Balanced thinking' },
-      { value: 'high', label: 'High', description: 'Deeper thinking' },
-    ];
+    return [];
   },
-  getDefaultReasoningValue(): string { return 'high'; },
+  getDefaultReasoningValue(): string { return ''; },
   getContextWindowSize(model: string, customLimits?: Record<string, number>): number {
     return customLimits?.[model] ?? DEFAULT_CONTEXT_WINDOW;
   },

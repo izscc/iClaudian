@@ -148,10 +148,8 @@ export class AntigravityChatRuntime implements ChatRuntime {
     const initialModel = this.resolveSelectedRawModelId();
     const effortLevel = (this.plugin.settings as any).effortLevel || 'high';
     const launchArgs = [
-      '--acp',
-      '--approval-mode', approvalMode,
-      '--effort', effortLevel,
-      ...(initialModel ? ['--model', initialModel] : []),
+      '--acp', // Keep it for now, maybe it is supported in some versions or needs special environment
+      ...(approvalMode === 'yolo' ? ['--dangerously-skip-permissions'] : []),
     ];
     const nextLaunchKey = JSON.stringify({ command: resolvedCliPath, cwd, env: this.getEnvFingerprint(runtimeEnv), args: launchArgs });
     const shouldRestart = !this.process || !this.transport || !this.connection || !this.process.isAlive() || options?.force === true || this.currentLaunchKey !== nextLaunchKey;
