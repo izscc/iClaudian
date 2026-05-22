@@ -12,9 +12,9 @@ export const ANTIGRAVITY_FALLBACK_MODELS = [
     description: 'Antigravity Gemini 3.5 Flash - High Effort',
   },
   {
-    rawId: 'Gemini 3.5 Flash (Low)',
-    label: 'Gemini 3.5 Flash (Low)',
-    description: 'Antigravity Gemini 3.5 Flash - Low Effort',
+    rawId: 'Gemini 3.5 Flash (Medium)',
+    label: 'Gemini 3.5 Flash (Medium)',
+    description: 'Antigravity Gemini 3.5 Flash - Medium Effort',
   },
   {
     rawId: 'Gemini 3.1 Pro (High)',
@@ -43,8 +43,21 @@ export const ANTIGRAVITY_FALLBACK_MODELS = [
   },
 ] as const;
 
+const ANTIGRAVITY_MODEL_ALIASES = new Map<string, string>([
+  ['Gemini 3.5 Flash (Low)'.toLowerCase(), 'Gemini 3.5 Flash (Medium)'],
+  ['gemini-3.5-flash-low', 'Gemini 3.5 Flash (Medium)'],
+  ['gemini-3.5-flash-medium', 'Gemini 3.5 Flash (Medium)'],
+  ['gemini-3-flash-agent', 'Gemini 3.5 Flash (High)'],
+  ['gemini-3.1-pro-high', 'Gemini 3.1 Pro (High)'],
+  ['gemini-3.1-pro-low', 'Gemini 3.1 Pro (Low)'],
+  ['claude-sonnet-4-6@default', 'Claude Sonnet 4.6 (Thinking)'],
+  ['claude-opus-4-6@default', 'Claude Opus 4.6 (Thinking)'],
+  ['openai/gpt-oss-120b-maas', 'GPT-OSS 120B (Medium)'],
+]);
+
 export function normalizeAntigravityRawModelId(rawId: string): string {
-  return rawId.trim();
+  const trimmed = rawId.trim();
+  return ANTIGRAVITY_MODEL_ALIASES.get(trimmed.toLowerCase()) ?? trimmed;
 }
 
 export function encodeAntigravityModelId(rawId: string): string {

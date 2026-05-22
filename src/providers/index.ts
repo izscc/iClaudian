@@ -1,5 +1,7 @@
 import { ProviderRegistry } from '../core/providers/ProviderRegistry';
 import { ProviderWorkspaceRegistry } from '../core/providers/ProviderWorkspaceRegistry';
+import { antigravityWorkspaceRegistration } from './antigravity/app/AntigravityWorkspaceServices';
+import { antigravityProviderRegistration } from './antigravity/registration';
 import { claudeWorkspaceRegistration } from './claude/app/ClaudeWorkspaceServices';
 import { claudeProviderRegistration } from './claude/registration';
 import { codexWorkspaceRegistration } from './codex/app/CodexWorkspaceServices';
@@ -8,8 +10,6 @@ import { copilotWorkspaceRegistration } from './copilot/app/CopilotWorkspaceServ
 import { copilotProviderRegistration } from './copilot/registration';
 import { geminiWorkspaceRegistration } from './gemini/app/GeminiWorkspaceServices';
 import { geminiProviderRegistration } from './gemini/registration';
-import { antigravityWorkspaceRegistration } from './antigravity/app/AntigravityWorkspaceServices';
-import { antigravityProviderRegistration } from './antigravity/registration';
 import { opencodeWorkspaceRegistration } from './opencode/app/OpencodeWorkspaceServices';
 import { opencodeProviderRegistration } from './opencode/registration';
 

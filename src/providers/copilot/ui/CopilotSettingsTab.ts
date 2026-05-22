@@ -149,7 +149,7 @@ export const copilotSettingsTabRenderer: ProviderSettingsTabRenderer = {
       .setName(tt('settings.copilot.customVisibleModels.name', 'Model IDs'))
       .setDesc(tt('settings.copilot.customVisibleModels.desc', 'One Copilot CLI model ID per line. These are passed to `copilot --model`.'))
       .addTextArea(text => {
-        text.setPlaceholder('gpt-5.4\ngpt-5.4-mini\ngpt-5.2')
+        text.setPlaceholder('claude-sonnet-4.6\ngpt-5.5\ngpt-5.4\ngpt-5.4-mini')
           .setValue(visibleModels.join('\n'))
           .onChange(async (value) => {
             const models = parseLines(value);

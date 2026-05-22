@@ -429,39 +429,39 @@
     "antigravity": {
       "enable": {
         "name": "Enable Antigravity provider",
-        "desc": "Launch `agy --acp` as a provider. Antigravity models will appear in the model selector for new conversations."
+        "desc": "Run `agy --print` for non-interactive Antigravity requests. Antigravity models will appear in the model selector for new conversations."
       },
       "cliPath": {
         "name": "Antigravity CLI path ({host})",
-        "desc": "Optional absolute path to the Antigravity CLI for this computer. Leave empty to use `antigravity` from PATH."
+        "desc": "Optional absolute path to the Antigravity CLI for this computer. Leave empty to use `agy` from PATH."
       },
       "approvalMode": {
         "name": "Approval mode",
-        "desc": "Permission mode used by Antigravity CLI when starting ACP sessions. The toolbar Safe/YOLO/Plan toggle also syncs this value.",
+        "desc": "Permission mode used by Antigravity CLI print mode. YOLO adds --dangerously-skip-permissions.",
         "default": "Default",
         "autoEdit": "Auto Edit",
         "plan": "Plan"
       },
       "visibleModels": {
         "name": "Visible Models",
-        "desc": "Choose which Antigravity models appear in the chat selector. After Antigravity starts once, iClaudian can seed this list from the ACP model catalog."
+        "desc": "Choose which Antigravity models appear in the chat selector. iClaudian writes the selected model name to ~/.gemini/antigravity-cli/settings.json."
       },
       "customVisibleModels": {
         "name": "Model IDs",
-        "desc": "One Antigravity model ID per line. Leave empty to use all models discovered from Antigravity CLI."
+        "desc": "One Antigravity model name per line. Use the labels shown by the Antigravity CLI model switcher."
       },
-      "discovered": "Discovered {count} Antigravity models from the ACP runtime.",
-      "notDiscovered": "No Antigravity models discovered yet. Start Antigravity once to load its model catalog.",
+      "discovered": "Configured {count} Antigravity models.",
+      "notDiscovered": "No custom Antigravity models configured yet. iClaudian will use its built-in model list.",
       "commandsSkills": {
         "name": "Commands and Skills",
-        "desc": "Antigravity CLI exposes runtime slash commands such as memory, init, restore, and extension management. Antigravity skills and MCP servers are managed by the Antigravity CLI."
+        "desc": "Antigravity CLI print mode does not expose runtime slash commands to iClaudian. Antigravity plugins and MCP servers are managed by the Antigravity CLI."
       },
       "hiddenCommands": {
         "name": "Hidden Commands",
         "desc": "Hide specific Antigravity runtime commands from the dropdown. Enter names without the leading slash, one per line."
       },
       "mcp": {
-        "desc": "Antigravity manages MCP servers via its own CLI. Configure with agy mcp and they will be available in iClaudian ACP sessions."
+        "desc": "Antigravity manages MCP servers via its own CLI. Configure with agy mcp and they will be available to Antigravity CLI runs."
       },
       "environment": {
         "name": "Antigravity environment",

@@ -6,7 +6,7 @@
 
 ![预览](Preview.png)
 
-**iClaudian** 是一个 Obsidian 桌面端插件，把常用 AI 编程代理直接嵌入到你的 Vault 侧边栏和行内编辑流程中。当前支持 Claude Code、Codex CLI、OpenCode、Gemini CLI、Antigravity CLI，以及 GitHub Copilot CLI（ACP）。你的 Vault 会作为代理工作目录，代理可以在授权范围内读取、搜索、编辑文件并执行多步骤任务。
+**iClaudian** 是一个 Obsidian 桌面端插件，把常用 AI 编程代理直接嵌入到你的 Vault 侧边栏和行内编辑流程中。当前支持 Claude Code、Codex CLI、OpenCode、Gemini CLI、Antigravity CLI，以及 GitHub Copilot CLI。你的 Vault 会作为代理工作目录，代理可以在授权范围内读取、搜索、编辑文件并执行多步骤任务。
 
 ## 核心功能
 
@@ -29,12 +29,14 @@
 | Codex CLI | `codex app-server` | 发送、流式、取消、恢复、历史重载、分叉、Plan、图片、行内编辑、`#`、`$` Skills、子代理；部分运行时命令、MCP 管理、Claude 插件能力不适用 |
 | OpenCode | OpenCode CLI | ACP/运行时模型发现、模型筛选、模式选择、命令下拉、行内编辑和标题生成等基础代理能力 |
 | Gemini CLI | `gemini --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、运行时命令、MCP 由 Gemini CLI 管理 |
-| Antigravity CLI | `agy --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、推理强度配置、运行时命令、MCP 由 Antigravity 管理 |
+| Antigravity CLI | `agy --print` | 非交互请求、模型选择、YOLO 权限模式；模型写入 `~/.gemini/antigravity-cli/settings.json`，MCP/插件由 Antigravity CLI 管理 |
 | GitHub Copilot CLI | `copilot --acp` | ACP 会话、模型选择、Plan/YOLO 权限模式、运行时命令；插件、MCP、BYOK 等由 Copilot CLI 管理 |
 
-## GitHub Copilot CLI 模型 ID
+## 模型 ID
 
-根据 `copilot help config` 的模型清单确认，Copilot CLI 当前可用的真实模型 ID 包括：
+### GitHub Copilot CLI 模型 ID
+
+根据 `copilot help config` 的模型清单确认，Copilot CLI 当前可用的真实模型 ID 包括，iClaudian 也会默认预置这些 ID：
 
 ```text
 claude-sonnet-4.6
@@ -44,31 +46,33 @@ claude-opus-4.7
 claude-opus-4.6
 claude-opus-4.6-fast
 claude-opus-4.5
-claude-sonnet-4
 gpt-5.5
 gpt-5.4
 gpt-5.3-codex
 gpt-5.2-codex
 gpt-5.2
-gpt-5.1
 gpt-5.4-mini
 gpt-5-mini
 gpt-4.1
 ```
 
-iClaudian 的 Copilot 设置页默认展示以下常用模型：
+旧配置中的 `gpt-5.1` 会自动迁移到 `gpt-5.4`，`claude-sonnet-4` 会自动迁移到 `claude-sonnet-4.6`。如需使用其他 Copilot CLI 模型，可在 **Settings → iClaudian → Copilot → Model IDs** 中每行填写一个模型 ID。
+
+### Antigravity CLI 模型名称
+
+Antigravity CLI 1.0.x 没有稳定的 `--model` 参数；iClaudian 会把选择的真实模型名称写入 `~/.gemini/antigravity-cli/settings.json` 的 `model` 字段，然后通过 `agy --print` 执行请求。当前预置模型名称为：
 
 ```text
-gpt-5.5
-gpt-5.4-mini
-gpt-5-mini
-gpt-4.1
-claude-opus-4.7
-claude-sonnet-4.6
-claude-haiku-4.5
+Gemini 3.5 Flash (High)
+Gemini 3.5 Flash (Medium)
+Gemini 3.1 Pro (High)
+Gemini 3.1 Pro (Low)
+Claude Sonnet 4.6 (Thinking)
+Claude Opus 4.6 (Thinking)
+GPT-OSS 120B (Medium)
 ```
 
-如需使用其他 Copilot CLI 模型，可在 **Settings → iClaudian → Copilot → Model IDs** 中每行填写一个模型 ID。
+旧配置中的 `Gemini 3.5 Flash (Low)` 会自动迁移到真实可用的 `Gemini 3.5 Flash (Medium)`。
 
 ## 安装要求
 
@@ -79,6 +83,7 @@ claude-haiku-4.5
   - Codex provider：安装 [Codex CLI](https://github.com/openai/codex)
   - OpenCode provider：安装 [OpenCode](https://opencode.ai/)
   - Gemini provider：安装 Gemini CLI，并支持 `gemini --acp`
+  - Antigravity provider：安装 [Antigravity CLI](https://www.antigravity.google/docs/cli-getting-started)，并完成 CLI 登录/授权
   - Copilot provider：安装 [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli)，并完成 `copilot login`
 
 ## 安装方式
@@ -129,6 +134,7 @@ npm run dev
 | Claude | `/Users/you/.volta/bin/claude` | `C:\Users\you\AppData\Local\Claude\claude.exe` |
 | Codex | `/Users/you/bin/codex` | `C:\Users\you\AppData\Roaming\npm\codex.cmd` |
 | Gemini | `/usr/local/bin/gemini` | `C:\Users\you\AppData\Roaming\npm\gemini.cmd` |
+| Antigravity | `/usr/local/bin/agy` | `C:\Users\you\AppData\Roaming\npm\agy.cmd` |
 | Copilot | `/Users/you/.local/bin/copilot` | `C:\Users\you\AppData\Local\GitHubCopilot\copilot.exe` |
 | OpenCode | `/usr/local/bin/opencode` | `C:\Users\you\AppData\Roaming\npm\opencode.cmd` |
 
@@ -139,11 +145,20 @@ npm run dev
 Copilot provider 通过 ACP 启动：
 
 - 默认：`copilot --acp --model <model>`
-- YOLO：追加 `--allow-all`
-- Plan：追加 `--plan`
-- Auto Edit：追加 `--allow-tool write`
+- YOLO：追加 `--mode autopilot --autopilot --allow-all`
+- Plan：追加 `--mode plan`
 
 Copilot 的 MCP、插件、BYOK provider、登录状态等仍由 GitHub Copilot CLI 自身管理。
+
+### Antigravity CLI 调用方式
+
+Antigravity provider 使用当前 CLI 支持的非交互方式：
+
+- 默认：`agy --print <prompt> --print-timeout 5m`
+- YOLO：追加 `--dangerously-skip-permissions`
+- 模型：写入 `~/.gemini/antigravity-cli/settings.json` 的 `model` 字段
+
+这避免了旧版 `agy --acp` 路径导致的 `initialize` 超时问题。
 
 ## 隐私与数据
 

@@ -354,7 +354,7 @@ export class CopilotChatRuntime implements ChatRuntime {
     const effortLevel = typeof this.plugin.settings.effortLevel === 'string'
       ? this.plugin.settings.effortLevel
       : '';
-    if (['low', 'medium', 'high', 'xhigh'].includes(effortLevel)) {
+    if (['low', 'medium', 'high', 'xhigh', 'max'].includes(effortLevel)) {
       args.push('--effort', effortLevel);
     }
 

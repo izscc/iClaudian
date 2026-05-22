@@ -4,7 +4,7 @@ import type {
   ProviderPermissionModeToggleConfig,
   ProviderUIOption,
 } from '../../../core/providers/types';
-import { decodeAntigravityModelId, encodeAntigravityModelId, ANTIGRAVITY_FALLBACK_MODELS, ANTIGRAVITY_MODEL_PREFIX, ANTIGRAVITY_SYNTHETIC_MODEL_ID, isAntigravityModelSelectionId } from '../models';
+import { ANTIGRAVITY_FALLBACK_MODELS, ANTIGRAVITY_MODEL_PREFIX, ANTIGRAVITY_SYNTHETIC_MODEL_ID, decodeAntigravityModelId, encodeAntigravityModelId, isAntigravityModelSelectionId } from '../models';
 import { antigravityApprovalModeToPermissionMode, permissionModeToAntigravityApprovalMode } from '../modes';
 import { getAntigravityProviderSettings, updateAntigravityProviderSettings } from '../settings';
 
@@ -24,7 +24,7 @@ const ANTIGRAVITY_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
 };
 
 const FALLBACK_MODELS: ProviderUIOption[] = [
-  { value: ANTIGRAVITY_SYNTHETIC_MODEL_ID, label: 'Antigravity', description: 'ACP runtime default model' },
+  { value: ANTIGRAVITY_SYNTHETIC_MODEL_ID, label: 'Antigravity', description: 'Antigravity CLI default model' },
   ...ANTIGRAVITY_FALLBACK_MODELS.map(model => ({
     value: encodeAntigravityModelId(model.rawId),
     label: model.label,

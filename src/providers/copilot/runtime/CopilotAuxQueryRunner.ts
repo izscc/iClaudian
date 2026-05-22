@@ -19,7 +19,7 @@ export class CopilotAuxQueryRunner implements AuxQueryRunner {
     const effort = typeof this.plugin.settings.effortLevel === 'string' ? this.plugin.settings.effortLevel : '';
     const args = ['--prompt', prompt, '--silent', '--no-remote', '--allow-all-tools'];
     if (model) args.unshift('--model', model);
-    if (['low', 'medium', 'high', 'xhigh'].includes(effort)) args.unshift('--effort', effort);
+    if (['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) args.unshift('--effort', effort);
 
     this.currentAbortController = config.abortController ?? new AbortController();
     return await new Promise<string>((resolve, reject) => {

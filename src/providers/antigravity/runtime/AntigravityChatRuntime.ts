@@ -1,4 +1,6 @@
+import { type ChildProcess, spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { ProviderCapabilities } from '../../../core/providers/types';
@@ -34,7 +36,6 @@ import {
   type AcpUsage,
   type AcpUsageUpdate,
   type AcpWriteTextFileRequest,
-  buildAcpPromptBlocks,
   buildAcpPromptText,
   buildAcpUsageInfo,
   extractAcpSessionModelState,
@@ -85,6 +86,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
   private currentTurnMetadata: ChatTurnMetadata = {};
   private loadedSessionId: string | null = null;
   private permissionModeSyncCallback: ((mode: string) => void) | null = null;
+  private printProcess: ChildProcess | null = null;
   private process: AcpSubprocess | null = null;
   private promptUsage: AcpUsage | null = null;
   private readonly readyListeners: Array<(ready: boolean) => void> = [];
@@ -134,134 +136,34 @@ export class AntigravityChatRuntime implements ChatRuntime {
 
   async reloadMcpServers(): Promise<void> {}
 
-  async ensureReady(options?: ChatRuntimeEnsureReadyOptions): Promise<boolean> {
+  async ensureReady(_options?: ChatRuntimeEnsureReadyOptions): Promise<boolean> {
     const settings = getAntigravityProviderSettings(this.plugin.settings as unknown as Record<string, unknown>);
     if (!settings.enabled) {
       this.setReady(false);
       return false;
     }
 
-    const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
-    const targetSessionId = this.sessionId;
-    const resolvedCliPath = this.plugin.getResolvedProviderCliPath('antigravity') ?? 'agy';
-    const runtimeEnv = buildAntigravityRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, resolvedCliPath);
-    const approvalMode = this.resolveSelectedApprovalMode();
-    const initialModel = this.resolveSelectedRawModelId();
-    const effortLevel = (this.plugin.settings as any).effortLevel || 'high';
-    const launchArgs = [
-      ...(approvalMode === 'yolo' ? ['--dangerously-skip-permissions'] : []),
-    ];
-    const nextLaunchKey = JSON.stringify({ command: resolvedCliPath, cwd, env: this.getEnvFingerprint(runtimeEnv), args: launchArgs });
-    const shouldRestart = !this.process || !this.transport || !this.connection || !this.process.isAlive() || options?.force === true || this.currentLaunchKey !== nextLaunchKey;
-
-    if (shouldRestart) {
-      await this.shutdownProcess();
-      await this.startProcess({ command: resolvedCliPath, args: launchArgs, cwd, runtimeEnv });
-      this.currentLaunchKey = nextLaunchKey;
-      this.loadedSessionId = null;
-    }
-
-    if (targetSessionId) {
-      if (this.loadedSessionId !== targetSessionId) {
-        const loaded = await this.loadSession(targetSessionId, cwd);
-        if (!loaded) {
-          this.sessionInvalidated = true;
-          this.clearActiveSession();
-        }
-      }
-      return true;
-    }
-
-    if (!this.sessionId && !this.sessionInvalidated) {
-      if (options?.allowSessionCreation === false) return true;
-      return Boolean(await this.createSession(cwd));
-    }
-
+    await this.shutdownProcess();
+    if (!this.sessionId) this.sessionId = `antigravity-${Date.now()}`;
+    this.loadedSessionId = this.sessionId;
+    this.setReady(true);
     return true;
   }
 
   async *query(turn: PreparedChatTurn, conversationHistory?: ChatMessage[], queryOptions?: ChatRuntimeQueryOptions): AsyncGenerator<StreamChunk> {
     const previousMessages = conversationHistory ?? [];
-    const expectedSessionId = this.sessionId;
-    let shouldBootstrapHistory = previousMessages.length > 0 && (!expectedSessionId || this.sessionInvalidated);
-
     if (!(await this.ensureReady())) {
       yield { type: 'error', content: 'Failed to start Antigravity. Check the CLI path and login state.' };
       yield { type: 'done' };
       return;
     }
-    if (!this.connection) {
-      yield { type: 'error', content: 'Antigravity runtime is not ready.' };
-      yield { type: 'done' };
-      return;
-    }
 
-    const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
-    if (expectedSessionId && !this.sessionId) shouldBootstrapHistory = previousMessages.length > 0;
-    if (!this.sessionId) {
-      const sessionId = await this.createSession(cwd);
-      if (!sessionId) {
-        yield { type: 'error', content: 'Failed to create a Antigravity session.' };
-        yield { type: 'done' };
-        return;
-      }
-    }
-
-    const sessionId = this.sessionId!;
-    this.activeTurn?.queue.close();
-    this.activeTurn = { queue: new StreamChunkQueue(), sessionId };
-    this.currentTurnMetadata = {};
-    this.contextUsage = null;
-    this.promptUsage = null;
-    this.sessionUpdateNormalizer.reset();
-    const activeTurn = this.activeTurn;
-
-    try {
-      await this.applySelectedMode(sessionId);
-      await this.applySelectedModel(sessionId, queryOptions);
-    } catch (error) {
-      yield { type: 'error', content: this.formatRuntimeError(error) };
-      yield { type: 'done' };
-      activeTurn.queue.close();
-      this.activeTurn = null;
-      return;
-    }
-
-    const promptPromise = this.connection.prompt({
-      prompt: buildAcpPromptBlocks(
-        turn.request,
-        shouldBootstrapHistory ? previousMessages : [],
-      ),
-      sessionId,
-    })
-      .then((response) => {
-        if (response.userMessageId) this.currentTurnMetadata.userMessageId = response.userMessageId;
-        this.promptUsage = response.usage ?? null;
-        const usage = buildAcpUsageInfo({ contextWindow: this.contextUsage, model: this.getActiveDisplayModel(queryOptions), promptUsage: this.promptUsage });
-        if (usage) activeTurn.queue.push({ sessionId, type: 'usage', usage });
-        activeTurn.queue.push({ type: 'done' });
-        activeTurn.queue.close();
-      })
-      .catch((error) => {
-        activeTurn.queue.push({ type: 'error', content: this.formatRuntimeError(error) });
-        activeTurn.queue.push({ type: 'done' });
-        activeTurn.queue.close();
-      })
-      .finally(() => { if (this.activeTurn === activeTurn) this.activeTurn = null; });
-
-    try {
-      while (true) {
-        const chunk = await activeTurn.queue.next();
-        if (!chunk) break;
-        yield chunk;
-      }
-      await promptPromise;
-    } finally {
-      if (this.activeTurn === activeTurn) this.activeTurn = null;
-    }
+    yield* this.queryPrintMode(turn, previousMessages, queryOptions);
   }
 
   cancel(): void {
+    this.printProcess?.kill('SIGTERM');
+    this.printProcess = null;
     if (this.connection && this.sessionId) this.connection.cancel({ sessionId: this.sessionId });
     this.activeTurn?.queue.close();
   }
@@ -349,6 +251,8 @@ export class AntigravityChatRuntime implements ChatRuntime {
     this.currentSessionModelId = null;
     this.currentSessionModeId = null;
     this.setSupportedCommands([]);
+    this.printProcess?.kill('SIGTERM');
+    this.printProcess = null;
     this.connection?.dispose(); this.connection = null;
     this.transport?.dispose(); this.transport = null;
     if (this.process) { await this.process.shutdown().catch(() => {}); this.process = null; }
@@ -386,6 +290,97 @@ export class AntigravityChatRuntime implements ChatRuntime {
   private getActiveDisplayModel(queryOptions?: ChatRuntimeQueryOptions): string | undefined {
     const raw = this.resolveSelectedRawModelId(queryOptions) ?? this.currentSessionModelId;
     return raw ? encodeAntigravityModelId(raw) : undefined;
+  }
+
+  private buildPrintPrompt(turn: PreparedChatTurn, previousMessages: ChatMessage[]): string {
+    if (!previousMessages.length) return turn.prompt;
+    const history = previousMessages.slice(-12).map((message) => {
+      const role = message.role === 'assistant' ? 'Assistant' : 'User';
+      return `${role}: ${message.content}`;
+    }).join('\n\n');
+    return `Continue the existing conversation below.\n\n${history}\n\nUser: ${turn.prompt}`;
+  }
+
+  private async *queryPrintMode(
+    turn: PreparedChatTurn,
+    previousMessages: ChatMessage[],
+    queryOptions?: ChatRuntimeQueryOptions,
+  ): AsyncGenerator<StreamChunk> {
+    const command = this.plugin.getResolvedProviderCliPath('antigravity') ?? 'agy';
+    const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
+    const runtimeEnv = buildAntigravityRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, command);
+    const selectedModel = this.resolveSelectedRawModelId(queryOptions);
+    try {
+      await this.persistSelectedModel(selectedModel);
+      const result = await this.runPrint({
+        command,
+        cwd,
+        env: { ...process.env, ...runtimeEnv },
+        prompt: this.buildPrintPrompt(turn, previousMessages),
+        skipPermissions: getAntigravityProviderSettings(this.plugin.settings as unknown as Record<string, unknown>).selectedApprovalMode === 'yolo',
+      });
+      if (result.code === 0) {
+        if (result.stdout.trim()) yield { type: 'text', content: result.stdout.trim() };
+        else if (result.stderr.trim()) yield { type: 'notice', content: result.stderr.trim(), level: 'warning' };
+      } else {
+        const details = [result.stderr.trim(), result.stdout.trim()].filter(Boolean).join('\n\n');
+        yield { type: 'error', content: details || `Antigravity CLI exited with code ${result.code ?? result.signal ?? 'unknown'}.` };
+      }
+    } catch (error) {
+      yield { type: 'error', content: this.formatRuntimeError(error) };
+    }
+    yield { type: 'done' };
+  }
+
+  private async persistSelectedModel(model: string | null): Promise<void> {
+    if (!model) return;
+    const settingsPath = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'settings.json');
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = JSON.parse(await fs.readFile(settingsPath, 'utf-8')) as Record<string, unknown>;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    if (parsed.model === model) return;
+    parsed.model = model;
+    await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+    await fs.writeFile(settingsPath, `${JSON.stringify(parsed, null, 2)}\n`, 'utf-8');
+  }
+
+  private runPrint(params: {
+    command: string;
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+    prompt: string;
+    skipPermissions: boolean;
+  }): Promise<{ code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }> {
+    const args = [
+      ...(params.skipPermissions ? ['--dangerously-skip-permissions'] : []),
+      '--print',
+      params.prompt,
+      '--print-timeout',
+      '5m',
+    ];
+
+    return new Promise((resolve, reject) => {
+      const child = spawn(params.command, args, {
+        cwd: params.cwd,
+        env: params.env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      this.printProcess = child;
+      let stdout = '';
+      let stderr = '';
+      child.stdout.setEncoding('utf-8');
+      child.stderr.setEncoding('utf-8');
+      child.stdout.on('data', chunk => { stdout += String(chunk); });
+      child.stderr.on('data', chunk => { stderr += String(chunk); });
+      child.on('error', reject);
+      child.on('close', (code, signal) => {
+        if (this.printProcess === child) this.printProcess = null;
+        resolve({ code, signal, stdout, stderr });
+      });
+    });
   }
 
   private async applySelectedMode(sessionId: string): Promise<void> {
