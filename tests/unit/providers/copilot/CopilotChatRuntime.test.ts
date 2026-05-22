@@ -38,11 +38,9 @@ describe('CopilotChatRuntime', () => {
     }));
 
     expect((runtime as any).buildLaunchArgs()).toEqual([
-      '--acp', '--stdio',
+      '--acp',
       '--model', 'gpt-5.4-mini',
       '--effort', 'xhigh',
-      '--mode', 'autopilot',
-      '--autopilot',
       '--allow-all',
       '--experimental',
       '--remote',
@@ -60,12 +58,19 @@ describe('CopilotChatRuntime', () => {
       providerConfigs: { copilot: { enabled: true, selectedApprovalMode: 'default' } },
     }));
     const setMode = jest.fn().mockResolvedValue({});
+    const setConfigOption = jest.fn().mockResolvedValue({});
     const syncPermission = jest.fn();
-    (runtime as any).connection = { setMode };
+    (runtime as any).connection = { setConfigOption, setMode };
     runtime.setPermissionModeSyncCallback(syncPermission);
 
     await (runtime as any).applySelectedMode('session-1');
 
+    expect(setConfigOption).toHaveBeenCalledWith({
+      configId: 'allow_all',
+      sessionId: 'session-1',
+      type: 'select',
+      value: 'off',
+    });
     expect(setMode).toHaveBeenCalledWith({
       modeId: 'https://agentclientprotocol.com/protocol/session-modes#agent',
       sessionId: 'session-1',
@@ -73,21 +78,25 @@ describe('CopilotChatRuntime', () => {
     expect(syncPermission).toHaveBeenCalledWith('normal');
   });
 
-  it('maps Copilot YOLO to ACP autopilot mode', async () => {
+  it('maps Copilot YOLO to ACP allow_all config', async () => {
     const runtime = new CopilotChatRuntime(createMockPlugin({
       providerConfigs: { copilot: { enabled: true, selectedApprovalMode: 'yolo' } },
     }));
     const setMode = jest.fn().mockResolvedValue({});
+    const setConfigOption = jest.fn().mockResolvedValue({});
     const syncPermission = jest.fn();
-    (runtime as any).connection = { setMode };
+    (runtime as any).connection = { setConfigOption, setMode };
     runtime.setPermissionModeSyncCallback(syncPermission);
 
     await (runtime as any).applySelectedMode('session-1');
 
-    expect(setMode).toHaveBeenCalledWith({
-      modeId: 'https://agentclientprotocol.com/protocol/session-modes#autopilot',
+    expect(setConfigOption).toHaveBeenCalledWith({
+      configId: 'allow_all',
       sessionId: 'session-1',
+      type: 'select',
+      value: 'on',
     });
+    expect(setMode).not.toHaveBeenCalled();
     expect(syncPermission).toHaveBeenCalledWith('yolo');
   });
 
@@ -98,9 +107,65 @@ describe('CopilotChatRuntime', () => {
 
     (runtime as any).emitPermissionModeSync('https://agentclientprotocol.com/protocol/session-modes#plan');
     (runtime as any).emitPermissionModeSync('https://agentclientprotocol.com/protocol/session-modes#autopilot');
+    (runtime as any).emitPermissionModeSync('allow-all');
 
     expect(syncPermission).toHaveBeenNthCalledWith(1, 'plan');
     expect(syncPermission).toHaveBeenNthCalledWith(2, 'yolo');
+    expect(syncPermission).toHaveBeenNthCalledWith(3, 'yolo');
+  });
+
+
+  it('uses Copilot prompt fallback with inline Obsidian note context and external directories', () => {
+    fs.mkdirSync('/tmp/claudian-test-vault/Notes', { recursive: true });
+    fs.writeFileSync('/tmp/claudian-test-vault/Notes/The more you generate.md', 'CURRENT_NOTE_TOKEN_42', 'utf-8');
+    const runtime = new CopilotChatRuntime(createMockPlugin({
+      effortLevel: 'max',
+      providerConfigs: { copilot: { enabled: true, selectedApprovalMode: 'default' } },
+    }));
+
+    const turn = runtime.prepareTurn({
+      text: '翻译',
+      currentNotePath: 'Notes/The more you generate.md',
+      externalContextPaths: ['/tmp/reference'],
+    });
+    const prompt = (runtime as any).buildPromptModePrompt(turn, []);
+    const attachments = (runtime as any).resolvePromptModeAttachmentPaths(turn, []);
+    const args = (runtime as any).buildPromptModeArgs({
+      attachments,
+      externalContextPaths: ['/tmp/reference'],
+      model: 'gpt-5.4-mini',
+      prompt,
+    });
+
+    expect(prompt).toContain('[Obsidian current note]');
+    expect(prompt).toContain('/tmp/claudian-test-vault/Notes/The more you generate.md');
+    expect(prompt).toContain('CURRENT_NOTE_TOKEN_42');
+    expect(attachments).toEqual([]);
+    expect(args).not.toContain('--attachment');
+    expect(args).toContain('--add-dir');
+    expect(args).toContain('/tmp/reference');
+  });
+
+  it('keeps the selected note embedded in Copilot prompt fallback after the first turn', () => {
+    fs.mkdirSync('/tmp/claudian-test-vault/Notes', { recursive: true });
+    fs.writeFileSync('/tmp/claudian-test-vault/Notes/The more you generate.md', 'PREVIOUS_NOTE_TOKEN_99', 'utf-8');
+    const runtime = new CopilotChatRuntime(createMockPlugin({
+      providerConfigs: { copilot: { enabled: true, selectedApprovalMode: 'default' } },
+    }));
+    const turn = runtime.prepareTurn({ text: '继续翻译' });
+    const previousMessages = [{
+      id: 'u1',
+      role: 'user',
+      content: '翻译',
+      currentNote: 'Notes/The more you generate.md',
+      timestamp: 1,
+    }];
+
+    const prompt = (runtime as any).buildPromptModePrompt(turn, previousMessages);
+
+    expect(prompt).toContain('/tmp/claudian-test-vault/Notes/The more you generate.md');
+    expect(prompt).toContain('PREVIOUS_NOTE_TOKEN_99');
+    expect((runtime as any).resolvePromptModeAttachmentPaths(turn, previousMessages)).toEqual([]);
   });
 
 

@@ -1,6 +1,6 @@
 {
   "name": "iclaudian",
-  "version": "2.2.5",
+  "version": "2.2.6",
   "description": "iClaudian - Claude, Codex, OpenCode, Gemini CLI, Antigravity CLI, and GitHub Copilot CLI embedded in Obsidian sidebar",
   "main": "main.js",
   "scripts": {

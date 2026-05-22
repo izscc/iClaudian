@@ -30,7 +30,7 @@
 | OpenCode | OpenCode CLI | ACP/运行时模型发现、模型筛选、模式选择、命令下拉、行内编辑和标题生成等基础代理能力 |
 | Gemini CLI | `gemini --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、运行时命令、MCP 由 Gemini CLI 管理 |
 | Antigravity CLI | `agy --print` / `agy --continue --print` | 流式输出、原生继续会话、模型选择、YOLO 权限模式；模型写入 `~/.gemini/antigravity-cli/settings.json`，MCP/插件由 Antigravity CLI 管理 |
-| GitHub Copilot CLI | `copilot --acp` | ACP 会话、模型选择、Plan/YOLO 权限模式、运行时命令；插件、MCP、BYOK 等由 Copilot CLI 管理 |
+| GitHub Copilot CLI | `copilot --acp` | ACP 会话、模型选择、Plan/YOLO 权限模式、运行时命令；插件、MCP、BYOK 等由 Copilot CLI 管理；ACP 不可用时会走保留 Obsidian 当前笔记上下文的 prompt fallback |
 
 ## 模型 ID
 
@@ -145,10 +145,10 @@ npm run dev
 Copilot provider 通过 ACP 启动：
 
 - 默认：`copilot --acp --model <model>`
-- YOLO：追加 `--mode autopilot --autopilot --allow-all`
+- YOLO：启动时追加 `--allow-all`，会话内优先通过 ACP `allow_all=on` 切换；若旧版 Copilot ACP 不支持该配置，再兼容回退到 autopilot mode URL
 - Plan：追加 `--mode plan`
 
-Copilot 的 MCP、插件、BYOK provider、登录状态等仍由 GitHub Copilot CLI 自身管理。若 ACP 启动失败，iClaudian 会自动降级到 `copilot --prompt --silent --stream on` 的非交互对话路径，避免直接中断聊天。
+Copilot 的 MCP、插件、BYOK provider、登录状态等仍由 GitHub Copilot CLI 自身管理。若 ACP 启动失败，iClaudian 会自动降级到 `copilot --prompt --silent --stream on` 的非交互对话路径，避免直接中断聊天。降级路径会把当前 Obsidian 笔记内容内联进 prompt，并把外部上下文目录通过 `--add-dir` 传递；Markdown 笔记不会作为 `--attachment` 传递，因为 Copilot CLI 的 attachment 只接受图片或原生文档。
 
 ### Antigravity CLI 调用方式
 

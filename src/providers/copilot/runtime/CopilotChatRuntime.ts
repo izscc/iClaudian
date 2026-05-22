@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
+import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -186,7 +187,6 @@ export class CopilotChatRuntime implements ChatRuntime {
       return false;
     });
     if (!ready) {
-      yield { type: 'notice', content: 'Copilot ACP runtime did not start; falling back to Copilot CLI prompt mode.', level: 'warning' };
       yield* this.queryPromptMode(turn, previousMessages, queryOptions, startupError);
       return;
     }
@@ -358,7 +358,7 @@ export class CopilotChatRuntime implements ChatRuntime {
 
   private buildLaunchArgs(): string[] {
     const settings = getCopilotProviderSettings(this.plugin.settings as unknown as Record<string, unknown>);
-    const args = ['--acp', '--stdio'];
+    const args = ['--acp'];
     const rawModelId = this.resolveSelectedRawModelId();
     if (rawModelId) args.push('--model', rawModelId);
 
@@ -372,7 +372,7 @@ export class CopilotChatRuntime implements ChatRuntime {
     if (settings.selectedApprovalMode === 'plan') {
       args.push('--mode', 'plan');
     } else if (settings.selectedApprovalMode === 'yolo') {
-      args.push('--mode', 'autopilot', '--autopilot', '--allow-all');
+      args.push('--allow-all');
     }
 
     if (settings.autopilot && settings.selectedApprovalMode === 'default') args.push('--autopilot');
@@ -416,6 +416,18 @@ export class CopilotChatRuntime implements ChatRuntime {
 
 
   private buildPromptModePrompt(turn: PreparedChatTurn, previousMessages: ChatMessage[]): string {
+    const latestNotePath = this.resolvePromptModeCurrentNotePath(turn, previousMessages);
+    const basePrompt = this.buildPromptModeBasePrompt(turn, previousMessages);
+    if (!latestNotePath) return basePrompt;
+    const absoluteNotePath = this.resolveVaultRelativePath(latestNotePath);
+    const noteContent = this.readPromptModeCurrentNoteContent(absoluteNotePath);
+    const contentBlock = noteContent
+      ? `\nContent:\n${noteContent}`
+      : '\nContent: <unavailable; read the file from the path above if needed>';
+    return `${basePrompt}\n\n[Obsidian current note]\nPath: ${absoluteNotePath}${contentBlock}\n[/Obsidian current note]\n\nWhen the user asks to translate, summarize, rewrite, explain, or otherwise operate on the current note, use the Obsidian current note above as the primary input.`;
+  }
+
+  private buildPromptModeBasePrompt(turn: PreparedChatTurn, previousMessages: ChatMessage[]): string {
     if (!previousMessages.length) return turn.prompt;
     const history = previousMessages.slice(-12).map((message) => {
       const role = message.role === 'assistant' ? 'Assistant' : 'User';
@@ -424,38 +436,52 @@ export class CopilotChatRuntime implements ChatRuntime {
     return `Continue the existing conversation below.\n\n${history}\n\nUser: ${turn.prompt}`;
   }
 
-  private async *queryPromptMode(
-    turn: PreparedChatTurn,
-    previousMessages: ChatMessage[],
-    queryOptions?: ChatRuntimeQueryOptions,
-    startupError?: unknown,
-  ): AsyncGenerator<StreamChunk> {
-    const command = this.plugin.getResolvedProviderCliPath('copilot') ?? 'copilot';
-    const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
-    const runtimeEnv = buildCopilotRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, command);
-    try {
-      yield* this.runPromptStream({
-        command,
-        cwd,
-        env: { ...process.env, ...runtimeEnv },
-        model: this.resolveSelectedRawModelId(queryOptions),
-        prompt: this.buildPromptModePrompt(turn, previousMessages),
-        startupError,
-      });
-    } catch (error) {
-      yield { type: 'error', content: this.formatRuntimeError(error) };
+  private resolvePromptModeCurrentNotePath(turn: PreparedChatTurn, previousMessages: ChatMessage[]): string | null {
+    if (turn.request.currentNotePath) return turn.request.currentNotePath;
+    for (let index = previousMessages.length - 1; index >= 0; index--) {
+      const notePath = previousMessages[index]?.currentNote;
+      if (notePath) return notePath;
     }
-    yield { type: 'done' };
+    return null;
   }
 
-  private async *runPromptStream(params: {
-    command: string;
-    cwd: string;
-    env: NodeJS.ProcessEnv;
+  private resolveVaultRelativePath(rawPath: string): string {
+    if (path.isAbsolute(rawPath)) return rawPath;
+    const vaultPath = getVaultPath(this.plugin.app);
+    return vaultPath ? path.resolve(vaultPath, rawPath) : path.resolve(rawPath);
+  }
+
+  private readPromptModeCurrentNoteContent(absolutePath: string, maxChars = 120_000): string | null {
+    try {
+      const content = fsSync.readFileSync(absolutePath, 'utf-8');
+      if (content.length <= maxChars) return content;
+      return `${content.slice(0, maxChars)}\n\n[Current note truncated after ${maxChars} characters]`;
+    } catch {
+      return null;
+    }
+  }
+
+  private resolvePromptModeAttachmentPaths(_turn: PreparedChatTurn, _previousMessages: ChatMessage[]): string[] {
+    // Copilot CLI currently rejects Markdown files passed through --attachment
+    // ("must be an image or native document"). Obsidian notes are therefore
+    // embedded into --prompt instead so prompt fallback remains context-complete.
+    return [];
+  }
+
+  private resolveExternalContextPaths(
+    turn: PreparedChatTurn,
+    queryOptions?: ChatRuntimeQueryOptions,
+  ): string[] {
+    const paths = turn.request.externalContextPaths ?? queryOptions?.externalContextPaths ?? [];
+    return [...new Set(paths.filter((value): value is string => typeof value === 'string' && value.trim().length > 0))];
+  }
+
+  private buildPromptModeArgs(params: {
+    attachments: string[];
+    externalContextPaths: string[];
     model: string | null;
     prompt: string;
-    startupError?: unknown;
-  }): AsyncGenerator<StreamChunk> {
+  }): string[] {
     const settings = getCopilotProviderSettings(this.plugin.settings as unknown as Record<string, unknown>);
     const effortLevel = typeof this.plugin.settings.effortLevel === 'string' ? this.plugin.settings.effortLevel : '';
     const args = [
@@ -469,6 +495,53 @@ export class CopilotChatRuntime implements ChatRuntime {
     ];
     if (params.model) args.unshift('--model', params.model);
     if (['low', 'medium', 'high', 'xhigh', 'max'].includes(effortLevel)) args.unshift('--effort', effortLevel);
+    for (const contextPath of params.externalContextPaths) args.push('--add-dir', contextPath);
+    for (const attachment of params.attachments) args.push('--attachment', attachment);
+    return args;
+  }
+
+  private async *queryPromptMode(
+    turn: PreparedChatTurn,
+    previousMessages: ChatMessage[],
+    queryOptions?: ChatRuntimeQueryOptions,
+    startupError?: unknown,
+  ): AsyncGenerator<StreamChunk> {
+    const command = this.plugin.getResolvedProviderCliPath('copilot') ?? 'copilot';
+    const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
+    const runtimeEnv = buildCopilotRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, command);
+    try {
+      yield* this.runPromptStream({
+        attachments: this.resolvePromptModeAttachmentPaths(turn, previousMessages),
+        command,
+        cwd,
+        env: { ...process.env, ...runtimeEnv },
+        externalContextPaths: this.resolveExternalContextPaths(turn, queryOptions),
+        model: this.resolveSelectedRawModelId(queryOptions),
+        prompt: this.buildPromptModePrompt(turn, previousMessages),
+        startupError,
+      });
+    } catch (error) {
+      yield { type: 'error', content: this.formatRuntimeError(error) };
+    }
+    yield { type: 'done' };
+  }
+
+  private async *runPromptStream(params: {
+    attachments: string[];
+    command: string;
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+    externalContextPaths: string[];
+    model: string | null;
+    prompt: string;
+    startupError?: unknown;
+  }): AsyncGenerator<StreamChunk> {
+    const args = this.buildPromptModeArgs({
+      attachments: params.attachments,
+      externalContextPaths: params.externalContextPaths,
+      model: params.model,
+      prompt: params.prompt,
+    });
 
     const queue: StreamChunk[] = [];
     const waiters: Array<() => void> = [];
@@ -524,6 +597,24 @@ export class CopilotChatRuntime implements ChatRuntime {
   private async applySelectedMode(sessionId: string): Promise<void> {
     if (!this.connection) return;
     const selected = getCopilotProviderSettings(this.plugin.settings as unknown as Record<string, unknown>).selectedApprovalMode;
+    if (selected === 'yolo') {
+      try {
+        const response = await this.connection.setConfigOption({ configId: 'allow_all', sessionId, type: 'select', value: 'on' });
+        this.currentSessionModeId = 'allow-all';
+        await this.syncSessionModeState({ configOptions: response.configOptions ?? null });
+        this.emitPermissionModeSync('allow-all');
+        return;
+      } catch {
+        // Older Copilot ACP builds may not expose the allow_all config option.
+        // Fall through to the legacy autopilot mode URL as a compatibility path.
+      }
+    } else {
+      try {
+        await this.connection.setConfigOption({ configId: 'allow_all', sessionId, type: 'select', value: 'off' });
+      } catch {
+        // Best-effort only: some ACP builds do not expose allow_all.
+      }
+    }
     const modeId = copilotApprovalModeToAcpModeId(selected);
     if (!modeId || modeId === this.currentSessionModeId) return;
     try {
