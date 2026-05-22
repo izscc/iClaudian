@@ -85,6 +85,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
   private currentSessionModeId: string | null = null;
   private currentTurnMetadata: ChatTurnMetadata = {};
   private loadedSessionId: string | null = null;
+  private hasNativeContinuation = false;
   private permissionModeSyncCallback: ((mode: string) => void) | null = null;
   private printProcess: ChildProcess | null = null;
   private process: AcpSubprocess | null = null;
@@ -129,6 +130,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
       this.currentSessionModelId = null;
       this.currentSessionModeId = null;
       this.sessionInvalidated = false;
+      this.hasNativeContinuation = false;
       this.setSupportedCommands([]);
     }
     this.sessionId = conversation?.sessionId ?? null;
@@ -292,8 +294,8 @@ export class AntigravityChatRuntime implements ChatRuntime {
     return raw ? encodeAntigravityModelId(raw) : undefined;
   }
 
-  private buildPrintPrompt(turn: PreparedChatTurn, previousMessages: ChatMessage[]): string {
-    if (!previousMessages.length) return turn.prompt;
+  private buildPrintPrompt(turn: PreparedChatTurn, previousMessages: ChatMessage[], useNativeContinuation: boolean): string {
+    if (useNativeContinuation || !previousMessages.length) return turn.prompt;
     const history = previousMessages.slice(-12).map((message) => {
       const role = message.role === 'assistant' ? 'Assistant' : 'User';
       return `${role}: ${message.content}`;
@@ -310,22 +312,17 @@ export class AntigravityChatRuntime implements ChatRuntime {
     const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
     const runtimeEnv = buildAntigravityRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, command);
     const selectedModel = this.resolveSelectedRawModelId(queryOptions);
+    const useNativeContinuation = this.hasNativeContinuation && previousMessages.length > 0 && !this.sessionInvalidated;
     try {
       await this.persistSelectedModel(selectedModel);
-      const result = await this.runPrint({
+      yield* this.runPrintStream({
         command,
         cwd,
         env: { ...process.env, ...runtimeEnv },
-        prompt: this.buildPrintPrompt(turn, previousMessages),
+        continueConversation: useNativeContinuation,
+        prompt: this.buildPrintPrompt(turn, previousMessages, useNativeContinuation),
         skipPermissions: getAntigravityProviderSettings(this.plugin.settings as unknown as Record<string, unknown>).selectedApprovalMode === 'yolo',
       });
-      if (result.code === 0) {
-        if (result.stdout.trim()) yield { type: 'text', content: result.stdout.trim() };
-        else if (result.stderr.trim()) yield { type: 'notice', content: result.stderr.trim(), level: 'warning' };
-      } else {
-        const details = [result.stderr.trim(), result.stdout.trim()].filter(Boolean).join('\n\n');
-        yield { type: 'error', content: details || `Antigravity CLI exited with code ${result.code ?? result.signal ?? 'unknown'}.` };
-      }
     } catch (error) {
       yield { type: 'error', content: this.formatRuntimeError(error) };
     }
@@ -347,41 +344,83 @@ export class AntigravityChatRuntime implements ChatRuntime {
     await fs.writeFile(settingsPath, `${JSON.stringify(parsed, null, 2)}\n`, 'utf-8');
   }
 
-  private runPrint(params: {
+  private async *runPrintStream(params: {
     command: string;
     cwd: string;
     env: NodeJS.ProcessEnv;
+    continueConversation: boolean;
     prompt: string;
     skipPermissions: boolean;
-  }): Promise<{ code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }> {
+  }): AsyncGenerator<StreamChunk> {
     const args = [
       ...(params.skipPermissions ? ['--dangerously-skip-permissions'] : []),
+      ...(params.continueConversation ? ['--continue'] : []),
       '--print',
       params.prompt,
       '--print-timeout',
       '5m',
     ];
 
-    return new Promise((resolve, reject) => {
-      const child = spawn(params.command, args, {
-        cwd: params.cwd,
-        env: params.env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      this.printProcess = child;
-      let stdout = '';
-      let stderr = '';
-      child.stdout.setEncoding('utf-8');
-      child.stderr.setEncoding('utf-8');
-      child.stdout.on('data', chunk => { stdout += String(chunk); });
-      child.stderr.on('data', chunk => { stderr += String(chunk); });
-      child.on('error', reject);
-      child.on('close', (code, signal) => {
-        if (this.printProcess === child) this.printProcess = null;
-        resolve({ code, signal, stdout, stderr });
-      });
+    const queue: StreamChunk[] = [];
+    const waiters: Array<() => void> = [];
+    let done = false;
+    let stdout = '';
+    let stderr = '';
+
+    const wake = (): void => {
+      while (waiters.length) waiters.shift()?.();
+    };
+    const push = (chunk: StreamChunk): void => {
+      queue.push(chunk);
+      wake();
+    };
+    const waitForChunk = async (): Promise<void> => {
+      if (queue.length > 0 || done) return;
+      await new Promise<void>(resolve => waiters.push(resolve));
+    };
+
+    const child = spawn(params.command, args, {
+      cwd: params.cwd,
+      env: params.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
+    this.printProcess = child;
+    child.stdout.setEncoding('utf-8');
+    child.stderr.setEncoding('utf-8');
+    child.stdout.on('data', chunk => {
+      const text = String(chunk);
+      stdout += text;
+      if (text) push({ type: 'text', content: text });
+    });
+    child.stderr.on('data', chunk => { stderr += String(chunk); });
+    child.on('error', error => {
+      if (this.printProcess === child) this.printProcess = null;
+      push({ type: 'error', content: this.formatRuntimeError(error) });
+      done = true;
+      wake();
+    });
+    child.on('close', (code, signal) => {
+      if (this.printProcess === child) this.printProcess = null;
+      if (code === 0) {
+        this.hasNativeContinuation = true;
+        if (!stdout.trim() && stderr.trim()) push({ type: 'notice', content: stderr.trim(), level: 'warning' });
+      } else {
+        const details = [stderr.trim(), stdout.trim()].filter(Boolean).join('\n\n');
+        push({ type: 'error', content: details || `Antigravity CLI exited with code ${code ?? signal ?? 'unknown'}.` });
+      }
+      done = true;
+      wake();
+    });
+
+    while (!done || queue.length > 0) {
+      await waitForChunk();
+      while (queue.length > 0) {
+        const chunk = queue.shift();
+        if (chunk) yield chunk;
+      }
+    }
   }
+
 
   private async applySelectedMode(sessionId: string): Promise<void> {
     if (!this.connection) return;
@@ -586,6 +625,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
     this.loadedSessionId = null;
     this.currentSessionModelId = null;
     this.currentSessionModeId = null;
+    this.hasNativeContinuation = false;
     this.setSupportedCommands([]);
   }
 }

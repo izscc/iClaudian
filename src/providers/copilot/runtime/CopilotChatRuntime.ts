@@ -1,3 +1,4 @@
+import { type ChildProcess, spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -84,6 +85,7 @@ export class CopilotChatRuntime implements ChatRuntime {
   private currentTurnMetadata: ChatTurnMetadata = {};
   private loadedSessionId: string | null = null;
   private permissionModeSyncCallback: ((mode: string) => void) | null = null;
+  private promptProcess: ChildProcess | null = null;
   private process: AcpSubprocess | null = null;
   private promptUsage: AcpUsage | null = null;
   private readonly readyListeners: Array<(ready: boolean) => void> = [];
@@ -178,9 +180,14 @@ export class CopilotChatRuntime implements ChatRuntime {
     const expectedSessionId = this.sessionId;
     let shouldBootstrapHistory = previousMessages.length > 0 && (!expectedSessionId || this.sessionInvalidated);
 
-    if (!(await this.ensureReady())) {
-      yield { type: 'error', content: 'Failed to start Copilot. Check the CLI path and login state.' };
-      yield { type: 'done' };
+    let startupError: unknown = null;
+    const ready = await this.ensureReady().catch((error) => {
+      startupError = error;
+      return false;
+    });
+    if (!ready) {
+      yield { type: 'notice', content: 'Copilot ACP runtime did not start; falling back to Copilot CLI prompt mode.', level: 'warning' };
+      yield* this.queryPromptMode(turn, previousMessages, queryOptions, startupError);
       return;
     }
     if (!this.connection) {
@@ -255,6 +262,8 @@ export class CopilotChatRuntime implements ChatRuntime {
   }
 
   cancel(): void {
+    this.promptProcess?.kill('SIGTERM');
+    this.promptProcess = null;
     if (this.connection && this.sessionId) this.connection.cancel({ sessionId: this.sessionId });
     this.activeTurn?.queue.close();
   }
@@ -325,6 +334,8 @@ export class CopilotChatRuntime implements ChatRuntime {
     this.currentSessionModelId = null;
     this.currentSessionModeId = null;
     this.setSupportedCommands([]);
+    this.promptProcess?.kill('SIGTERM');
+    this.promptProcess = null;
     this.connection?.dispose(); this.connection = null;
     this.transport?.dispose(); this.transport = null;
     if (this.process) { await this.process.shutdown().catch(() => {}); this.process = null; }
@@ -401,6 +412,113 @@ export class CopilotChatRuntime implements ChatRuntime {
   private getActiveDisplayModel(queryOptions?: ChatRuntimeQueryOptions): string | undefined {
     const raw = this.resolveSelectedRawModelId(queryOptions) ?? this.currentSessionModelId;
     return raw ? encodeCopilotModelId(raw) : undefined;
+  }
+
+
+  private buildPromptModePrompt(turn: PreparedChatTurn, previousMessages: ChatMessage[]): string {
+    if (!previousMessages.length) return turn.prompt;
+    const history = previousMessages.slice(-12).map((message) => {
+      const role = message.role === 'assistant' ? 'Assistant' : 'User';
+      return `${role}: ${message.content}`;
+    }).join('\n\n');
+    return `Continue the existing conversation below.\n\n${history}\n\nUser: ${turn.prompt}`;
+  }
+
+  private async *queryPromptMode(
+    turn: PreparedChatTurn,
+    previousMessages: ChatMessage[],
+    queryOptions?: ChatRuntimeQueryOptions,
+    startupError?: unknown,
+  ): AsyncGenerator<StreamChunk> {
+    const command = this.plugin.getResolvedProviderCliPath('copilot') ?? 'copilot';
+    const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
+    const runtimeEnv = buildCopilotRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, command);
+    try {
+      yield* this.runPromptStream({
+        command,
+        cwd,
+        env: { ...process.env, ...runtimeEnv },
+        model: this.resolveSelectedRawModelId(queryOptions),
+        prompt: this.buildPromptModePrompt(turn, previousMessages),
+        startupError,
+      });
+    } catch (error) {
+      yield { type: 'error', content: this.formatRuntimeError(error) };
+    }
+    yield { type: 'done' };
+  }
+
+  private async *runPromptStream(params: {
+    command: string;
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+    model: string | null;
+    prompt: string;
+    startupError?: unknown;
+  }): AsyncGenerator<StreamChunk> {
+    const settings = getCopilotProviderSettings(this.plugin.settings as unknown as Record<string, unknown>);
+    const effortLevel = typeof this.plugin.settings.effortLevel === 'string' ? this.plugin.settings.effortLevel : '';
+    const args = [
+      '--prompt',
+      params.prompt,
+      '--silent',
+      '--no-remote',
+      '--stream',
+      'on',
+      ...(settings.selectedApprovalMode === 'yolo' ? ['--allow-all'] : ['--allow-all-tools']),
+    ];
+    if (params.model) args.unshift('--model', params.model);
+    if (['low', 'medium', 'high', 'xhigh', 'max'].includes(effortLevel)) args.unshift('--effort', effortLevel);
+
+    const queue: StreamChunk[] = [];
+    const waiters: Array<() => void> = [];
+    let done = false;
+    let stdout = '';
+    let stderr = '';
+
+    const wake = (): void => { while (waiters.length) waiters.shift()?.(); };
+    const push = (chunk: StreamChunk): void => { queue.push(chunk); wake(); };
+    const waitForChunk = async (): Promise<void> => {
+      if (queue.length > 0 || done) return;
+      await new Promise<void>(resolve => waiters.push(resolve));
+    };
+
+    const child = spawn(params.command, args, { cwd: params.cwd, env: params.env, stdio: ['ignore', 'pipe', 'pipe'] });
+    this.promptProcess = child;
+    child.stdout.setEncoding('utf-8');
+    child.stderr.setEncoding('utf-8');
+    child.stdout.on('data', chunk => {
+      const text = String(chunk);
+      stdout += text;
+      if (text) push({ type: 'text', content: text });
+    });
+    child.stderr.on('data', chunk => { stderr += String(chunk); });
+    child.on('error', error => {
+      if (this.promptProcess === child) this.promptProcess = null;
+      push({ type: 'error', content: this.formatRuntimeError(error) });
+      done = true;
+      wake();
+    });
+    child.on('close', (code, signal) => {
+      if (this.promptProcess === child) this.promptProcess = null;
+      if (code === 0) {
+        if (!stdout.trim() && stderr.trim()) push({ type: 'notice', content: stderr.trim(), level: 'warning' });
+      } else {
+        const startupDetails = params.startupError instanceof Error ? params.startupError.message : '';
+        const details = [startupDetails, stderr.trim(), stdout.trim()].filter(Boolean).join('\n\n');
+        push({ type: 'error', content: details || `Copilot CLI exited with code ${code ?? signal ?? 'unknown'}.` });
+      }
+      done = true;
+      wake();
+    });
+
+    while (!done || queue.length > 0) {
+      await waitForChunk();
+      while (queue.length > 0) {
+        const chunk = queue.shift();
+        if (chunk) yield chunk;
+      }
+    }
   }
 
   private async applySelectedMode(sessionId: string): Promise<void> {

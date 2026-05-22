@@ -29,7 +29,7 @@
 | Codex CLI | `codex app-server` | 发送、流式、取消、恢复、历史重载、分叉、Plan、图片、行内编辑、`#`、`$` Skills、子代理；部分运行时命令、MCP 管理、Claude 插件能力不适用 |
 | OpenCode | OpenCode CLI | ACP/运行时模型发现、模型筛选、模式选择、命令下拉、行内编辑和标题生成等基础代理能力 |
 | Gemini CLI | `gemini --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、运行时命令、MCP 由 Gemini CLI 管理 |
-| Antigravity CLI | `agy --print` | 非交互请求、模型选择、YOLO 权限模式；模型写入 `~/.gemini/antigravity-cli/settings.json`，MCP/插件由 Antigravity CLI 管理 |
+| Antigravity CLI | `agy --print` / `agy --continue --print` | 流式输出、原生继续会话、模型选择、YOLO 权限模式；模型写入 `~/.gemini/antigravity-cli/settings.json`，MCP/插件由 Antigravity CLI 管理 |
 | GitHub Copilot CLI | `copilot --acp` | ACP 会话、模型选择、Plan/YOLO 权限模式、运行时命令；插件、MCP、BYOK 等由 Copilot CLI 管理 |
 
 ## 模型 ID
@@ -148,17 +148,19 @@ Copilot provider 通过 ACP 启动：
 - YOLO：追加 `--mode autopilot --autopilot --allow-all`
 - Plan：追加 `--mode plan`
 
-Copilot 的 MCP、插件、BYOK provider、登录状态等仍由 GitHub Copilot CLI 自身管理。
+Copilot 的 MCP、插件、BYOK provider、登录状态等仍由 GitHub Copilot CLI 自身管理。若 ACP 启动失败，iClaudian 会自动降级到 `copilot --prompt --silent --stream on` 的非交互对话路径，避免直接中断聊天。
 
 ### Antigravity CLI 调用方式
 
 Antigravity provider 使用当前 CLI 支持的非交互方式：
 
 - 默认：`agy --print <prompt> --print-timeout 5m`
+- 连续对话：同一 iClaudian 运行时内第二轮起使用 `agy --continue --print <prompt>`，复用 Antigravity CLI 原生会话与缓存，不再把完整历史重新拼进 prompt。
+- 输出：stdout 边到达边渲染到聊天窗口，避免等整个进程结束后才显示。
 - YOLO：追加 `--dangerously-skip-permissions`
 - 模型：写入 `~/.gemini/antigravity-cli/settings.json` 的 `model` 字段
 
-这避免了旧版 `agy --acp` 路径导致的 `initialize` 超时问题。
+这避免了旧版 `agy --acp` 路径导致的 `initialize` 超时问题，也尽量贴近原版 Antigravity CLI 的高速体验。
 
 ## 隐私与数据
 
