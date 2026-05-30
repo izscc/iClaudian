@@ -2,16 +2,18 @@
 
 ## Project Overview
 
-Claudian is an Obsidian plugin that embeds provider-backed chat runtimes in a sidebar and inline-edit flow. Claude is the default provider. Codex is optional and joins the same conversation model through `Conversation.providerId` plus provider-owned `providerState`.
+Claudian is an Obsidian plugin that embeds provider-backed chat runtimes in a sidebar and inline-edit flow. Claude is the default and full-feature provider. Six additional providers join the same conversation model through `Conversation.providerId` plus provider-owned `providerState`: Codex (`codex app-server`), ACP, Antigravity (`agy`), Copilot (`copilot --acp`), Gemini (`gemini --acp`), and OpenCode.
 
 ## Architecture Status
 
-- Product status: Claudian is a multi-provider product. Claude is the full-feature provider. Codex is opt-in and currently supports send, stream, cancel, resume, history reload, fork, plan mode, image attachments, inline edit, `#` instruction mode, `$` skills, and subagents. Unsupported or gated Codex surfaces are rewind, runtime-discovered provider commands, in-app MCP management, and Claude plugin integration.
+- Product status: Claudian is a multi-provider product with seven providers. Claude is the full-feature provider (stream, cancel, resume, history, fork, rewind, plan mode, images, inline edit, `#`/`/`/`$`, subagents, MCP, plugins). Claude Opus 4.8 (including `opus[1m]`) defaults to `xhigh` reasoning effort and renders thinking via the SDK `display: 'summarized'` mode. Rewind supports two modes — conversation-only and code + conversation.
+- Other providers: Codex supports send, stream, cancel, resume, history reload, fork, plan mode, images, inline edit, `#`, `$` skills, and subagents; rewind, runtime-discovered commands, in-app MCP management, and Claude plugin integration are gated. ACP, Antigravity, Copilot, Gemini, and OpenCode are ACP/CLI-backed adaptors with provider-owned model discovery, permission modes, and CLI-managed MCP/plugins; depth varies per provider.
 - App shell: `src/app/` owns shared settings defaults and plugin-level storage helpers. `src/core/` owns provider-neutral runtime, registry, tool, and type contracts.
 - Provider boundary: `src/core/runtime/` and `src/core/providers/` define the chat-facing seam. `ProviderRegistry` creates runtimes and provider-owned auxiliary services. `ProviderWorkspaceRegistry` owns workspace services such as command catalogs, agent mention providers, CLI resolution, MCP managers, and provider settings tabs.
 - Claude adaptor: `src/providers/claude/` owns the Claude runtime, prompt encoding, stream transforms, history hydration, CLI resolution, plugin and agent discovery, MCP storage, and Claude-specific settings UI. `ClaudeCommandCatalog` merges vault commands, vault skills, and runtime-supported commands behind the shared command catalog contract.
 - Codex adaptor: `src/providers/codex/` owns the `codex app-server` runtime, JSON-RPC transport, prompt encoding, JSONL history reload, session tailing, settings reconciliation, normalization, skill cataloging, subagent storage, and Codex settings UI. `CodexSkillCatalog` provides `$` skill discovery from `.codex/skills/` and `.agents/skills/` without relying on runtime command discovery.
-- Conversations: `Conversation` carries `providerId` and opaque `providerState`. Claude state is typed behind `ClaudeProviderState`. Codex state is typed behind `CodexProviderState` and currently stores `threadId`, `sessionFilePath`, and optional fork metadata.
+- Other provider adaptors: `src/providers/acp/`, `src/providers/antigravity/`, `src/providers/copilot/`, `src/providers/gemini/`, and `src/providers/opencode/` each own their runtime, transport, model catalog, and settings UI behind the same `ChatRuntime` / workspace-service contracts.
+- Conversations: `Conversation` carries `providerId` and opaque `providerState`. Each provider types its own state (e.g. `ClaudeProviderState`, `CodexProviderState`).
 
 ## Commands
 
@@ -34,9 +36,14 @@ npm run test:coverage
 | **core** | Provider-neutral contracts and infrastructure | See [`src/core/CLAUDE.md`](src/core/CLAUDE.md) |
 | **providers/claude** | Claude SDK adaptor | See [`src/providers/claude/CLAUDE.md`](src/providers/claude/CLAUDE.md) |
 | **providers/codex** | Codex app-server adaptor | See [`src/providers/codex/CLAUDE.md`](src/providers/codex/CLAUDE.md) |
+| **providers/acp** | Generic ACP transport and runtime | Shared ACP JSON-RPC transport reused by ACP-backed providers |
+| **providers/antigravity** | Antigravity CLI (`agy`) adaptor | Print/continue runtime, fallback model catalog, settings UI |
+| **providers/copilot** | GitHub Copilot CLI ACP adaptor | `copilot --acp` runtime, model IDs (incl. `claude-opus-4.8`), prompt fallback |
+| **providers/gemini** | Gemini CLI ACP adaptor | `gemini --acp` runtime, model discovery, permission modes |
+| **providers/opencode** | OpenCode adaptor | ACP/runtime model discovery, auxiliary query runner, managed config |
 | **features/chat** | Main sidebar interface | See [`src/features/chat/CLAUDE.md`](src/features/chat/CLAUDE.md) |
 | **features/inline-edit** | Inline edit modal and provider-backed edit services | `InlineEditModal` plus provider-owned inline edit services |
-| **features/settings** | Shared settings shell with provider tabs | General tab plus provider-owned Claude and Codex tab renderers |
+| **features/settings** | Shared settings shell with provider tabs | General tab plus per-provider tab renderers |
 | **shared** | Reusable UI building blocks | Dropdowns, modals, mention UI, icons |
 | **i18n** | Internationalization | 10 locales |
 | **utils** | Cross-cutting utilities | env, path, markdown, diff, context, file-link, image, browser, canvas, session, subagent helpers |
