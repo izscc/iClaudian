@@ -300,7 +300,9 @@ export class QueryOptionsBuilder {
   ): void {
     const effortLevel = resolveAdaptiveEffortLevel(model, settings.effortLevel);
     if (effortLevel !== null) {
-      options.thinking = { type: 'adaptive' };
+      // display:'summarized' 修复 Opus 4.7/4.8 回归:这些模型 API 默认 display='omitted',
+      // 会导致思考面板为空;4.6 本就 summarized,显式传入无害。
+      options.thinking = { type: 'adaptive', display: 'summarized' };
       // SDK runtime accepts `xhigh` on Opus 4.7+ and silently falls back to
       // `high` elsewhere, but its type definition lags our local EffortLevel.
       options.effort = effortLevel as Options['effort'];

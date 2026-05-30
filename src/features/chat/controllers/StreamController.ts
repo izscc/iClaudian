@@ -7,11 +7,12 @@ import {
   type ProviderSubagentLifecycleAdapter,
 } from '../../../core/providers/types';
 import type { ChatRuntime } from '../../../core/runtime/ChatRuntime';
-import { parseTodoInput } from '../../../core/tools/todo';
+import { foldTaskTodos, parseTodoInput } from '../../../core/tools/todo';
 import { extractResolvedAnswers, extractResolvedAnswersFromResultText } from '../../../core/tools/toolInput';
 import {
   isEditTool,
   isSubagentToolName,
+  isTaskTodoTool,
   isWriteEditTool,
   skipsBlockedDetection,
   TOOL_AGENT_OUTPUT,
@@ -266,6 +267,8 @@ export class StreamController {
           if (todos) {
             this.deps.state.currentTodos = todos;
           }
+        } else if (isTaskTodoTool(existingToolCall.name)) {
+          this.recomputeTaskTodos(msg);
         }
 
         // Capture plan file path on input updates (file_path may arrive in a later chunk)
@@ -313,6 +316,8 @@ export class StreamController {
       if (todos) {
         this.deps.state.currentTodos = todos;
       }
+    } else if (isTaskTodoTool(chunk.name)) {
+      this.recomputeTaskTodos(msg);
     }
 
     // Track Write to provider plan directory for plan mode (used by approve-new-session)
@@ -327,6 +332,23 @@ export class StreamController {
         parentEl: state.currentContentEl,
       });
       this.showThinkingIndicator();
+    }
+  }
+
+  /**
+   * Recompute the todo panel from the Task* tool calls across the conversation.
+   * The current streaming message may not yet be in state.messages, so include it.
+   */
+  private recomputeTaskTodos(currentMsg: ChatMessage): void {
+    const messages = this.deps.state.messages;
+    const ordered = messages.includes(currentMsg) ? messages : [...messages, currentMsg];
+    const taskCalls = ordered
+      .filter(m => m.role === 'assistant' && m.toolCalls)
+      .flatMap(m => m.toolCalls!)
+      .filter(tc => isTaskTodoTool(tc.name));
+    const todos = foldTaskTodos(taskCalls);
+    if (todos) {
+      this.deps.state.currentTodos = todos;
     }
   }
 

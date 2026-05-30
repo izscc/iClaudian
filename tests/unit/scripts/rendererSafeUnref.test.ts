@@ -67,4 +67,30 @@ describe('rendererSafeUnref helpers', () => {
       { line: 5, snippet: 'setInterval(run, 1000).unref()' },
     ]);
   });
+
+  it('patches the SDK 0.3 process-close shape with a win32 branch via the generic fallback', () => {
+    const input = [
+      'setTimeout((J, Y) => {',
+      '  if (J.exitCode !== null) { Y(); return; }',
+      '  if (process.platform === "win32") {',
+      '    setTimeout((X, W) => {',
+      '      if (X.exitCode === null) X.kill("SIGKILL");',
+      '      W();',
+      '    }, 5e3, J, Y).unref();',
+      '    return;',
+      '  }',
+      '  J.kill("SIGTERM"), setTimeout((X) => {',
+      '    if (X.exitCode === null) X.kill("SIGKILL");',
+      '  }, 5e3, J).unref(), Y();',
+      '}, Tx, Q, $).unref();',
+    ].join('\n');
+
+    const result = patchRendererUnsafeUnrefSites(input);
+
+    expect(result.appliedPatches).toEqual([
+      { name: 'generic-trailing-timer-unref', count: 3 },
+    ]);
+    expect((result.contents.match(/\.unref\?\.\(\)/g) || []).length).toBe(3);
+    expect(findUnsafeTimerUnrefSites(result.contents)).toEqual([]);
+  });
 });

@@ -42,16 +42,48 @@ function patchRendererUnsafeUnrefSites(contents) {
     appliedPatches.push({ name: patch.name, count: matchCount });
   }
 
+  // Generic fallback: rewrite any remaining `setTimeout(...).unref()` /
+  // `setInterval(...).unref()` into optional-chained `.unref?.()`. This survives
+  // SDK minifier variable renames (Node detaches the timer; in the Obsidian
+  // renderer the timer id is a number and the call safely no-ops).
+  const generic = patchTrailingTimerUnref(nextContents);
+  if (generic.count > 0) {
+    nextContents = generic.contents;
+    appliedPatches.push({ name: 'generic-trailing-timer-unref', count: generic.count });
+  }
+
   return {
     contents: nextContents,
     appliedPatches,
   };
 }
 
-function findUnsafeTimerUnrefSites(contents) {
-  const matches = [];
+function patchTrailingTimerUnref(contents) {
+  const ranges = collectTimerUnrefRanges(contents);
+  if (ranges.length === 0) {
+    return { contents, count: 0 };
+  }
 
+  // Splice from the rightmost site first so earlier offsets stay valid; nested
+  // outer/inner sites are collected out of positional order, so sort here.
+  const ordered = [...ranges].sort((a, b) => b.unrefStart - a.unrefStart);
+  let patched = contents;
+  for (const { unrefStart, end } of ordered) {
+    patched = `${patched.slice(0, unrefStart)}.unref?.()${patched.slice(end)}`;
+  }
+
+  return { contents: patched, count: ranges.length };
+}
+
+/**
+ * Collect every `setTimeout(...).unref()` / `setInterval(...).unref()` site,
+ * including timer calls nested inside another timer call's arguments. Returns
+ * the ranges in ascending order.
+ */
+function collectTimerUnrefRanges(contents) {
+  const ranges = [];
   let searchIndex = 0;
+
   while (searchIndex < contents.length) {
     const timerStart = findNextTimerCall(contents, searchIndex);
     if (!timerStart) {
@@ -60,27 +92,32 @@ function findUnsafeTimerUnrefSites(contents) {
 
     const callEnd = findMatchingParen(contents, timerStart.openParenIndex);
     if (callEnd === -1) {
-      searchIndex = timerStart.startIndex + timerStart.prefix.length;
+      searchIndex = timerStart.openParenIndex + 1;
       continue;
     }
 
-    const unrefMatch = contents.slice(callEnd + 1).match(/^\s*\.unref\(\)/);
+    const unrefMatch = contents.slice(callEnd + 1).match(/^(\s*)\.unref\(\)/);
     if (unrefMatch) {
-      const startIndex = timerStart.startIndex;
-      const endIndex = callEnd + 1 + unrefMatch[0].length;
-      const line = contents.slice(0, startIndex).split('\n').length;
-      matches.push({
-        line,
-        snippet: contents.slice(startIndex, endIndex),
+      ranges.push({
+        start: timerStart.startIndex,
+        unrefStart: callEnd + 1 + unrefMatch[1].length,
+        end: callEnd + 1 + unrefMatch[0].length,
+        snippet: contents.slice(timerStart.startIndex, callEnd + 1 + unrefMatch[0].length),
       });
-      searchIndex = endIndex;
-      continue;
     }
 
-    searchIndex = callEnd + 1;
+    // Advance into the arguments so nested timer calls are also scanned.
+    searchIndex = timerStart.openParenIndex + 1;
   }
 
-  return matches;
+  return ranges;
+}
+
+function findUnsafeTimerUnrefSites(contents) {
+  return collectTimerUnrefRanges(contents).map((range) => ({
+    line: contents.slice(0, range.start).split('\n').length,
+    snippet: range.snippet,
+  }));
 }
 
 function findNextTimerCall(contents, startIndex) {

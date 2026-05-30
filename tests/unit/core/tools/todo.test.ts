@@ -1,5 +1,5 @@
-import { extractLastTodosFromMessages, parseTodoInput } from '@/core/tools/todo';
-import { TOOL_TODO_WRITE } from '@/core/tools/toolNames';
+import { extractLastTodosFromMessages, foldTaskTodos, parseTodoInput } from '@/core/tools/todo';
+import { TOOL_TASK_CREATE, TOOL_TASK_UPDATE, TOOL_TODO_WRITE } from '@/core/tools/toolNames';
 
 describe('parseTodoInput', () => {
   it('should parse valid todo items', () => {
@@ -223,5 +223,72 @@ describe('extractLastTodosFromMessages', () => {
     ];
 
     expect(extractLastTodosFromMessages(messages)).toBeNull();
+  });
+
+  it('should fold Task* tool calls into a todo snapshot', () => {
+    const messages = [
+      {
+        role: 'assistant',
+        toolCalls: [
+          { name: TOOL_TASK_CREATE, input: { subject: 'Explore', description: 'd', activeForm: 'Exploring' } },
+          { name: TOOL_TASK_CREATE, input: { subject: 'Implement', description: 'd' } },
+        ],
+      },
+      {
+        role: 'assistant',
+        toolCalls: [
+          { name: TOOL_TASK_UPDATE, input: { taskId: '1', status: 'completed' } },
+          { name: TOOL_TASK_UPDATE, input: { taskId: '2', status: 'in_progress' } },
+        ],
+      },
+    ];
+
+    const result = extractLastTodosFromMessages(messages);
+
+    expect(result).toEqual([
+      { content: 'Explore', activeForm: 'Exploring', status: 'completed' },
+      { content: 'Implement', activeForm: 'Implement', status: 'in_progress' },
+    ]);
+  });
+
+  it('should prefer Task* over a stale TodoWrite when both are present', () => {
+    const messages = [
+      {
+        role: 'assistant',
+        toolCalls: [
+          { name: TOOL_TODO_WRITE, input: { todos: [{ content: 'Old', status: 'pending' as const, activeForm: 'Old-ing' }] } },
+          { name: TOOL_TASK_CREATE, input: { subject: 'New', description: 'd' } },
+        ],
+      },
+    ];
+
+    const result = extractLastTodosFromMessages(messages);
+
+    expect(result).toEqual([{ content: 'New', activeForm: 'New', status: 'pending' }]);
+  });
+});
+
+describe('foldTaskTodos', () => {
+  it('returns null when there are no Task* tool calls', () => {
+    expect(foldTaskTodos([{ name: 'Read', input: { file_path: '/x' } }])).toBeNull();
+  });
+
+  it('drops tasks deleted via TaskUpdate', () => {
+    const result = foldTaskTodos([
+      { name: TOOL_TASK_CREATE, input: { subject: 'A' } },
+      { name: TOOL_TASK_CREATE, input: { subject: 'B' } },
+      { name: TOOL_TASK_UPDATE, input: { taskId: '1', status: 'deleted' } },
+    ]);
+
+    expect(result).toEqual([{ content: 'B', activeForm: 'B', status: 'pending' }]);
+  });
+
+  it('ignores TaskUpdate referencing an unknown task', () => {
+    const result = foldTaskTodos([
+      { name: TOOL_TASK_CREATE, input: { subject: 'A' } },
+      { name: TOOL_TASK_UPDATE, input: { taskId: '9', status: 'completed' } },
+    ]);
+
+    expect(result).toEqual([{ content: 'A', activeForm: 'A', status: 'pending' }]);
   });
 });
