@@ -18,6 +18,12 @@ export const TOOL_SUBAGENT_LEGACY = 'Task' as const;
 // Kept as an alias while the internal codebase is still named around "Task".
 export const TOOL_TASK = TOOL_SUBAGENT;
 export const TOOL_TODO_WRITE = 'TodoWrite' as const;
+// SDK 0.3 (CLI 2.1.x) 用 Task* 工具取代 TodoWrite 维护任务/计划面板:
+// TaskCreate 新建任务(id 为顺序 #N),TaskUpdate 按 taskId 改状态。
+export const TOOL_TASK_CREATE = 'TaskCreate' as const;
+export const TOOL_TASK_UPDATE = 'TaskUpdate' as const;
+export const TOOL_TASK_GET = 'TaskGet' as const;
+export const TOOL_TASK_LIST = 'TaskList' as const;
 export const TOOL_TOOL_SEARCH = 'ToolSearch' as const;
 export const TOOL_WEB_FETCH = 'WebFetch' as const;
 export const TOOL_WEB_SEARCH = 'WebSearch' as const;
@@ -146,4 +152,11 @@ export function isMcpTool(toolName: string): toolName is McpToolName {
 
 export function isReadOnlyTool(toolName: string): toolName is ReadOnlyToolName {
   return (READ_ONLY_TOOLS as readonly string[]).includes(toolName);
+}
+
+/** Task* tools that the new Claude CLI emits in place of TodoWrite. */
+export const TASK_TODO_TOOLS = [TOOL_TASK_CREATE, TOOL_TASK_UPDATE] as const;
+
+export function isTaskTodoTool(toolName: string): boolean {
+  return (TASK_TODO_TOOLS as readonly string[]).includes(toolName);
 }

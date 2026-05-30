@@ -172,7 +172,7 @@ export class OpencodeAuxQueryRunner implements AuxQueryRunner {
     const runtimeEnv = buildOpencodeRuntimeEnv(settings, resolvedCliPath);
     const auxAgentId = OPENCODE_AUX_AGENT_IDS[this.options.agentProfile];
     const artifacts = await prepareOpencodeLaunchArtifacts({
-      artifactsSubdir: `opencode/aux/${this.options.artifactPurpose}`,
+      artifactsSubdir: `opencode/auxiliary/${this.options.artifactPurpose}`,
       defaultAgentId: auxAgentId,
       managedAgents: [buildOpencodeAuxAgentConfig(this.options.agentProfile)],
       runtimeEnv,
@@ -192,6 +192,7 @@ export class OpencodeAuxQueryRunner implements AuxQueryRunner {
       || !this.transport
       || !this.connection
       || !this.process.isAlive()
+      || this.transport.isClosed
       || this.currentLaunchKey !== nextLaunchKey;
 
     if (!shouldRestart) {

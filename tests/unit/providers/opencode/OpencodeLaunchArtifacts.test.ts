@@ -48,7 +48,7 @@ describe('buildOpencodeManagedConfig', () => {
   it('can create a dedicated aux agent and default it for the process', () => {
     expect(buildOpencodeManagedConfig(
       {},
-      '/vault/.claudian/opencode/aux/system.md',
+      '/vault/.claudian/opencode/auxiliary/system.md',
       undefined,
       [{
         definition: {
@@ -70,7 +70,7 @@ describe('buildOpencodeManagedConfig', () => {
             '*': 'deny',
             read: 'allow',
           },
-          prompt: '{file:/vault/.claudian/opencode/aux/system.md}',
+          prompt: '{file:/vault/.claudian/opencode/auxiliary/system.md}',
         },
       },
       default_agent: 'claudian-aux-readonly',
@@ -211,5 +211,58 @@ describe('prepareOpencodeLaunchArtifacts', () => {
         prompt: `{file:${result.systemPromptPath}}`,
       },
     });
+  });
+
+  it('keeps the launch key stable when the resolved default database is later passed as OPENCODE_DB', async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-opencode-artifacts-'));
+    const baseParams = {
+      settings: {
+        customPrompt: '',
+        mediaFolder: '',
+        userName: '',
+        vaultPath: tmpRoot,
+      },
+      workspaceRoot: tmpRoot,
+    };
+    const first = await prepareOpencodeLaunchArtifacts({
+      ...baseParams,
+      runtimeEnv: {
+        HOME: tmpRoot,
+      } as NodeJS.ProcessEnv,
+    });
+
+    const second = await prepareOpencodeLaunchArtifacts({
+      ...baseParams,
+      runtimeEnv: {
+        HOME: tmpRoot,
+        OPENCODE_DB: first.databasePath ?? undefined,
+      } as NodeJS.ProcessEnv,
+    });
+
+    expect(first.databasePath).toBe(second.databasePath);
+    expect(first.launchKey).toBe(second.launchKey);
+  });
+
+  it('creates the resolved OpenCode database directory before launch', async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'claudian-opencode-artifacts-'));
+    const xdgDataHome = path.join(tmpRoot, 'xdg-data');
+    const databaseDir = path.join(xdgDataHome, 'opencode');
+
+    const result = await prepareOpencodeLaunchArtifacts({
+      runtimeEnv: {
+        HOME: path.join(tmpRoot, 'home'),
+        XDG_DATA_HOME: xdgDataHome,
+      } as NodeJS.ProcessEnv,
+      settings: {
+        customPrompt: '',
+        mediaFolder: '',
+        userName: '',
+        vaultPath: tmpRoot,
+      },
+      workspaceRoot: tmpRoot,
+    });
+
+    expect(result.databasePath).toBe(path.join(databaseDir, 'opencode.db'));
+    await expect(fs.access(databaseDir)).resolves.toBeUndefined();
   });
 });

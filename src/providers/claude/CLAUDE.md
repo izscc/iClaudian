@@ -12,6 +12,10 @@ The persistent query stays alive across turns. Model, thinking budget, permissio
 
 The SDK delivers assistant text twice: incrementally via `stream_event/content_block_delta`, and again as complete text in the `assistant` message. The handler tracks `sawStreamText` — if stream events were seen, the assistant message's text blocks are skipped. Without this, every response would render double.
 
+### Thinking Display and Opus 4.8 Effort
+
+Thinking content is applied with the SDK `display: 'summarized'` mode (`applyThinking`). Without this, summarized-thinking models (Opus 4.7/4.8) render blank thinking blocks. Claude Opus 4.8 — including the `opus[1m]` alias — defaults to `xhigh` reasoning effort; the `opus` alias routes to 4.8, so no separate dropdown entry is added.
+
 ### Usage Chunk Two-Phase Buffering
 
 Usage info comes from two SDK messages:

@@ -432,7 +432,7 @@ describe('QueryOptionsBuilder', () => {
       };
       const options = QueryOptionsBuilder.buildPersistentQueryOptions(ctx);
 
-      expect(options.thinking).toEqual({ type: 'adaptive' });
+      expect(options.thinking).toEqual({ type: 'adaptive', display: 'summarized' });
       expect(options.effort).toBe('max');
       expect(options.maxThinkingTokens).toBeUndefined();
     });
@@ -447,7 +447,7 @@ describe('QueryOptionsBuilder', () => {
       };
       const options = QueryOptionsBuilder.buildPersistentQueryOptions(ctx);
 
-      expect(options.thinking).toEqual({ type: 'adaptive' });
+      expect(options.thinking).toEqual({ type: 'adaptive', display: 'summarized' });
       expect(options.effort).toBe('high');
     });
 

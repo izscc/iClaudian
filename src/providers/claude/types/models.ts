@@ -39,8 +39,8 @@ export const DEFAULT_EFFORT_LEVEL: Record<string, EffortLevel> = {
   'haiku': 'high',
   'sonnet': 'high',
   'sonnet[1m]': 'high',
-  'opus': 'high',
-  'opus[1m]': 'high',
+  'opus': 'xhigh',
+  'opus[1m]': 'xhigh',
 };
 
 /** Default thinking budget per model tier. */

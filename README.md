@@ -18,14 +18,15 @@
 - **命令与 Skills**：输入 `/` 或 `$` 调用 Vault 级、用户级命令与 Skills。
 - **`@mention` 上下文**：可提及 Vault 文件、外部文件、子代理、MCP 服务器等上下文。
 - **MCP 工具**：支持 Model Context Protocol。Claude 可在插件内管理 Vault MCP；Codex、Gemini、Copilot、OpenCode 使用各自 CLI 的 MCP/工具配置。
-- **模型与推理配置**：提供方设置页可配置模型列表、上下文窗口、推理强度或权限模式。
+- **模型与推理配置**：提供方设置页可配置模型列表、上下文窗口、推理强度或权限模式。Claude Opus 4.8（含 `opus[1m]`）默认推理强度为 `xhigh`，思考过程以摘要（`summarized`）形式实时显示。
+- **流式数学渲染**：可选「流式期间延迟数学公式渲染」设置，避免 LaTeX 在 token 边界处闪烁，待整段输出完成后再统一渲染。
 - **本地优先存储**：会话元数据、提供方配置、命令、Skills 均保存在本地 Vault 或 CLI 原生目录中。
 
 ## 已支持提供方
 
 | 提供方 | 启动方式 | 当前能力概览 |
 |---|---|---|
-| Claude Code | Claude Agent SDK / Claude Code CLI | 最完整：流式对话、取消、恢复、历史、分叉、rewind、Plan、图片、行内编辑、`#`、`/`、`$`、子代理、MCP、插件等 |
+| Claude Code | Claude Agent SDK / Claude Code CLI | 最完整：流式对话、取消、恢复、历史、分叉、rewind（可选「仅对话」或「代码 + 对话」两种回退模式）、Plan、图片、行内编辑、`#`、`/`、`$`、子代理、MCP、插件等 |
 | Codex CLI | `codex app-server` | 发送、流式、取消、恢复、历史重载、分叉、Plan、图片、行内编辑、`#`、`$` Skills、子代理；部分运行时命令、MCP 管理、Claude 插件能力不适用 |
 | OpenCode | OpenCode CLI | ACP/运行时模型发现、模型筛选、模式选择、命令下拉、行内编辑和标题生成等基础代理能力 |
 | Gemini CLI | `gemini --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、运行时命令、MCP 由 Gemini CLI 管理 |
@@ -42,6 +43,7 @@
 claude-sonnet-4.6
 claude-sonnet-4.5
 claude-haiku-4.5
+claude-opus-4.8
 claude-opus-4.7
 claude-opus-4.6
 claude-opus-4.6-fast

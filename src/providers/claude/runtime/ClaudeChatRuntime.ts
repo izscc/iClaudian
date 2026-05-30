@@ -35,6 +35,7 @@ import type {
   ApprovalCallback,
   AskUserQuestionCallback,
   AutoTurnResult,
+  ChatRewindMode,
   ChatRewindResult,
   ChatRuntimeConversationState,
   ChatRuntimeQueryOptions,
@@ -1730,9 +1731,14 @@ export class ClaudianService implements ChatRuntime {
     return this.persistentQuery.rewindFiles(userMessageId, { dryRun });
   }
 
-  async rewind(userMessageId: string, assistantMessageId: string): Promise<ChatRewindResult> {
+  async rewind(
+    userMessageId: string,
+    assistantMessageId: string,
+    mode: ChatRewindMode = 'code-and-conversation',
+  ): Promise<ChatRewindResult> {
     return executeClaudeRewind(userMessageId, {
       assistantMessageId,
+      mode,
       rewindFiles: this.rewindFiles.bind(this),
       closePersistentQuery: (reason) => this.closePersistentQuery(reason),
       setPendingResumeAt: (resumeAt) => {

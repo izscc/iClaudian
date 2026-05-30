@@ -24,10 +24,15 @@
   "chat": {
     "rewind": {
       "confirmMessage": "¿Rebobinar a este punto? Los cambios de archivos después de este mensaje serán revertidos. El rebobinado no afecta archivos editados manualmente o mediante bash.",
+      "confirmMessageConversationOnly": "¿Rebobinar la conversación hasta este punto? Se conservarán los cambios de archivos.",
       "confirmButton": "Rebobinar",
       "ariaLabel": "Rebobinar hasta aquí",
+      "menuConversationOnly": "Rebobinar solo conversación",
+      "menuCodeAndConversation": "Rebobinar código + conversación",
       "notice": "Rebobinado: {count} archivo(s) revertido(s)",
+      "noticeConversationOnly": "Conversación rebobinada; cambios de archivos conservados",
       "noticeSaveFailed": "Rebobinado: {count} archivo(s) revertido(s), pero no se pudo guardar el estado: {error}",
+      "noticeConversationOnlySaveFailed": "Conversación rebobinada, pero no se pudo guardar el estado: {error}",
       "failed": "Error al rebobinar: {error}",
       "cannot": "No se puede rebobinar: {error}",
       "unavailableStreaming": "No se puede rebobinar durante la transmisión",
@@ -281,6 +286,10 @@
     "enableAutoScroll": {
       "name": "Desplazamiento automático durante streaming",
       "desc": "Desplazarse automáticamente hacia abajo mientras Claude transmite respuestas. Desactivar para quedarse arriba y leer desde el principio."
+    },
+    "deferMathRenderingDuringStreaming": {
+      "name": "Diferir renderizado matemático durante streaming",
+      "desc": "Mostrar LaTeX sin procesar mientras se transmite la respuesta y renderizar las fórmulas una vez al completar cada bloque de texto."
     },
     "openInMainTab": {
       "name": "Abrir en área de editor principal",

@@ -122,5 +122,15 @@ describe('claudeChatUIConfig', () => {
 
       expect(settings.effortLevel).toBe('xhigh');
     });
+
+    it('defaults opus to xhigh effort, sonnet to high', () => {
+      const opusSettings: Record<string, unknown> = { effortLevel: 'low', providerConfigs: {} };
+      claudeChatUIConfig.applyModelDefaults('opus', opusSettings);
+      expect(opusSettings.effortLevel).toBe('xhigh');
+
+      const sonnetSettings: Record<string, unknown> = { effortLevel: 'low', providerConfigs: {} };
+      claudeChatUIConfig.applyModelDefaults('sonnet', sonnetSettings);
+      expect(sonnetSettings.effortLevel).toBe('high');
+    });
   });
 });

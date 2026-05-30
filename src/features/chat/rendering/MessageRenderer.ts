@@ -1,7 +1,8 @@
 import type { App, Component } from 'obsidian';
-import { MarkdownRenderer, Notice } from 'obsidian';
+import { MarkdownRenderer, Menu, Notice } from 'obsidian';
 
 import { DEFAULT_CHAT_PROVIDER_ID, type ProviderCapabilities } from '../../../core/providers/types';
+import type { ChatRewindMode } from '../../../core/runtime/types';
 import {
   isSubagentToolName,
   isWriteEditTool,
@@ -14,6 +15,7 @@ import type ClaudianPlugin from '../../../main';
 import { formatDurationMmSs } from '../../../utils/date';
 import { processFileLinks, registerFileLinkHandler } from '../../../utils/fileLink';
 import { replaceImageEmbedsWithHtml } from '../../../utils/imageEmbed';
+import { escapeMathDelimitersForStreaming } from '../../../utils/markdownMath';
 import { findRewindContext } from '../rewind';
 import { resolveSubagentLifecycleAdapter } from './subagentLifecycleResolution';
 import {
@@ -24,14 +26,22 @@ import { renderStoredThinkingBlock } from './ThinkingBlockRenderer';
 import { renderStoredToolCall } from './ToolCallRenderer';
 import { renderStoredWriteEdit } from './WriteEditRenderer';
 
-export type RenderContentFn = (el: HTMLElement, markdown: string) => Promise<void>;
+export interface RenderContentOptions {
+  deferMath?: boolean;
+}
+
+export type RenderContentFn = (
+  el: HTMLElement,
+  markdown: string,
+  options?: RenderContentOptions
+) => Promise<void>;
 
 export class MessageRenderer {
   private app: App;
   private plugin: ClaudianPlugin;
   private component: Component;
   private messagesEl: HTMLElement;
-  private rewindCallback?: (messageId: string) => Promise<void>;
+  private rewindCallback?: (messageId: string, mode?: ChatRewindMode) => Promise<void>;
   private getCapabilities: () => ProviderCapabilities;
   private forkCallback?: (messageId: string) => Promise<void>;
   private liveMessageEls = new Map<string, HTMLElement>();
@@ -44,7 +54,7 @@ export class MessageRenderer {
     plugin: ClaudianPlugin,
     component: Component,
     messagesEl: HTMLElement,
-    rewindCallback?: (messageId: string) => Promise<void>,
+    rewindCallback?: (messageId: string, mode?: ChatRewindMode) => Promise<void>,
     forkCallback?: (messageId: string) => Promise<void>,
     getCapabilities?: () => ProviderCapabilities,
   ) {
@@ -577,13 +587,20 @@ export class MessageRenderer {
   /**
    * Renders markdown content with code block enhancements.
    */
-  async renderContent(el: HTMLElement, markdown: string): Promise<void> {
+  async renderContent(
+    el: HTMLElement,
+    markdown: string,
+    options?: RenderContentOptions
+  ): Promise<void> {
     el.empty();
 
     try {
+      const renderMarkdown = options?.deferMath
+        ? escapeMathDelimitersForStreaming(markdown)
+        : markdown;
       // Normalize embeds before MarkdownRenderer consumes them.
       const processedMarkdown = replaceImageEmbedsWithHtml(
-        markdown,
+        renderMarkdown,
         this.app,
         this.plugin.settings.mediaFolder
       );
@@ -756,13 +773,37 @@ export class MessageRenderer {
     if (toolbar.firstChild !== btn) toolbar.insertBefore(btn, toolbar.firstChild);
     btn.innerHTML = MessageRenderer.REWIND_ICON;
     btn.setAttribute('aria-label', t('chat.rewind.ariaLabel'));
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      try {
-        await this.rewindCallback?.(messageId);
-      } catch (err) {
-        new Notice(t('chat.rewind.failed', { error: err instanceof Error ? err.message : 'Unknown error' }));
-      }
+      this.showRewindMenu(e, messageId);
+    });
+  }
+
+  private showRewindMenu(event: MouseEvent, messageId: string): void {
+    const menu = new Menu();
+    this.addRewindMenuItem(menu, messageId, 'conversation');
+    this.addRewindMenuItem(menu, messageId, 'code-and-conversation');
+    menu.showAtMouseEvent(event);
+  }
+
+  private addRewindMenuItem(menu: Menu, messageId: string, mode: ChatRewindMode): void {
+    menu.addItem((item) => {
+      item
+        .setTitle(
+          mode === 'conversation'
+            ? t('chat.rewind.menuConversationOnly')
+            : t('chat.rewind.menuCodeAndConversation')
+        )
+        .setIcon(mode === 'conversation' ? 'message-square' : 'rotate-ccw')
+        .onClick(() => {
+          void (async () => {
+            try {
+              await this.rewindCallback?.(messageId, mode);
+            } catch (err) {
+              new Notice(t('chat.rewind.failed', { error: err instanceof Error ? err.message : 'Unknown error' }));
+            }
+          })();
+        });
     });
   }
 

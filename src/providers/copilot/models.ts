@@ -9,6 +9,7 @@ export const COPILOT_FALLBACK_MODELS = [
   { rawId: 'claude-sonnet-4.6', label: 'claude-sonnet-4.6', description: 'Claude Sonnet 4.6 through GitHub Copilot CLI' },
   { rawId: 'claude-sonnet-4.5', label: 'claude-sonnet-4.5', description: 'Claude Sonnet 4.5 through GitHub Copilot CLI' },
   { rawId: 'claude-haiku-4.5', label: 'claude-haiku-4.5', description: 'Claude Haiku 4.5 through GitHub Copilot CLI' },
+  { rawId: 'claude-opus-4.8', label: 'claude-opus-4.8', description: 'Claude Opus 4.8 through GitHub Copilot CLI' },
   { rawId: 'claude-opus-4.7', label: 'claude-opus-4.7', description: 'Claude Opus 4.7 through GitHub Copilot CLI' },
   { rawId: 'claude-opus-4.6', label: 'claude-opus-4.6', description: 'Claude Opus 4.6 through GitHub Copilot CLI' },
   { rawId: 'claude-opus-4.6-fast', label: 'claude-opus-4.6-fast', description: 'Claude Opus 4.6 Fast through GitHub Copilot CLI' },
