@@ -47,6 +47,7 @@ export const DEFAULT_CLAUDIAN_SETTINGS: ClaudianSettings = {
   maxTabs: 3,
   tabBarPosition: 'input',
   enableAutoScroll: true,
+  deferMathRenderingDuringStreaming: true,
   openInMainTab: false,
 
   hiddenProviderCommands: getDefaultHiddenProviderCommands(),

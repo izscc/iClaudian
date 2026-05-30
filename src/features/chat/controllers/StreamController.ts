@@ -33,9 +33,10 @@ import {
 } from '../../../utils/animationFrame';
 import { formatDurationMmSs } from '../../../utils/date';
 import { extractDiffData } from '../../../utils/diff';
+import { hasStreamingMathDelimiters } from '../../../utils/markdownMath';
 import { getVaultPath, normalizePathForVault } from '../../../utils/path';
 import { FLAVOR_TEXTS } from '../constants';
-import type { MessageRenderer } from '../rendering/MessageRenderer';
+import type { MessageRenderer, RenderContentOptions } from '../rendering/MessageRenderer';
 import { resolveSubagentLifecycleAdapter } from '../rendering/subagentLifecycleResolution';
 import {
   createSubagentBlock,
@@ -365,6 +366,16 @@ export class StreamController {
     return typeof settings.model === 'string' ? settings.model : undefined;
   }
 
+  private shouldDeferMathRendering(): boolean {
+    return this.deps.plugin.settings.deferMathRenderingDuringStreaming !== false;
+  }
+
+  private getStreamingRenderOptions(content: string): RenderContentOptions | undefined {
+    return this.shouldDeferMathRendering() && hasStreamingMathDelimiters(content)
+      ? { deferMath: true }
+      : undefined;
+  }
+
   private capturePlanFilePath(input: Record<string, unknown>): void {
     const filePath = input.file_path as string | undefined;
     if (!filePath) return;
@@ -684,6 +695,13 @@ export class StreamController {
     await this.flushPendingTextRender();
 
     if (msg && state.currentTextContent) {
+      if (
+        state.currentTextEl
+        && this.shouldDeferMathRendering()
+        && hasStreamingMathDelimiters(state.currentTextContent)
+      ) {
+        await renderer.renderContent(state.currentTextEl, state.currentTextContent);
+      }
       msg.contentBlocks = msg.contentBlocks || [];
       msg.contentBlocks.push({ type: 'text', content: state.currentTextContent });
       // Copy button added here (not during streaming) to match history-loaded messages
@@ -735,7 +753,12 @@ export class StreamController {
 
     try {
       if (textEl) {
-        await renderer.renderContent(textEl, content);
+        const options = this.getStreamingRenderOptions(content);
+        if (options) {
+          await renderer.renderContent(textEl, content, options);
+        } else {
+          await renderer.renderContent(textEl, content);
+        }
         this.scrollToBottom();
       }
     } catch {
@@ -817,17 +840,22 @@ export class StreamController {
   }
 
   async finalizeCurrentThinkingBlock(msg?: ChatMessage): Promise<void> {
-    const { state } = this.deps;
+    const { state, renderer } = this.deps;
     if (!state.currentThinkingState) return;
     await this.flushPendingThinkingRender();
 
-    const durationSeconds = finalizeThinkingBlock(state.currentThinkingState);
+    const thinkingState = state.currentThinkingState;
+    if (this.getStreamingRenderOptions(thinkingState.content)) {
+      await renderer.renderContent(thinkingState.contentEl, thinkingState.content);
+    }
 
-    if (msg && state.currentThinkingState.content) {
+    const durationSeconds = finalizeThinkingBlock(thinkingState);
+
+    if (msg && thinkingState.content) {
       msg.contentBlocks = msg.contentBlocks || [];
       msg.contentBlocks.push({
         type: 'thinking',
-        content: state.currentThinkingState.content,
+        content: thinkingState.content,
         durationSeconds,
       });
     }
@@ -875,7 +903,12 @@ export class StreamController {
 
     try {
       if (thinkingState) {
-        await renderer.renderContent(thinkingState.contentEl, content);
+        const options = this.getStreamingRenderOptions(content);
+        if (options) {
+          await renderer.renderContent(thinkingState.contentEl, content, options);
+        } else {
+          await renderer.renderContent(thinkingState.contentEl, content);
+        }
         this.scrollToBottom();
       }
     } catch {
