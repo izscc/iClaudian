@@ -7,6 +7,7 @@ import type {
   ToolCallInfo
 } from '@/core/types';
 import {
+  LEGACY_VIEW_TYPE_CLAUDIAN,
   VIEW_TYPE_CLAUDIAN
 } from '@/core/types';
 import type { ClaudianSettings } from '@/core/types/settings';
@@ -31,7 +32,11 @@ import {
 describe('types.ts', () => {
   describe('VIEW_TYPE_CLAUDIAN', () => {
     it('should be defined as the correct view type', () => {
-      expect(VIEW_TYPE_CLAUDIAN).toBe('iclaudian-view');
+      expect(VIEW_TYPE_CLAUDIAN).toBe('iclaudian');
+    });
+
+    it('should keep the old view type only for workspace compatibility', () => {
+      expect(LEGACY_VIEW_TYPE_CLAUDIAN).toBe('iclaudian-view');
     });
   });
 

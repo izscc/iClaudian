@@ -47,6 +47,17 @@ export const antigravitySettingsTabRenderer: ProviderSettingsTabRenderer = {
           context.refreshModelSelectors();
         }));
 
+    new Setting(container)
+      .setName(tt('settings.antigravity.prewarm.name'))
+      .setDesc(tt('settings.antigravity.prewarm.desc'))
+      .addToggle(toggle => toggle
+        .setValue(antigravitySettings.enableBlankTabPrewarm)
+        .onChange(async (value) => {
+          updateAntigravityProviderSettings(settingsBag, { enableBlankTabPrewarm: value });
+          await context.plugin.saveSettings();
+          if (!value) await recycleAntigravityRuntime();
+        }));
+
     const cliPathSetting = new Setting(container)
       .setName(tt('settings.antigravity.cliPath.name').replace('{host}', hostnameKey))
       .setDesc(tt('settings.antigravity.cliPath.desc'));

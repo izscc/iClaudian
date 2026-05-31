@@ -145,6 +145,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
       return false;
     }
 
+    await this.persistSelectedModel(this.resolveSelectedRawModelId()).catch(() => {});
     await this.shutdownProcess();
     if (!this.sessionId) this.sessionId = `antigravity-${Date.now()}`;
     this.loadedSessionId = this.sessionId;

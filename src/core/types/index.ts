@@ -7,6 +7,7 @@ export {
   type ForkSource,
   type ImageAttachment,
   type ImageMediaType,
+  LEGACY_VIEW_TYPE_CLAUDIAN,
   type SessionMetadata,
   type StreamChunk,
   type UsageInfo,

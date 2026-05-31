@@ -9,7 +9,8 @@ export interface ForkSource {
 }
 
 /** View type identifier for Obsidian. */
-export const VIEW_TYPE_CLAUDIAN = 'iclaudian-view';
+export const VIEW_TYPE_CLAUDIAN = 'iclaudian';
+export const LEGACY_VIEW_TYPE_CLAUDIAN = 'iclaudian-view';
 
 /** Supported image media types for attachments. */
 export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';

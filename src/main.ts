@@ -4,7 +4,7 @@ patchSetMaxListenersForElectron();
 
 import './providers';
 
-import type { Editor } from 'obsidian';
+import type { Editor, WorkspaceLeaf } from 'obsidian';
 import { MarkdownView, Notice, Plugin } from 'obsidian';
 
 import { DEFAULT_CLAUDIAN_SETTINGS } from './app/settings/defaultSettings';
@@ -27,6 +27,7 @@ import type {
   ConversationMeta,
 } from './core/types';
 import {
+  LEGACY_VIEW_TYPE_CLAUDIAN,
   VIEW_TYPE_CLAUDIAN,
 } from './core/types';
 import type { EnvironmentScope } from './core/types/settings';
@@ -44,15 +45,25 @@ export default class ClaudianPlugin extends Plugin {
   storage!: SharedAppStorage;
   private conversations: Conversation[] = [];
   private lastKnownTabManagerState: AppTabManagerState | null = null;
+  private resolveStartupReady: (() => void) | null = null;
+  private rejectStartupReady: ((reason?: unknown) => void) | null = null;
+  private startupReady = new Promise<void>((resolve, reject) => {
+    this.resolveStartupReady = resolve;
+    this.rejectStartupReady = reject;
+  });
 
   async onload() {
-    await this.loadSettings();
-    await ProviderWorkspaceRegistry.initializeAll(this);
+    // 必须在任何 await 之前注册，否则 Obsidian 恢复旧标签页时会认为 view type 不存在。
+    this.registerClaudianViews();
 
-    this.registerView(
-      VIEW_TYPE_CLAUDIAN,
-      (leaf) => new ClaudianView(leaf, this)
-    );
+    try {
+      await this.loadSettings();
+      await ProviderWorkspaceRegistry.initializeAll(this);
+      this.resolveStartupReady?.();
+    } catch (error) {
+      this.rejectStartupReady?.(error);
+      throw error;
+    }
 
     this.addRibbonIcon('bot', 'Open iClaudian', () => {
       this.activateView();
@@ -129,7 +140,7 @@ export default class ClaudianPlugin extends Plugin {
       id: 'new-session',
       name: 'New iClaudian session (in current tab)',
       checkCallback: (checking: boolean) => {
-        const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN)[0];
+        const leaf = this.getFirstClaudianLeaf();
         if (!leaf) return false;
 
         const view = leaf.view as ClaudianView;
@@ -152,7 +163,7 @@ export default class ClaudianPlugin extends Plugin {
       id: 'close-current-tab',
       name: 'Close current tab',
       checkCallback: (checking: boolean) => {
-        const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN)[0];
+        const leaf = this.getFirstClaudianLeaf();
         if (!leaf) return false;
 
         const view = leaf.view as ClaudianView;
@@ -172,6 +183,22 @@ export default class ClaudianPlugin extends Plugin {
     this.addSettingTab(new ClaudianSettingTab(this.app, this));
   }
 
+  waitUntilReady(): Promise<void> {
+    return this.startupReady;
+  }
+
+  private registerClaudianViews(): void {
+    this.registerView(
+      VIEW_TYPE_CLAUDIAN,
+      (leaf) => new ClaudianView(leaf, this, VIEW_TYPE_CLAUDIAN)
+    );
+
+    this.registerView(
+      LEGACY_VIEW_TYPE_CLAUDIAN,
+      (leaf) => new ClaudianView(leaf, this, LEGACY_VIEW_TYPE_CLAUDIAN)
+    );
+  }
+
   async onunload() {
     // Ensures state is saved even if Obsidian quits without calling onClose()
     for (const view of this.getAllViews()) {
@@ -185,7 +212,7 @@ export default class ClaudianPlugin extends Plugin {
 
   async activateView() {
     const { workspace } = this.app;
-    let leaf = workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN)[0];
+    let leaf = this.getFirstClaudianLeaf();
 
     if (!leaf) {
       const newLeaf = this.settings.openInMainTab
@@ -711,7 +738,7 @@ export default class ClaudianPlugin extends Plugin {
   }
 
   getView(): ClaudianView | null {
-    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN);
+    const leaves = this.getClaudianLeaves();
     if (leaves.length > 0) {
       return leaves[0].view as ClaudianView;
     }
@@ -719,7 +746,7 @@ export default class ClaudianPlugin extends Plugin {
   }
 
   getAllViews(): ClaudianView[] {
-    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN);
+    const leaves = this.getClaudianLeaves();
     return leaves.map(leaf => leaf.view as ClaudianView);
   }
 
@@ -740,6 +767,17 @@ export default class ClaudianPlugin extends Plugin {
 
   private getLastKnownOpenTabCount(): number {
     return this.lastKnownTabManagerState?.openTabs.length ?? 0;
+  }
+
+  private getFirstClaudianLeaf(): WorkspaceLeaf | null {
+    return this.getClaudianLeaves()[0] ?? null;
+  }
+
+  private getClaudianLeaves(): WorkspaceLeaf[] {
+    return [
+      ...this.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN),
+      ...this.app.workspace.getLeavesOfType(LEGACY_VIEW_TYPE_CLAUDIAN),
+    ];
   }
 
   private getMaxTabsLimit(): number {

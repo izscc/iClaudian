@@ -475,6 +475,10 @@
       "environment": {
         "name": "Antigravity environment",
         "desc": "Antigravity-owned runtime variables only. Use this for ANTIGRAVITY_*, GOOGLE_* and Vertex AI settings. Shared PATH changes should go in the shared environment section."
+      },
+      "prewarm": {
+        "name": "Prewarm new Antigravity chats",
+        "desc": "Prepare the selected fast Antigravity model in the background for blank chats. The current Obsidian note still follows note switches until the first message is sent."
       }
     },
     "copilot": {

@@ -15,6 +15,7 @@ export interface AntigravityDiscoveredModel {
 export interface AntigravityProviderSettings {
   cliPath: string;
   cliPathsByHost: HostnameCliPaths;
+  enableBlankTabPrewarm: boolean;
   enabled: boolean;
   environmentHash: string;
   environmentVariables: string;
@@ -26,6 +27,7 @@ export interface AntigravityProviderSettings {
 export const DEFAULT_ANTIGRAVITY_PROVIDER_SETTINGS: Readonly<AntigravityProviderSettings> = Object.freeze({
   cliPath: '',
   cliPathsByHost: {},
+  enableBlankTabPrewarm: true,
   enabled: false,
   environmentHash: '',
   environmentVariables: '',
@@ -90,6 +92,8 @@ export function getAntigravityProviderSettings(settings: Record<string, unknown>
   return {
     cliPath: (config.cliPath as string | undefined) ?? DEFAULT_ANTIGRAVITY_PROVIDER_SETTINGS.cliPath,
     cliPathsByHost: normalizeHostnameCliPaths(config.cliPathsByHost),
+    enableBlankTabPrewarm: (config.enableBlankTabPrewarm as boolean | undefined)
+      ?? DEFAULT_ANTIGRAVITY_PROVIDER_SETTINGS.enableBlankTabPrewarm,
     enabled: (config.enabled as boolean | undefined) ?? DEFAULT_ANTIGRAVITY_PROVIDER_SETTINGS.enabled,
     environmentHash: (config.environmentHash as string | undefined) ?? DEFAULT_ANTIGRAVITY_PROVIDER_SETTINGS.environmentHash,
     environmentVariables: (config.environmentVariables as string | undefined)
@@ -133,6 +137,7 @@ export function updateAntigravityProviderSettings(
   setProviderConfig(settings, 'antigravity', {
     cliPath: next.cliPath,
     cliPathsByHost: next.cliPathsByHost,
+    enableBlankTabPrewarm: next.enableBlankTabPrewarm,
     enabled: next.enabled,
     environmentHash: next.environmentHash,
     environmentVariables: next.environmentVariables,

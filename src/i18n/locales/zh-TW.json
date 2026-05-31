@@ -475,6 +475,10 @@
       "environment": {
         "name": "Antigravity 环境",
         "desc": "仅限 Antigravity 运行时变量。用于 ANTIGRAVITY_*、GOOGLE_* 和 Vertex AI 设置。共享 PATH 变更应写入共享环境设置。"
+      },
+      "prewarm": {
+        "name": "預熱新的 Antigravity 對話",
+        "desc": "在空白對話背景準備選取的 Antigravity 快速模型。第一次送出前，目前 Obsidian 筆記仍會跟隨筆記切換自動更新。"
       }
     },
     "copilot": {

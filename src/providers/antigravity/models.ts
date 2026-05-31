@@ -7,14 +7,14 @@ export const ANTIGRAVITY_MODEL_PREFIX = 'antigravity:';
  */
 export const ANTIGRAVITY_FALLBACK_MODELS = [
   {
-    rawId: 'Gemini 3.5 Flash (High)',
-    label: 'Gemini 3.5 Flash (High)',
-    description: 'Antigravity Gemini 3.5 Flash - High Effort',
-  },
-  {
     rawId: 'Gemini 3.5 Flash (Medium)',
     label: 'Gemini 3.5 Flash (Medium)',
     description: 'Antigravity Gemini 3.5 Flash - Medium Effort',
+  },
+  {
+    rawId: 'Gemini 3.5 Flash (High)',
+    label: 'Gemini 3.5 Flash (High)',
+    description: 'Antigravity Gemini 3.5 Flash - High Effort',
   },
   {
     rawId: 'Gemini 3.1 Pro (High)',

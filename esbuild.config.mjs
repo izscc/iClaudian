@@ -55,12 +55,22 @@ const patchRendererUnsafeUnref = {
       const bundlePath = path.join(process.cwd(), 'main.js');
       const originalContents = await fsPromises.readFile(bundlePath, 'utf8');
       const patchedBundle = patchRendererUnsafeUnrefSites(originalContents);
+      const cjsSafeBundle = {
+        contents: patchedBundle.contents.replaceAll(
+          'import_meta.url',
+          'require("url").pathToFileURL(__filename).href',
+        ),
+      };
 
-      if (patchedBundle.contents !== originalContents) {
-        await fsPromises.writeFile(bundlePath, patchedBundle.contents, 'utf8');
+      if (cjsSafeBundle.contents !== originalContents) {
+        await fsPromises.writeFile(bundlePath, cjsSafeBundle.contents, 'utf8');
       }
 
-      const unsafeMatches = findUnsafeTimerUnrefSites(patchedBundle.contents);
+      if (cjsSafeBundle.contents.includes('import_meta.url')) {
+        throw new Error('Renderer-unsafe import_meta.url remains in main.js');
+      }
+
+      const unsafeMatches = findUnsafeTimerUnrefSites(cjsSafeBundle.contents);
       if (unsafeMatches.length > 0) {
         const details = unsafeMatches
           .slice(0, 5)
@@ -78,7 +88,7 @@ const patchRendererUnsafeUnref = {
 // Obsidian plugin folder path (set via OBSIDIAN_VAULT env var or .env.local)
 const OBSIDIAN_VAULT = process.env.OBSIDIAN_VAULT;
 const OBSIDIAN_PLUGIN_PATH = OBSIDIAN_VAULT && existsSync(OBSIDIAN_VAULT)
-  ? path.join(OBSIDIAN_VAULT, '.obsidian', 'plugins', 'claudian')
+  ? path.join(OBSIDIAN_VAULT, '.obsidian', 'plugins', 'iclaudian')
   : null;
 
 // Plugin to copy built files to Obsidian plugin folder

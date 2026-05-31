@@ -7,11 +7,9 @@ import {
 } from '../../../core/providers/providerEnvironment';
 import { ProviderRegistry } from '../../../core/providers/ProviderRegistry';
 import type { EnvironmentScope, EnvSnippet } from '../../../core/types';
-import { VIEW_TYPE_CLAUDIAN } from '../../../core/types';
 import { t } from '../../../i18n/i18n';
 import type ClaudianPlugin from '../../../main';
 import { formatContextLimit, parseContextLimit, parseEnvironmentVariables } from '../../../utils/env';
-import type { ClaudianView } from '../../chat/ClaudianView';
 
 export class EnvSnippetModal extends Modal {
   plugin: ClaudianPlugin;
@@ -329,8 +327,7 @@ export class EnvSnippetManager {
     await this.plugin.saveSettings();
 
     this.onContextLimitsChange?.();
-    const view = this.plugin.app.workspace.getLeavesOfType(VIEW_TYPE_CLAUDIAN)[0]?.view as ClaudianView | undefined;
-    view?.refreshModelSelector();
+    this.plugin.getView()?.refreshModelSelector();
   }
 
   private editSnippet(snippet: EnvSnippet) {

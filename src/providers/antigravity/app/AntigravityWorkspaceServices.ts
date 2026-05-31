@@ -4,6 +4,7 @@ import type { ProviderTabWarmupPolicy, ProviderWorkspaceRegistration, ProviderWo
 import { AntigravityCommandCatalog } from '../commands/AntigravityCommandCatalog';
 import { AntigravityChatRuntime } from '../runtime/AntigravityChatRuntime';
 import { AntigravityCliResolver } from '../runtime/AntigravityCliResolver';
+import { getAntigravityProviderSettings } from '../settings';
 import { antigravitySettingsTabRenderer } from '../ui/AntigravitySettingsTab';
 import { AntigravityRuntimeCommandLoader } from './AntigravityRuntimeCommandLoader';
 
@@ -11,7 +12,12 @@ export interface AntigravityWorkspaceServices extends ProviderWorkspaceServices 
   commandCatalog: ProviderCommandCatalog;
 }
 
-const antigravityTabWarmupPolicy: ProviderTabWarmupPolicy = { resolveMode: () => 'commands' };
+const antigravityTabWarmupPolicy: ProviderTabWarmupPolicy = {
+  resolveMode: (context) => {
+    const settings = getAntigravityProviderSettings(context.plugin.settings as unknown as Record<string, unknown>);
+    return settings.enableBlankTabPrewarm ? 'commands' : 'none';
+  },
+};
 
 export async function createAntigravityWorkspaceServices(): Promise<AntigravityWorkspaceServices> {
   const commandCatalog = new AntigravityCommandCatalog();

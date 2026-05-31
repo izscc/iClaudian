@@ -24,12 +24,12 @@ const ANTIGRAVITY_PERMISSION_MODE_TOGGLE: ProviderPermissionModeToggleConfig = {
 };
 
 const FALLBACK_MODELS: ProviderUIOption[] = [
-  { value: ANTIGRAVITY_SYNTHETIC_MODEL_ID, label: 'Antigravity', description: 'Antigravity CLI default model' },
   ...ANTIGRAVITY_FALLBACK_MODELS.map(model => ({
     value: encodeAntigravityModelId(model.rawId),
     label: model.label,
     ...(model.description ? { description: model.description } : {}),
   })),
+  { value: ANTIGRAVITY_SYNTHETIC_MODEL_ID, label: 'Antigravity', description: 'Antigravity CLI default model' },
 ];
 
 export const antigravityChatUIConfig: ProviderChatUIConfig = {

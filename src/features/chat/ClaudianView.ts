@@ -17,6 +17,7 @@ import { recalculateUsageForModel } from './utils/usageInfo';
 
 export class ClaudianView extends ItemView {
   private plugin: ClaudianPlugin;
+  private viewType: string;
 
   // Tab management
   private tabManager: TabManager | null = null;
@@ -46,9 +47,10 @@ export class ClaudianView extends ItemView {
   // Debouncing for tab state persistence
   private pendingPersist: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(leaf: WorkspaceLeaf, plugin: ClaudianPlugin) {
+  constructor(leaf: WorkspaceLeaf, plugin: ClaudianPlugin, viewType = VIEW_TYPE_CLAUDIAN) {
     super(leaf);
     this.plugin = plugin;
+    this.viewType = viewType;
 
     // Hover Editor compatibility: Define load as an instance method that can't be
     // overwritten by prototype patching. Hover Editor patches ClaudianView.prototype.load
@@ -73,7 +75,7 @@ export class ClaudianView extends ItemView {
   }
 
   getViewType(): string {
-    return VIEW_TYPE_CLAUDIAN;
+    return this.viewType;
   }
 
   getDisplayText(): string {
@@ -135,6 +137,8 @@ export class ClaudianView extends ItemView {
   }
 
   async onOpen() {
+    await this.plugin.waitUntilReady();
+
     // Guard: Hover Editor and similar plugins may call onOpen before DOM is ready.
     // containerEl must exist before we can access contentEl or create elements.
     if (!this.containerEl) {

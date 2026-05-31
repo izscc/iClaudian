@@ -1,4 +1,5 @@
 
+import { ProviderWorkspaceRegistry } from '@/core/providers/ProviderWorkspaceRegistry';
 import { TOOL_SUBAGENT } from '@/core/tools/toolNames';
 import { VIEW_TYPE_CLAUDIAN } from '@/core/types';
 import * as sdkSession from '@/providers/claude/history/ClaudeHistoryStore';
@@ -86,6 +87,23 @@ describe('ClaudianPlugin', () => {
         VIEW_TYPE_CLAUDIAN,
         expect.any(Function)
       );
+    });
+
+    it('should register the view before awaiting startup IO', async () => {
+      const initializeAllSpy = jest.spyOn(ProviderWorkspaceRegistry, 'initializeAll').mockResolvedValue(undefined);
+      const loadSettingsSpy = jest.spyOn(plugin, 'loadSettings').mockImplementation(async () => {
+        expect((plugin.registerView as jest.Mock)).toHaveBeenCalledWith(
+          VIEW_TYPE_CLAUDIAN,
+          expect.any(Function)
+        );
+      });
+
+      await plugin.onload();
+
+      expect(loadSettingsSpy).toHaveBeenCalled();
+      expect(initializeAllSpy).toHaveBeenCalledWith(plugin);
+      loadSettingsSpy.mockRestore();
+      initializeAllSpy.mockRestore();
     });
 
     it('should add ribbon icon', async () => {
