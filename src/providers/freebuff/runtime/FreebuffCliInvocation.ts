@@ -1,4 +1,8 @@
-import { decodeFreebuffModelId, type FreebuffMode,freebuffModeToCliArgs } from '../models';
+import {
+  decodeFreebuffModelId,
+  type FreebuffModelId,
+  freebuffModelToCliArgs,
+} from '../models';
 
 export interface FreebuffCliInvocationInput {
   configuredCliPath?: string | null;
@@ -13,20 +17,20 @@ export interface FreebuffCliInvocation {
   stdinText: string | null;
 }
 
-export function resolveFreebuffMode(selectedModel?: string | null): FreebuffMode {
-  if (!selectedModel) return 'freebuff';
-  return decodeFreebuffModelId(selectedModel) ?? 'freebuff';
+export function resolveFreebuffModelId(selectedModel?: string | null): FreebuffModelId {
+  if (!selectedModel) return 'minimax-m2.7';
+  return decodeFreebuffModelId(selectedModel) ?? 'minimax-m2.7';
 }
 
 export function buildFreebuffCliInvocation(input: FreebuffCliInvocationInput): FreebuffCliInvocation {
-  const mode = resolveFreebuffMode(input.selectedModel);
-  const modeConfig = freebuffModeToCliArgs(mode);
-  const command = input.configuredCliPath?.trim() || modeConfig.executable;
-  const args = ['--cwd', input.cwd, ...modeConfig.modeArgs];
-  if (modeConfig.promptAsArg) args.push(input.prompt);
+  const modelId = resolveFreebuffModelId(input.selectedModel);
+  const modelConfig = freebuffModelToCliArgs(modelId);
+  const command = input.configuredCliPath?.trim() || modelConfig.executable;
+  const args = ['--cwd', input.cwd, ...modelConfig.modelArgs];
+  if (modelConfig.promptAsArg) args.push(input.prompt);
   return {
     args,
     command,
-    stdinText: modeConfig.promptAsArg ? null : `${input.prompt}\n`,
+    stdinText: modelConfig.promptAsArg ? null : `${input.prompt}\n`,
   };
 }

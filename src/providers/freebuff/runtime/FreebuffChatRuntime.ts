@@ -31,6 +31,7 @@ import { isFreebuffModelSelectionId } from '../models';
 import { getFreebuffProviderSettings } from '../settings';
 import { buildFreebuffPromptText } from './buildFreebuffPrompt';
 import { buildFreebuffCliInvocation } from './FreebuffCliInvocation';
+import { persistFreebuffModelSelection } from './FreebuffModelSettings';
 import { buildFreebuffRuntimeEnv } from './FreebuffRuntimeEnvironment';
 
 export class FreebuffChatRuntime implements ChatRuntime {
@@ -102,6 +103,7 @@ export class FreebuffChatRuntime implements ChatRuntime {
     const prompt = buildFreebuffPromptText(turn.request, conversationHistory ?? []);
     const selectedModel = this.resolveSelectedModel(queryOptions);
     const configuredCliPath = this.plugin.getResolvedProviderCliPath('freebuff');
+    await persistFreebuffModelSelection(selectedModel);
     const invocation = buildFreebuffCliInvocation({ configuredCliPath, cwd, prompt, selectedModel });
     const env = buildFreebuffRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, invocation.command);
 
@@ -159,7 +161,7 @@ export class FreebuffChatRuntime implements ChatRuntime {
       : typeof this.plugin.settings.model === 'string'
         ? this.plugin.settings.model
         : '';
-    return selectedModel && isFreebuffModelSelectionId(selectedModel) ? selectedModel : 'freebuff:freebuff';
+    return selectedModel && isFreebuffModelSelectionId(selectedModel) ? selectedModel : 'freebuff:minimax-m2.7';
   }
 
   private async *runCli(

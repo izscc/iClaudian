@@ -26,7 +26,7 @@ export const freebuffProviderRegistration: ProviderRegistration = {
   createRuntime: ({ plugin }) => new FreebuffChatRuntime(plugin),
   createTitleGenerationService: plugin => new FreebuffTitleGenerationService(plugin),
   displayName: 'Freebuff',
-  environmentKeyPatterns: [/^FREEBUFF_/i, /^CODEBUFF_/i],
+  environmentKeyPatterns: [/^FREEBUFF_/i],
   historyService: noHistoryService,
   isEnabled: settings => getFreebuffProviderSettings(settings).enabled,
   settingsReconciler: freebuffSettingsReconciler,

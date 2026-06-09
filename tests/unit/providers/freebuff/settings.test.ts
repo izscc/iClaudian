@@ -10,11 +10,11 @@ describe('freebuff provider settings', () => {
       cliPathsByHost: {},
       enabled: false,
       environmentVariables: '',
-      selectedMode: 'freebuff',
+      selectedMode: 'minimax-m2.7',
     });
   });
 
-  it('normalizes invalid selected modes back to freebuff', () => {
+  it('normalizes invalid selected models back to the default Freebuff model', () => {
     const settings = {
       providerConfigs: {
         freebuff: {
@@ -23,7 +23,7 @@ describe('freebuff provider settings', () => {
       },
     };
 
-    expect(getFreebuffProviderSettings(settings).selectedMode).toBe('freebuff');
+    expect(getFreebuffProviderSettings(settings).selectedMode).toBe('minimax-m2.7');
   });
 
   it('persists updates in providerConfigs', () => {
@@ -31,14 +31,14 @@ describe('freebuff provider settings', () => {
 
     updateFreebuffProviderSettings(settings, {
       enabled: true,
-      environmentVariables: 'CODEBUFF_API_KEY=test',
-      selectedMode: 'codebuff-plan',
+      environmentVariables: 'FREEBUFF_API_KEY=test',
+      selectedMode: 'deepseek-v4-pro',
     });
 
     expect(getFreebuffProviderSettings(settings)).toMatchObject({
       enabled: true,
-      environmentVariables: 'CODEBUFF_API_KEY=test',
-      selectedMode: 'codebuff-plan',
+      environmentVariables: 'FREEBUFF_API_KEY=test',
+      selectedMode: 'deepseek-v4-pro',
     });
   });
 });

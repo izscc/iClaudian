@@ -2,7 +2,7 @@ import { getProviderConfig, setProviderConfig } from '../../core/providers/provi
 import { getProviderEnvironmentVariables } from '../../core/providers/providerEnvironment';
 import type { HostnameCliPaths } from '../../core/types/settings';
 import { getHostnameKey } from '../../utils/env';
-import { type FreebuffMode,normalizeFreebuffMode } from './models';
+import { type FreebuffModelId,normalizeFreebuffModelId } from './models';
 
 export interface FreebuffProviderSettings {
   cliPath: string;
@@ -10,7 +10,7 @@ export interface FreebuffProviderSettings {
   enabled: boolean;
   environmentHash: string;
   environmentVariables: string;
-  selectedMode: FreebuffMode;
+  selectedMode: FreebuffModelId;
 }
 
 export const DEFAULT_FREEBUFF_PROVIDER_SETTINGS: Readonly<FreebuffProviderSettings> = Object.freeze({
@@ -19,7 +19,7 @@ export const DEFAULT_FREEBUFF_PROVIDER_SETTINGS: Readonly<FreebuffProviderSettin
   enabled: false,
   environmentHash: '',
   environmentVariables: '',
-  selectedMode: 'freebuff',
+  selectedMode: 'minimax-m2.7',
 });
 
 function normalizeHostnameCliPaths(value: unknown): HostnameCliPaths {
@@ -41,7 +41,7 @@ export function getFreebuffProviderSettings(settings: Record<string, unknown>): 
     environmentVariables: (config.environmentVariables as string | undefined)
       ?? getProviderEnvironmentVariables(settings, 'freebuff')
       ?? DEFAULT_FREEBUFF_PROVIDER_SETTINGS.environmentVariables,
-    selectedMode: normalizeFreebuffMode(config.selectedMode),
+    selectedMode: normalizeFreebuffModelId(config.selectedMode),
   };
 }
 
@@ -68,7 +68,7 @@ export function updateFreebuffProviderSettings(
     ...updates,
     cliPath: nextCliPath,
     cliPathsByHost,
-    selectedMode: normalizeFreebuffMode(updates.selectedMode ?? current.selectedMode),
+    selectedMode: normalizeFreebuffModelId(updates.selectedMode ?? current.selectedMode),
   };
 
   setProviderConfig(settings, 'freebuff', {

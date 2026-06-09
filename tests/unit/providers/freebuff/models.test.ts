@@ -1,35 +1,57 @@
 import {
   decodeFreebuffModelId,
   encodeFreebuffModelId,
+  FREEBUFF_MODEL_OPTIONS,
   FREEBUFF_SYNTHETIC_MODEL_ID,
-  freebuffModeToCliArgs,
+  freebuffModelToCliArgs,
   isFreebuffModelSelectionId,
 } from '@/providers/freebuff/models';
 import { freebuffChatUIConfig } from '@/providers/freebuff/ui/FreebuffChatUIConfig';
 
 describe('freebuff models', () => {
-  it('encodes and decodes Freebuff/Codebuff modes', () => {
+  it('encodes and decodes Freebuff built-in model selections', () => {
     expect(FREEBUFF_SYNTHETIC_MODEL_ID).toBe('freebuff');
-    expect(encodeFreebuffModelId('freebuff')).toBe('freebuff:freebuff');
-    expect(encodeFreebuffModelId('codebuff-max')).toBe('freebuff:codebuff-max');
-    expect(decodeFreebuffModelId('freebuff:codebuff-lite')).toBe('codebuff-lite');
-    expect(isFreebuffModelSelectionId('freebuff:codebuff-plan')).toBe(true);
-    expect(isFreebuffModelSelectionId('opencode:codebuff-plan')).toBe(false);
+    expect(encodeFreebuffModelId('deepseek-v4-pro')).toBe('freebuff:deepseek-v4-pro');
+    expect(encodeFreebuffModelId('minimax-m2.7')).toBe('freebuff:minimax-m2.7');
+    expect(decodeFreebuffModelId('freebuff:kimi-k2.6')).toBe('kimi-k2.6');
+    expect(isFreebuffModelSelectionId('freebuff:mimo-2.5')).toBe(true);
+    expect(isFreebuffModelSelectionId('freebuff:unknown-model')).toBe(false);
   });
 
-  it('maps selected mode to the executable and mode flags before the prompt', () => {
-    expect(freebuffModeToCliArgs('freebuff')).toEqual({ executable: 'freebuff', modeArgs: [], promptAsArg: false });
-    expect(freebuffModeToCliArgs('codebuff')).toEqual({ executable: 'codebuff', modeArgs: [], promptAsArg: true });
-    expect(freebuffModeToCliArgs('codebuff-lite')).toEqual({ executable: 'codebuff', modeArgs: ['--lite'], promptAsArg: true });
-    expect(freebuffModeToCliArgs('codebuff-max')).toEqual({ executable: 'codebuff', modeArgs: ['--max'], promptAsArg: true });
-    expect(freebuffModeToCliArgs('codebuff-plan')).toEqual({ executable: 'codebuff', modeArgs: ['--plan'], promptAsArg: true });
+  it('always invokes the freebuff executable and sends prompt over stdin', () => {
+    expect(freebuffModelToCliArgs('deepseek-v4-pro')).toEqual({
+      executable: 'freebuff',
+      modelArgs: [],
+      promptAsArg: false,
+    });
+    expect(freebuffModelToCliArgs('minimax-m2.7')).toEqual({
+      executable: 'freebuff',
+      modelArgs: [],
+      promptAsArg: false,
+    });
   });
 
-  it('exposes model selector options that skip the terminal model picker', () => {
-    expect(freebuffChatUIConfig.getModelOptions({})).toEqual(expect.arrayContaining([
-      expect.objectContaining({ value: 'freebuff:freebuff', label: 'Freebuff' }),
-      expect.objectContaining({ value: 'freebuff:codebuff-lite', label: 'Codebuff Lite' }),
-      expect.objectContaining({ value: 'freebuff:codebuff-plan', label: 'Codebuff Plan' }),
-    ]));
+  it('exposes only Freebuff built-in models grouped as Premium and Unlimited', () => {
+    const options = freebuffChatUIConfig.getModelOptions({});
+    expect(options.map(option => option.label)).toEqual([
+      'DeepSeek V4 Pro',
+      'MiniMax M3',
+      'MiMo 2.5 Pro',
+      'Kimi K2.6',
+      'DeepSeek V4 Flash',
+      'MiMo 2.5',
+      'MiniMax M2.7',
+    ]);
+    expect(options.map(option => option.group)).toEqual([
+      'Premium',
+      'Premium',
+      'Premium',
+      'Premium',
+      'Unlimited',
+      'Unlimited',
+      'Unlimited',
+    ]);
+    expect(options.every(option => option.value.startsWith('freebuff:'))).toBe(true);
+    expect(FREEBUFF_MODEL_OPTIONS).toHaveLength(7);
   });
 });

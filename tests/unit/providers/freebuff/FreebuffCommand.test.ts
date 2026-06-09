@@ -1,11 +1,11 @@
 import { buildFreebuffCliInvocation } from '@/providers/freebuff/runtime/FreebuffCliInvocation';
 
 describe('buildFreebuffCliInvocation', () => {
-  it('uses freebuff from PATH and sends prompt over stdin for the Freebuff mode', () => {
+  it('uses only freebuff from PATH and sends prompt over stdin', () => {
     expect(buildFreebuffCliInvocation({
       cwd: '/vault',
       prompt: 'hello',
-      selectedModel: 'freebuff:freebuff',
+      selectedModel: 'freebuff:deepseek-v4-pro',
     })).toEqual({
       args: ['--cwd', '/vault'],
       command: 'freebuff',
@@ -13,28 +13,16 @@ describe('buildFreebuffCliInvocation', () => {
     });
   });
 
-  it('uses codebuff mode flags and passes the prompt as argv for Codebuff modes', () => {
-    expect(buildFreebuffCliInvocation({
-      cwd: '/vault',
-      prompt: 'make a plan',
-      selectedModel: 'freebuff:codebuff-plan',
-    })).toEqual({
-      args: ['--cwd', '/vault', '--plan', 'make a plan'],
-      command: 'codebuff',
-      stdinText: null,
-    });
-  });
-
-  it('lets a configured path override the executable while keeping mode flags centralized', () => {
+  it('uses the configured freebuff path', () => {
     expect(buildFreebuffCliInvocation({
       configuredCliPath: '/opt/bin/freebuff',
       cwd: '/vault',
       prompt: 'hello',
-      selectedModel: 'freebuff:codebuff-lite',
+      selectedModel: 'freebuff:minimax-m2.7',
     })).toEqual({
-      args: ['--cwd', '/vault', '--lite', 'hello'],
+      args: ['--cwd', '/vault'],
       command: '/opt/bin/freebuff',
-      stdinText: null,
+      stdinText: 'hello\n',
     });
   });
 });

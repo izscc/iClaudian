@@ -5,7 +5,7 @@ import { parseEnvironmentVariables } from '../../../utils/env';
 import { decodeFreebuffModelId, encodeFreebuffModelId, isFreebuffModelSelectionId } from '../models';
 import { getFreebuffProviderSettings, updateFreebuffProviderSettings } from '../settings';
 
-const FREEBUFF_ENV_HASH_KEYS = ['CODEBUFF_API_KEY', 'CODEBUFF_BASE_URL', 'FREEBUFF_API_KEY'];
+const FREEBUFF_ENV_HASH_KEYS = ['FREEBUFF_API_KEY'];
 
 function computeFreebuffEnvHash(envText: string): string {
   const envVars = parseEnvironmentVariables(envText || '');

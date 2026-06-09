@@ -4,6 +4,7 @@ import type { AuxQueryConfig, AuxQueryRunner } from '../../../core/auxiliary/Aux
 import type ClaudianPlugin from '../../../main';
 import { getVaultPath } from '../../../utils/path';
 import { buildFreebuffCliInvocation } from './FreebuffCliInvocation';
+import { persistFreebuffModelSelection } from './FreebuffModelSettings';
 import { buildFreebuffRuntimeEnv } from './FreebuffRuntimeEnvironment';
 
 export class FreebuffAuxQueryRunner implements AuxQueryRunner {
@@ -14,6 +15,7 @@ export class FreebuffAuxQueryRunner implements AuxQueryRunner {
   async query(config: AuxQueryConfig, prompt: string): Promise<string> {
     const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
     const configuredCliPath = this.plugin.getResolvedProviderCliPath('freebuff');
+    await persistFreebuffModelSelection(config.model);
     const invocation = buildFreebuffCliInvocation({
       configuredCliPath,
       cwd,

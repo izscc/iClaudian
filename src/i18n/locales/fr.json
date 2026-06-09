@@ -524,25 +524,25 @@
     "freebuff": {
       "enable": {
         "name": "Enable Freebuff provider",
-        "desc": "Run Freebuff/Codebuff CLI as an iClaudian provider."
+        "desc": "Run Freebuff CLI as an iClaudian provider."
       },
       "cliPath": {
-        "name": "Freebuff/Codebuff CLI path ({host})",
-        "desc": "Optional absolute path to the Freebuff or Codebuff CLI for this computer. Leave empty to use the selected mode default from PATH."
+        "name": "Freebuff CLI path ({host})",
+        "desc": "Optional absolute path to the Freebuff CLI for this computer. Leave empty to use PATH or common Node install locations."
       },
       "mode": {
-        "name": "Default Freebuff/Codebuff mode",
-        "desc": "This is used as the model/mode when Freebuff is selected. Codebuff modes pass the matching mode flag before the prompt so the CLI does not ask again in the terminal."
+        "name": "Default Freebuff model",
+        "desc": "iClaudian writes the selected model to Freebuff native settings before launch so the CLI does not ask again in the terminal."
       },
       "modes": {
-        "desc": "Freebuff uses the `freebuff` binary. Codebuff Default/Lite/Max/Plan use `codebuff` with the corresponding CLI mode flag unless a custom CLI path is configured."
+        "desc": "Freebuff uses the `freebuff` binary and stores the selected model in ~/.config/manicode/settings.json before each run."
       },
       "mcp": {
-        "desc": "Freebuff/Codebuff manages tools, browser use, and MCP-like capabilities inside its own CLI. Configure them in the CLI; iClaudian passes the prompt through the provider runtime."
+        "desc": "Freebuff manages tools, browser use, and MCP-like capabilities inside its own CLI. Configure them in Freebuff; iClaudian passes the prompt through the provider runtime."
       },
       "environment": {
         "name": "Freebuff environment",
-        "desc": "Freebuff/Codebuff-owned runtime variables only. Put shared PATH changes in shared environment settings."
+        "desc": "Freebuff-owned runtime variables only. Put shared PATH changes in shared environment settings."
       }
     }
   }

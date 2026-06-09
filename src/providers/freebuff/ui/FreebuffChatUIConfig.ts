@@ -4,9 +4,9 @@ import type {
   ProviderUIOption,
 } from '../../../core/providers/types';
 import {
+  decodeFreebuffModelId,
   encodeFreebuffModelId,
-  FREEBUFF_MODE_OPTIONS,
-  FREEBUFF_SYNTHETIC_MODEL_ID,
+  FREEBUFF_MODEL_OPTIONS,
   isFreebuffModelSelectionId,
 } from '../models';
 import { updateFreebuffProviderSettings } from '../settings';
@@ -18,15 +18,16 @@ const FREEBUFF_ICON: ProviderIconSvg = {
 
 const DEFAULT_CONTEXT_WINDOW = 200_000;
 
-const FREEBUFF_MODEL_OPTIONS: ProviderUIOption[] = FREEBUFF_MODE_OPTIONS.map(option => ({
+const FREEBUFF_UI_MODEL_OPTIONS: ProviderUIOption[] = FREEBUFF_MODEL_OPTIONS.map(option => ({
   description: option.description,
+  group: option.group,
   label: option.label,
-  value: encodeFreebuffModelId(option.mode),
+  value: encodeFreebuffModelId(option.modelId),
 }));
 
 export const freebuffChatUIConfig: ProviderChatUIConfig = {
   getModelOptions(): ProviderUIOption[] {
-    return FREEBUFF_MODEL_OPTIONS;
+    return FREEBUFF_UI_MODEL_OPTIONS;
   },
 
   ownsModel(model: string): boolean { return isFreebuffModelSelectionId(model); },
@@ -41,11 +42,11 @@ export const freebuffChatUIConfig: ProviderChatUIConfig = {
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return;
     const settingsBag = settings as Record<string, unknown>;
     if (!isFreebuffModelSelectionId(model)) return;
+    const modelId = decodeFreebuffModelId(model);
+    if (!modelId) return;
     settingsBag.model = model;
     updateFreebuffProviderSettings(settingsBag, {
-      selectedMode: model === FREEBUFF_SYNTHETIC_MODEL_ID
-        ? 'freebuff'
-        : model.slice('freebuff:'.length) as any,
+      selectedMode: modelId,
     });
   },
   normalizeModelVariant(model: string): string { return model; },

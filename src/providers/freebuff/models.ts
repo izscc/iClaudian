@@ -1,81 +1,113 @@
-export type FreebuffMode = 'freebuff' | 'codebuff' | 'codebuff-lite' | 'codebuff-max' | 'codebuff-plan';
+export type FreebuffModelId =
+  | 'deepseek-v4-pro'
+  | 'minimax-m3'
+  | 'mimo-2.5-pro'
+  | 'kimi-k2.6'
+  | 'deepseek-v4-flash'
+  | 'mimo-2.5'
+  | 'minimax-m2.7';
 
-export interface FreebuffModeOption {
+export interface FreebuffModelOption {
   description: string;
+  group: 'Premium' | 'Unlimited';
   label: string;
-  mode: FreebuffMode;
+  modelId: FreebuffModelId;
+  nativeModelId: string;
 }
 
 export const FREEBUFF_SYNTHETIC_MODEL_ID = 'freebuff';
 export const FREEBUFF_MODEL_PREFIX = 'freebuff:';
 
-export const FREEBUFF_MODE_OPTIONS: readonly FreebuffModeOption[] = Object.freeze([
+export const FREEBUFF_MODEL_OPTIONS: readonly FreebuffModelOption[] = Object.freeze([
   {
-    description: 'Free, ad-supported Freebuff runtime',
-    label: 'Freebuff',
-    mode: 'freebuff',
+    description: 'Smartest · Collects data for training',
+    group: 'Premium',
+    label: 'DeepSeek V4 Pro',
+    modelId: 'deepseek-v4-pro',
+    nativeModelId: 'deepseek/deepseek-v4-pro',
   },
   {
-    description: 'Codebuff default multi-agent runtime',
-    label: 'Codebuff Default',
-    mode: 'codebuff',
+    description: 'Smartest & multimodal · Collects data for training',
+    group: 'Premium',
+    label: 'MiniMax M3',
+    modelId: 'minimax-m3',
+    nativeModelId: 'minimax/minimax-m3',
   },
   {
-    description: 'Codebuff Lite mode',
-    label: 'Codebuff Lite',
-    mode: 'codebuff-lite',
+    description: 'Smartest & Slow',
+    group: 'Premium',
+    label: 'MiMo 2.5 Pro',
+    modelId: 'mimo-2.5-pro',
+    nativeModelId: 'mimo/mimo-v2.5-pro',
   },
   {
-    description: 'Codebuff Max mode',
-    label: 'Codebuff Max',
-    mode: 'codebuff-max',
+    description: 'Balanced',
+    group: 'Premium',
+    label: 'Kimi K2.6',
+    modelId: 'kimi-k2.6',
+    nativeModelId: 'moonshotai/kimi-k2.6',
   },
   {
-    description: 'Codebuff Plan mode',
-    label: 'Codebuff Plan',
-    mode: 'codebuff-plan',
+    description: 'Smart & Fast · Collects data for training',
+    group: 'Unlimited',
+    label: 'DeepSeek V4 Flash',
+    modelId: 'deepseek-v4-flash',
+    nativeModelId: 'deepseek/deepseek-v4-flash',
+  },
+  {
+    description: 'Multimodal',
+    group: 'Unlimited',
+    label: 'MiMo 2.5',
+    modelId: 'mimo-2.5',
+    nativeModelId: 'mimo/mimo-v2.5',
+  },
+  {
+    description: 'Fastest',
+    group: 'Unlimited',
+    label: 'MiniMax M2.7',
+    modelId: 'minimax-m2.7',
+    nativeModelId: 'minimax/minimax-m2.7',
   },
 ]);
 
-const VALID_MODES = new Set<FreebuffMode>(FREEBUFF_MODE_OPTIONS.map(option => option.mode));
+const MODEL_BY_ID = new Map<FreebuffModelId, FreebuffModelOption>(
+  FREEBUFF_MODEL_OPTIONS.map(option => [option.modelId, option]),
+);
+const VALID_MODEL_IDS = new Set<FreebuffModelId>(FREEBUFF_MODEL_OPTIONS.map(option => option.modelId));
+const DEFAULT_FREEBUFF_MODEL_ID: FreebuffModelId = 'minimax-m2.7';
 
-export function normalizeFreebuffMode(value: unknown): FreebuffMode {
-  return typeof value === 'string' && VALID_MODES.has(value.trim() as FreebuffMode)
-    ? value.trim() as FreebuffMode
-    : 'freebuff';
+export function normalizeFreebuffModelId(value: unknown): FreebuffModelId {
+  return typeof value === 'string' && VALID_MODEL_IDS.has(value.trim() as FreebuffModelId)
+    ? value.trim() as FreebuffModelId
+    : DEFAULT_FREEBUFF_MODEL_ID;
 }
 
-export function encodeFreebuffModelId(mode: string): string {
-  const normalized = normalizeFreebuffMode(mode);
+export function encodeFreebuffModelId(modelId: string): string {
+  const normalized = normalizeFreebuffModelId(modelId);
   return `${FREEBUFF_MODEL_PREFIX}${normalized}`;
 }
 
-export function decodeFreebuffModelId(model: string): FreebuffMode | null {
-  if (model === FREEBUFF_SYNTHETIC_MODEL_ID) return 'freebuff';
+export function decodeFreebuffModelId(model: string): FreebuffModelId | null {
+  if (model === FREEBUFF_SYNTHETIC_MODEL_ID) return DEFAULT_FREEBUFF_MODEL_ID;
   if (!model.startsWith(FREEBUFF_MODEL_PREFIX)) return null;
-  return normalizeFreebuffMode(model.slice(FREEBUFF_MODEL_PREFIX.length));
+  const raw = model.slice(FREEBUFF_MODEL_PREFIX.length).trim();
+  return VALID_MODEL_IDS.has(raw as FreebuffModelId) ? raw as FreebuffModelId : null;
 }
 
 export function isFreebuffModelSelectionId(model: string): boolean {
-  return model === FREEBUFF_SYNTHETIC_MODEL_ID || model.startsWith(FREEBUFF_MODEL_PREFIX);
+  if (model === FREEBUFF_SYNTHETIC_MODEL_ID) return true;
+  return decodeFreebuffModelId(model) !== null;
 }
 
-export function freebuffModeToCliArgs(mode: FreebuffMode): {
-  executable: 'freebuff' | 'codebuff';
-  modeArgs: string[];
+export function getFreebuffNativeModelId(modelId: string): string {
+  const normalized = normalizeFreebuffModelId(modelId);
+  return MODEL_BY_ID.get(normalized)?.nativeModelId ?? MODEL_BY_ID.get(DEFAULT_FREEBUFF_MODEL_ID)!.nativeModelId;
+}
+
+export function freebuffModelToCliArgs(_modelId: FreebuffModelId): {
+  executable: 'freebuff';
+  modelArgs: string[];
   promptAsArg: boolean;
 } {
-  switch (mode) {
-    case 'codebuff':
-      return { executable: 'codebuff', modeArgs: [], promptAsArg: true };
-    case 'codebuff-lite':
-      return { executable: 'codebuff', modeArgs: ['--lite'], promptAsArg: true };
-    case 'codebuff-max':
-      return { executable: 'codebuff', modeArgs: ['--max'], promptAsArg: true };
-    case 'codebuff-plan':
-      return { executable: 'codebuff', modeArgs: ['--plan'], promptAsArg: true };
-    case 'freebuff':
-    default:
-      return { executable: 'freebuff', modeArgs: [], promptAsArg: false };
-  }
+  return { executable: 'freebuff', modelArgs: [], promptAsArg: false };
 }
