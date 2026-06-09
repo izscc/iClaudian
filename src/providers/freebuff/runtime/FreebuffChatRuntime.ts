@@ -32,6 +32,7 @@ import { getFreebuffProviderSettings } from '../settings';
 import { buildFreebuffPromptText } from './buildFreebuffPrompt';
 import { buildFreebuffCliInvocation } from './FreebuffCliInvocation';
 import { persistFreebuffModelSelection } from './FreebuffModelSettings';
+import { hasFreebuffTerminalControl, sanitizeFreebuffProcessOutput } from './FreebuffOutputSanitizer';
 import { buildFreebuffRuntimeEnv } from './FreebuffRuntimeEnvironment';
 
 export class FreebuffChatRuntime implements ChatRuntime {
@@ -176,6 +177,7 @@ export class FreebuffChatRuntime implements ChatRuntime {
     let done = false;
     let stdout = '';
     let stderr = '';
+    let terminalOutputDetected = false;
 
     const wake = (): void => {
       while (waiters.length) waiters.shift()?.();
@@ -206,7 +208,8 @@ export class FreebuffChatRuntime implements ChatRuntime {
     child.stdout!.on('data', chunk => {
       const text = String(chunk);
       stdout += text;
-      if (text) push({ type: 'text', content: text });
+      if (hasFreebuffTerminalControl(text)) terminalOutputDetected = true;
+      if (text && !terminalOutputDetected) push({ type: 'text', content: text });
     });
     child.stderr!.on('data', chunk => { stderr += String(chunk); });
     child.on('error', error => {
@@ -218,9 +221,14 @@ export class FreebuffChatRuntime implements ChatRuntime {
     child.on('close', (code, signal) => {
       if (this.process === child) this.process = null;
       if (code === 0) {
-        if (!stdout.trim() && stderr.trim()) push({ type: 'notice', content: stderr.trim(), level: 'warning' });
+        const cleanStdout = terminalOutputDetected ? sanitizeFreebuffProcessOutput(stdout) : stdout;
+        const cleanStderr = sanitizeFreebuffProcessOutput(stderr).trim();
+        if (terminalOutputDetected && cleanStdout.trim()) push({ type: 'text', content: cleanStdout.trim() });
+        if (!cleanStdout.trim() && cleanStderr) push({ type: 'notice', content: cleanStderr, level: 'warning' });
       } else {
-        const details = [stderr.trim(), stdout.trim()].filter(Boolean).join('\n\n');
+        const cleanStdout = terminalOutputDetected ? sanitizeFreebuffProcessOutput(stdout) : stdout.trim();
+        const cleanStderr = sanitizeFreebuffProcessOutput(stderr).trim();
+        const details = [cleanStderr, cleanStdout.trim()].filter(Boolean).join('\n\n');
         push({ type: 'error', content: details || `Freebuff CLI exited with code ${code ?? signal ?? 'unknown'}.` });
       }
       done = true;

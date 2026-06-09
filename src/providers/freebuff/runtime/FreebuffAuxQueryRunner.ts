@@ -5,6 +5,7 @@ import type ClaudianPlugin from '../../../main';
 import { getVaultPath } from '../../../utils/path';
 import { buildFreebuffCliInvocation } from './FreebuffCliInvocation';
 import { persistFreebuffModelSelection } from './FreebuffModelSettings';
+import { hasFreebuffTerminalControl, sanitizeFreebuffProcessOutput } from './FreebuffOutputSanitizer';
 import { buildFreebuffRuntimeEnv } from './FreebuffRuntimeEnvironment';
 
 export class FreebuffAuxQueryRunner implements AuxQueryRunner {
@@ -34,19 +35,24 @@ export class FreebuffAuxQueryRunner implements AuxQueryRunner {
       });
       let stdout = '';
       let stderr = '';
+      let terminalOutputDetected = false;
       if (invocation.stdinText && child.stdin) {
         child.stdin.write(invocation.stdinText);
         child.stdin.end();
       }
       child.stdout!.on('data', (chunk) => {
-        stdout += chunk.toString('utf8');
-        config.onTextChunk?.(stdout);
+        const text = chunk.toString('utf8');
+        stdout += text;
+        if (hasFreebuffTerminalControl(text)) terminalOutputDetected = true;
+        if (!terminalOutputDetected) config.onTextChunk?.(stdout);
       });
       child.stderr!.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
       child.on('error', reject);
       child.on('exit', (code, signal) => {
-        if (code === 0) resolve(stdout.trim());
-        else reject(new Error(stderr.trim() || `Freebuff exited with ${signal ?? code}`));
+        const cleanStdout = terminalOutputDetected ? sanitizeFreebuffProcessOutput(stdout) : stdout.trim();
+        const cleanStderr = sanitizeFreebuffProcessOutput(stderr).trim();
+        if (code === 0) resolve(cleanStdout.trim());
+        else reject(new Error(cleanStderr || cleanStdout.trim() || `Freebuff exited with ${signal ?? code}`));
       });
     });
   }
