@@ -87,12 +87,21 @@ describe('ProviderRegistry', () => {
     expect(caps.supportsFork).toBe(false);
   });
 
+  it('returns Freebuff capabilities', () => {
+    const caps = ProviderRegistry.getCapabilities('freebuff');
+    expect(caps.providerId).toBe('freebuff');
+    expect(caps.supportsInstructionMode).toBe(true);
+    expect(caps.supportsFork).toBe(false);
+    expect(caps.reasoningControl).toBe('none');
+  });
+
   it('lists registered provider ids', () => {
     const ids = ProviderRegistry.getRegisteredProviderIds();
     expect(ids).toContain('claude');
     expect(ids).toContain('codex');
     expect(ids).toContain('copilot');
     expect(ids).toContain('gemini');
+    expect(ids).toContain('freebuff');
   });
 
   it('filters enabled provider ids using registration metadata', () => {
@@ -118,5 +127,6 @@ describe('ProviderRegistry', () => {
     expect(ProviderRegistry.getProviderDisplayName('claude')).toBe('Claude');
     expect(ProviderRegistry.getProviderDisplayName('codex')).toBe('Codex');
     expect(ProviderRegistry.getProviderDisplayName('copilot')).toBe('Copilot');
+    expect(ProviderRegistry.getProviderDisplayName('freebuff')).toBe('Freebuff');
   });
 });

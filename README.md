@@ -6,18 +6,18 @@
 
 ![预览](Preview.png)
 
-**iClaudian** 是一个 Obsidian 桌面端插件，把常用 AI 编程代理直接嵌入到你的 Vault 侧边栏和行内编辑流程中。当前支持 Claude Code、Codex CLI、OpenCode、Gemini CLI、Antigravity CLI，以及 GitHub Copilot CLI。你的 Vault 会作为代理工作目录，代理可以在授权范围内读取、搜索、编辑文件并执行多步骤任务。
+**iClaudian** 是一个 Obsidian 桌面端插件，把常用 AI 编程代理直接嵌入到你的 Vault 侧边栏和行内编辑流程中。当前支持 Claude Code、Codex CLI、OpenCode、Gemini CLI、Antigravity CLI、Freebuff/Codebuff CLI，以及 GitHub Copilot CLI。你的 Vault 会作为代理工作目录，代理可以在授权范围内读取、搜索、编辑文件并执行多步骤任务。
 
 ## 核心功能
 
-- **多提供方聊天**：在同一个聊天体验中切换 Claude、Codex、OpenCode、Gemini、Antigravity、Copilot 等运行时。
+- **多提供方聊天**：在同一个聊天体验中切换 Claude、Codex、OpenCode、Gemini、Antigravity、Freebuff/Codebuff、Copilot 等运行时。
 - **行内编辑**：选中文本或在光标位置触发快捷键，使用代理直接改写笔记，并显示词级 diff 预览。
 - **对话与多标签**：支持多个聊天标签、历史会话、恢复、分叉、压缩上下文等工作流。
 - **计划模式**：通过 `Shift+Tab` 切换 Plan 模式，让代理先探索和设计，再执行实现。
 - **指令模式（`#`）**：在输入框中使用 `#` 精炼/追加本轮自定义指令。
 - **命令与 Skills**：输入 `/` 或 `$` 调用 Vault 级、用户级命令与 Skills。
 - **`@mention` 上下文**：可提及 Vault 文件、外部文件、子代理、MCP 服务器等上下文。
-- **MCP 工具**：支持 Model Context Protocol。Claude 可在插件内管理 Vault MCP；Codex、Gemini、Copilot、OpenCode 使用各自 CLI 的 MCP/工具配置。
+- **MCP 工具**：支持 Model Context Protocol。Claude 可在插件内管理 Vault MCP；Codex、Gemini、Copilot、OpenCode、Freebuff/Codebuff 使用各自 CLI 的 MCP/工具配置。
 - **模型与推理配置**：提供方设置页可配置模型列表、上下文窗口、推理强度或权限模式。Claude Opus 4.8（含 `opus[1m]`）默认推理强度为 `xhigh`，思考过程以摘要（`summarized`）形式实时显示。
 - **流式数学渲染**：可选「流式期间延迟数学公式渲染」设置，避免 LaTeX 在 token 边界处闪烁，待整段输出完成后再统一渲染。
 - **本地优先存储**：会话元数据、提供方配置、命令、Skills 均保存在本地 Vault 或 CLI 原生目录中。
@@ -31,6 +31,7 @@
 | OpenCode | OpenCode CLI | ACP/运行时模型发现、模型筛选、模式选择、命令下拉、行内编辑和标题生成等基础代理能力 |
 | Gemini CLI | `gemini --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、运行时命令、MCP 由 Gemini CLI 管理 |
 | Antigravity CLI | `agy --print` / `agy --continue --print` | 流式输出、原生继续会话、模型选择、YOLO 权限模式；模型写入 `~/.gemini/antigravity-cli/settings.json`，MCP/插件由 Antigravity CLI 管理 |
+| Freebuff/Codebuff CLI | `freebuff` / `codebuff [prompt]` | Freebuff 免费内置模型能力、Codebuff Default/Lite/Max/Plan 模式选择、流式 stdout、行内编辑与标题生成；工具/MCP/浏览器能力由 CLI 自身管理 |
 | GitHub Copilot CLI | `copilot --acp` | ACP 会话、模型选择、Plan/YOLO 权限模式、运行时命令；插件、MCP、BYOK 等由 Copilot CLI 管理；ACP 不可用时会走保留 Obsidian 当前笔记上下文的 prompt fallback |
 
 ## 模型 ID
@@ -76,6 +77,20 @@ GPT-OSS 120B (Medium)
 
 旧配置中的 `Gemini 3.5 Flash (Low)` 会自动迁移到真实可用的 `Gemini 3.5 Flash (Medium)`。
 
+### Freebuff/Codebuff 模式
+
+Freebuff provider 默认使用 `freebuff` 命令；如果在模型选择器里选择 Codebuff 变体，则使用 `codebuff` 并在 prompt 前追加对应模式参数，避免 CLI 进入终端后再次要求选择模型/模式：
+
+```text
+Freebuff              -> freebuff --cwd <vault>
+Codebuff Default      -> codebuff --cwd <vault> <prompt>
+Codebuff Lite         -> codebuff --cwd <vault> --lite <prompt>
+Codebuff Max          -> codebuff --cwd <vault> --max <prompt>
+Codebuff Plan         -> codebuff --cwd <vault> --plan <prompt>
+```
+
+如果你的本机 CLI 版本使用不同命令名或包装脚本，可在 **Settings → iClaudian → Freebuff → CLI path** 填写绝对路径覆盖默认命令。
+
 ## 安装要求
 
 - Obsidian v1.4.5+
@@ -86,6 +101,7 @@ GPT-OSS 120B (Medium)
   - OpenCode provider：安装 [OpenCode](https://opencode.ai/)
   - Gemini provider：安装 Gemini CLI，并支持 `gemini --acp`
   - Antigravity provider：安装 [Antigravity CLI](https://www.antigravity.google/docs/cli-getting-started)，并完成 CLI 登录/授权
+  - Freebuff provider：安装 Freebuff（`npm install -g freebuff`）；如需 Codebuff 模式，也安装 Codebuff（`npm install -g codebuff`）
   - Copilot provider：安装 [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli)，并完成 `copilot login`
 
 ## 安装方式
@@ -137,6 +153,8 @@ npm run dev
 | Codex | `/Users/you/bin/codex` | `C:\Users\you\AppData\Roaming\npm\codex.cmd` |
 | Gemini | `/usr/local/bin/gemini` | `C:\Users\you\AppData\Roaming\npm\gemini.cmd` |
 | Antigravity | `/usr/local/bin/agy` | `C:\Users\you\AppData\Roaming\npm\agy.cmd` |
+| Freebuff | `/usr/local/bin/freebuff` | `C:\Users\you\AppData\Roaming\npm\freebuff.cmd` |
+| Codebuff | `/usr/local/bin/codebuff` | `C:\Users\you\AppData\Roaming\npm\codebuff.cmd` |
 | Copilot | `/Users/you/.local/bin/copilot` | `C:\Users\you\AppData\Local\GitHubCopilot\copilot.exe` |
 | OpenCode | `/usr/local/bin/opencode` | `C:\Users\you\AppData\Roaming\npm\opencode.cmd` |
 
@@ -164,6 +182,18 @@ Antigravity provider 使用当前 CLI 支持的非交互方式：
 
 这避免了旧版 `agy --acp` 路径导致的 `initialize` 超时问题，也尽量贴近原版 Antigravity CLI 的高速体验。
 
+### Freebuff/Codebuff CLI 调用方式
+
+Freebuff provider 使用当前 CLI 公开的最小非交互能力：
+
+- Freebuff：默认执行 `freebuff --cwd <vault>`，并通过 stdin 提交 prompt，以兼容 Freebuff 当前不接受 `[prompt...]` 参数的版本。
+- Codebuff：当选择 Codebuff Default/Lite/Max/Plan 时，执行 `codebuff --cwd <vault> [--lite|--max|--plan] <prompt>`。
+- 输出：stdout 边到达边渲染到聊天窗口；stderr 仅在无 stdout 或退出失败时作为提示/错误展示。
+- 路径：留空时根据所选模式使用 PATH 中的 `freebuff` 或 `codebuff`；填写 CLI path 后使用该路径。
+- 模型/模式：iClaudian 的模型选择器会触发 Freebuff/Codebuff 模式选择，尽量避免 CLI 再弹出模型选择 TUI。
+
+Freebuff/Codebuff 的登录、广告支持、工具、浏览器使用和 MCP-like 能力仍由 CLI 自身管理。
+
 ## 隐私与数据
 
 - **会发送给模型提供方的数据**：你的输入、被引用/附加的文件、图片、工具调用结果，以及代理执行上下文。
@@ -174,6 +204,7 @@ Antigravity provider 使用当前 CLI 支持的非交互方式：
   - Claude 原生日志：`~/.claude/projects/`
   - Codex 原生日志：`~/.codex/sessions/`
   - Copilot 原生配置：`~/.copilot/`
+  - Freebuff/Codebuff 原生配置：通常位于 `~/.config/manicode/`（由 CLI 自身维护）
 - **无遥测**：插件本身不做额外追踪；实际请求由你配置的 CLI/provider 决定。
 
 ## 开发命令
@@ -202,6 +233,8 @@ src/
 │   ├── opencode/                # OpenCode 适配、模型发现、模式管理
 │   ├── gemini/                  # Gemini ACP 适配
 │   ├── copilot/                 # GitHub Copilot CLI ACP 适配
+│   ├── antigravity/             # Antigravity CLI print/continue 适配
+│   ├── freebuff/                # Freebuff/Codebuff CLI 适配
 │   └── acp/                     # ACP 共享客户端、传输、事件归一化
 ├── features/
 │   ├── chat/                    # 侧边栏聊天、多标签、渲染器
@@ -218,6 +251,7 @@ src/
 - [x] Claude Opus/Sonnet 1M 上下文模型
 - [x] Codex provider 集成
 - [x] OpenCode provider 集成
+- [x] Freebuff/Codebuff provider 集成
 - [x] Gemini CLI ACP provider 集成
 - [x] GitHub Copilot CLI ACP provider 集成
 - [ ] 持续补齐各 provider 的原生命令、MCP、历史和跨平台安装体验

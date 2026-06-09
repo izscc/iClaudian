@@ -520,6 +520,30 @@
         "name": "Copilot 环境",
         "desc": "仅限 Copilot 运行时变量。共享 PATH 变更应写入共享环境设置。"
       }
+    },
+    "freebuff": {
+      "enable": {
+        "name": "启用 Freebuff 提供方",
+        "desc": "将 Freebuff/Codebuff CLI 作为 iClaudian 提供方运行。"
+      },
+      "cliPath": {
+        "name": "Freebuff/Codebuff CLI 路径（{host}）",
+        "desc": "此电脑上的 Freebuff 或 Codebuff CLI 绝对路径。留空则按所选模式使用 PATH 中的默认命令。"
+      },
+      "mode": {
+        "name": "默认 Freebuff/Codebuff 模式",
+        "desc": "选择 Freebuff 时使用的模型/模式。Codebuff 模式会在 prompt 前传入对应模式参数，避免 CLI 再次在终端里要求选择。"
+      },
+      "modes": {
+        "desc": "Freebuff 使用 `freebuff` 命令。Codebuff Default/Lite/Max/Plan 使用 `codebuff` 及对应 CLI 模式参数；如果配置了自定义 CLI 路径则使用该路径。"
+      },
+      "mcp": {
+        "desc": "Freebuff/Codebuff 在自身 CLI 内管理工具、浏览器使用和类似 MCP 的能力。请在 CLI 中配置；iClaudian 会通过 provider runtime 传递 prompt。"
+      },
+      "environment": {
+        "name": "Freebuff 环境",
+        "desc": "仅限 Freebuff/Codebuff 运行时变量。共享 PATH 变更应写入共享环境设置。"
+      }
     }
   }
 }
