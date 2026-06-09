@@ -34,6 +34,7 @@ import { buildFreebuffCliInvocation } from './FreebuffCliInvocation';
 import { persistFreebuffModelSelection } from './FreebuffModelSettings';
 import { hasFreebuffTerminalControl, sanitizeFreebuffProcessOutput } from './FreebuffOutputSanitizer';
 import { buildFreebuffRuntimeEnv } from './FreebuffRuntimeEnvironment';
+import { FreebuffTuiAutomation } from './FreebuffTuiAutomation';
 
 export class FreebuffChatRuntime implements ChatRuntime {
   readonly providerId = 'freebuff' as const;
@@ -198,16 +199,14 @@ export class FreebuffChatRuntime implements ChatRuntime {
     });
     this.process = child;
 
-    if (stdinText && child.stdin) {
-      child.stdin.write(stdinText);
-      child.stdin.end();
-    }
+    const tuiAutomation = stdinText && child.stdin ? new FreebuffTuiAutomation(child.stdin, stdinText) : null;
 
     child.stdout!.setEncoding('utf-8');
     child.stderr!.setEncoding('utf-8');
     child.stdout!.on('data', chunk => {
       const text = String(chunk);
       stdout += text;
+      tuiAutomation?.handleOutput(text);
       if (hasFreebuffTerminalControl(text)) terminalOutputDetected = true;
       if (text && !terminalOutputDetected) push({ type: 'text', content: text });
     });

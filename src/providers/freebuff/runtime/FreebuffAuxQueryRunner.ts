@@ -7,6 +7,7 @@ import { buildFreebuffCliInvocation } from './FreebuffCliInvocation';
 import { persistFreebuffModelSelection } from './FreebuffModelSettings';
 import { hasFreebuffTerminalControl, sanitizeFreebuffProcessOutput } from './FreebuffOutputSanitizer';
 import { buildFreebuffRuntimeEnv } from './FreebuffRuntimeEnvironment';
+import { FreebuffTuiAutomation } from './FreebuffTuiAutomation';
 
 export class FreebuffAuxQueryRunner implements AuxQueryRunner {
   private currentAbortController: AbortController | null = null;
@@ -36,13 +37,13 @@ export class FreebuffAuxQueryRunner implements AuxQueryRunner {
       let stdout = '';
       let stderr = '';
       let terminalOutputDetected = false;
-      if (invocation.stdinText && child.stdin) {
-        child.stdin.write(invocation.stdinText);
-        child.stdin.end();
-      }
+      const tuiAutomation = invocation.stdinText && child.stdin
+        ? new FreebuffTuiAutomation(child.stdin, invocation.stdinText)
+        : null;
       child.stdout!.on('data', (chunk) => {
         const text = chunk.toString('utf8');
         stdout += text;
+        tuiAutomation?.handleOutput(text);
         if (hasFreebuffTerminalControl(text)) terminalOutputDetected = true;
         if (!terminalOutputDetected) config.onTextChunk?.(stdout);
       });
