@@ -8,6 +8,7 @@ const mockReadAssistantResponse = jest.fn();
 
 jest.mock('@/providers/freebuff/runtime/FreebuffChatStateWatcher', () => ({
   FreebuffChatStateWatcher: jest.fn().mockImplementation(() => ({
+    hasPromptStarted: jest.fn().mockReturnValue(false),
     readAssistantResponse: mockReadAssistantResponse,
   })),
 }));

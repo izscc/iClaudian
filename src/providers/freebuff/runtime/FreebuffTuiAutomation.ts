@@ -41,13 +41,14 @@ export class FreebuffTuiAutomation {
     return this.promptSent;
   }
 
-  private sendPrompt(): void {
-    if (this.promptSent) return;
+  sendPrompt(force = false): void {
+    if (this.promptSent && !force) return;
     this.stdin.write(toBracketedPaste(this.promptText));
     this.writeEnterAfter(100);
     this.writeEnterAfter(600);
     this.promptSent = true;
   }
+
 
   private writeEnterAfter(delayMs: number): void {
     const timer = setTimeout(() => {

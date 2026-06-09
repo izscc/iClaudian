@@ -35,6 +35,7 @@ import { buildFreebuffCliInvocation } from './FreebuffCliInvocation';
 import { persistFreebuffModelSelection } from './FreebuffModelSettings';
 import { hasFreebuffTerminalControl, sanitizeFreebuffProcessOutput } from './FreebuffOutputSanitizer';
 import { terminateFreebuffProcess } from './FreebuffProcessControl';
+import { buildFreebuffSpawnCommand } from './FreebuffPtyBridge';
 import { buildFreebuffRuntimeEnv } from './FreebuffRuntimeEnvironment';
 import { FreebuffTuiAutomation } from './FreebuffTuiAutomation';
 
@@ -183,6 +184,7 @@ export class FreebuffChatRuntime implements ChatRuntime {
     let terminalOutputDetected = false;
     let responseCaptured = false;
     let pollTimer: NodeJS.Timeout | null = null;
+    let nextPromptAttemptAt = Date.now() + 16_000;
 
     const wake = (): void => {
       while (waiters.length) waiters.shift()?.();
@@ -197,7 +199,8 @@ export class FreebuffChatRuntime implements ChatRuntime {
     };
 
     const stateWatcher = new FreebuffChatStateWatcher(cwd, env);
-    const child = spawn(command, args, {
+    const spawnCommand = buildFreebuffSpawnCommand(command, args);
+    const child = spawn(spawnCommand.command, spawnCommand.args, {
       cwd,
       detached: process.platform !== 'win32',
       env,
@@ -206,7 +209,13 @@ export class FreebuffChatRuntime implements ChatRuntime {
     this.process = child;
 
     const tuiAutomation = stdinText && child.stdin ? new FreebuffTuiAutomation(child.stdin, stdinText) : null;
+    const maybeRetryPromptSubmission = (): void => {
+      if (!tuiAutomation || stateWatcher.hasPromptStarted() || Date.now() < nextPromptAttemptAt) return;
+      tuiAutomation.sendPrompt(true);
+      nextPromptAttemptAt = Date.now() + 8_000;
+    };
     const captureStateResponse = (): void => {
+      maybeRetryPromptSubmission();
       if (responseCaptured) return;
       const response = stateWatcher.readAssistantResponse();
       if (!response) return;

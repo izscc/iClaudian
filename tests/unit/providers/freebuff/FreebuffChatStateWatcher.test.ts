@@ -2,7 +2,10 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { readAssistantResponseFromFile } from '@/providers/freebuff/runtime/FreebuffChatStateWatcher';
+import {
+  readAssistantResponseFromFile,
+  readPromptStartedFromLogFile,
+} from '@/providers/freebuff/runtime/FreebuffChatStateWatcher';
 
 describe('FreebuffChatStateWatcher', () => {
   it('extracts the latest assistant answer without reasoning blocks', () => {
@@ -22,6 +25,18 @@ describe('FreebuffChatStateWatcher', () => {
 
     try {
       expect(readAssistantResponseFromFile(file)).toBe('OK');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('detects when Freebuff has accepted the prompt from its log file', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'freebuff-state-'));
+    const file = path.join(dir, 'log.jsonl');
+    fs.writeFileSync(file, '{"msg":"Reconnection detected"}\n{"msg":"Start agent base2-free step 1"}\n');
+
+    try {
+      expect(readPromptStartedFromLogFile(file)).toBe(true);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

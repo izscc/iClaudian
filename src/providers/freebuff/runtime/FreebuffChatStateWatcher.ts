@@ -33,7 +33,22 @@ export class FreebuffChatStateWatcher {
     return null;
   }
 
+  hasPromptStarted(): boolean {
+    for (const candidate of this.listCandidateLogFiles()) {
+      if (readPromptStartedFromLogFile(candidate.path)) return true;
+    }
+    return false;
+  }
+
   private listCandidateMessageFiles(): Array<{ mtimeMs: number; path: string }> {
+    return this.listCandidateFiles('chat-messages.json');
+  }
+
+  private listCandidateLogFiles(): Array<{ mtimeMs: number; path: string }> {
+    return this.listCandidateFiles('log.jsonl');
+  }
+
+  private listCandidateFiles(fileName: string): Array<{ mtimeMs: number; path: string }> {
     let names: string[];
     try {
       names = fs.readdirSync(this.chatsDir);
@@ -43,19 +58,27 @@ export class FreebuffChatStateWatcher {
 
     const candidates: Array<{ mtimeMs: number; path: string }> = [];
     for (const name of names) {
-      const messagesPath = path.join(this.chatsDir, name, 'chat-messages.json');
+      const candidatePath = path.join(this.chatsDir, name, fileName);
       try {
-        const stat = fs.statSync(messagesPath);
+        const stat = fs.statSync(candidatePath);
         const isNewDir = !this.knownChatDirs.has(name);
         const isUpdatedAfterStart = stat.mtimeMs >= this.startMs - 2_000;
         if (stat.isFile() && (isNewDir || isUpdatedAfterStart)) {
-          candidates.push({ mtimeMs: stat.mtimeMs, path: messagesPath });
+          candidates.push({ mtimeMs: stat.mtimeMs, path: candidatePath });
         }
       } catch {
         // Ignore incomplete chat directories while Freebuff is still writing them.
       }
     }
     return candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  }
+}
+
+export function readPromptStartedFromLogFile(logPath: string): boolean {
+  try {
+    return fs.readFileSync(logPath, 'utf8').includes('Start agent');
+  } catch {
+    return false;
   }
 }
 
