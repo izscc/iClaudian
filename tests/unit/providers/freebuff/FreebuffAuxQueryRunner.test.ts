@@ -20,6 +20,7 @@ jest.mock('@/providers/freebuff/runtime/FreebuffChatStateWatcher', () => ({
   FreebuffChatStateWatcher: jest.fn().mockImplementation(() => ({
     hasPromptStarted: jest.fn().mockReturnValue(false),
     readAssistantResponse: mockReadAssistantResponse,
+    readLogCompletion: jest.fn().mockReturnValue(null),
   })),
 }));
 

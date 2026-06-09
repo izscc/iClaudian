@@ -9,6 +9,7 @@ import { persistFreebuffModelSelection } from './FreebuffModelSettings';
 import { hasFreebuffTerminalControl, sanitizeFreebuffProcessOutput } from './FreebuffOutputSanitizer';
 import { terminateFreebuffProcess } from './FreebuffProcessControl';
 import { buildFreebuffSpawnCommand } from './FreebuffPtyBridge';
+import { reserveFreebuffProcessSlot, trackFreebuffProcess, untrackFreebuffProcess } from './FreebuffRuntimeCoordinator';
 import { buildFreebuffRuntimeEnv } from './FreebuffRuntimeEnvironment';
 import { FreebuffTuiAutomation } from './FreebuffTuiAutomation';
 
@@ -32,7 +33,11 @@ export class FreebuffAuxQueryRunner implements AuxQueryRunner {
 
     this.currentAbortController = config.abortController ?? new AbortController();
     return await new Promise<string>((resolve, reject) => {
-      const stateWatcher = new FreebuffChatStateWatcher(cwd, env);
+      if (!reserveFreebuffProcessSlot('aux')) {
+        reject(new Error('Freebuff is busy with another request.'));
+        return;
+      }
+      const stateWatcher = new FreebuffChatStateWatcher(cwd, env, invocation.stdinText ?? '');
       const spawnCommand = buildFreebuffSpawnCommand(invocation.command, invocation.args);
       const child = spawn(spawnCommand.command, spawnCommand.args, {
         cwd,
@@ -42,6 +47,7 @@ export class FreebuffAuxQueryRunner implements AuxQueryRunner {
         stdio: invocation.stdinText ? ['pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe'],
       });
       this.currentProcess = child;
+      trackFreebuffProcess(child, 'aux');
       let stdout = '';
       let stderr = '';
       let terminalOutputDetected = false;
@@ -49,6 +55,7 @@ export class FreebuffAuxQueryRunner implements AuxQueryRunner {
       let pollTimer: NodeJS.Timeout | null = null;
       let nextPromptAttemptAt = Date.now() + 16_000;
       const cleanup = (): void => {
+        untrackFreebuffProcess(child);
         if (this.currentProcess === child) this.currentProcess = null;
         if (pollTimer) {
           clearInterval(pollTimer);
@@ -63,12 +70,14 @@ export class FreebuffAuxQueryRunner implements AuxQueryRunner {
       const resolveFromState = (tuiAutomation: FreebuffTuiAutomation | null): void => {
         maybeRetryPromptSubmission(tuiAutomation);
         if (settled) return;
-        const response = stateWatcher.readAssistantResponse();
-        if (!response) return;
+        const logCompletion = stateWatcher.readLogCompletion();
+        const response = logCompletion?.type === 'text' ? logCompletion.content : stateWatcher.readAssistantResponse();
+        if (!response && logCompletion?.type !== 'error') return;
         settled = true;
         cleanup();
         terminateFreebuffProcess(child, 'SIGTERM');
-        resolve(response);
+        if (logCompletion?.type === 'error') reject(new Error(logCompletion.message));
+        else resolve(response ?? '');
       };
       pollTimer = setInterval(() => resolveFromState(tuiAutomation), 500);
       pollTimer.unref?.();

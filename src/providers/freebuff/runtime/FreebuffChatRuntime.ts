@@ -36,6 +36,7 @@ import { persistFreebuffModelSelection } from './FreebuffModelSettings';
 import { hasFreebuffTerminalControl, sanitizeFreebuffProcessOutput } from './FreebuffOutputSanitizer';
 import { terminateFreebuffProcess } from './FreebuffProcessControl';
 import { buildFreebuffSpawnCommand } from './FreebuffPtyBridge';
+import { reserveFreebuffProcessSlot, trackFreebuffProcess, untrackFreebuffProcess } from './FreebuffRuntimeCoordinator';
 import { buildFreebuffRuntimeEnv } from './FreebuffRuntimeEnvironment';
 import { FreebuffTuiAutomation } from './FreebuffTuiAutomation';
 
@@ -198,7 +199,11 @@ export class FreebuffChatRuntime implements ChatRuntime {
       await new Promise<void>(resolve => waiters.push(resolve));
     };
 
-    const stateWatcher = new FreebuffChatStateWatcher(cwd, env);
+    if (!reserveFreebuffProcessSlot('chat')) {
+      yield { type: 'error', content: 'Freebuff is already busy. Please stop the current Freebuff request and try again.' };
+      return;
+    }
+    const stateWatcher = new FreebuffChatStateWatcher(cwd, env, stdinText ?? '');
     const spawnCommand = buildFreebuffSpawnCommand(command, args);
     const child = spawn(spawnCommand.command, spawnCommand.args, {
       cwd,
@@ -207,6 +212,7 @@ export class FreebuffChatRuntime implements ChatRuntime {
       stdio: stdinText ? ['pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe'],
     });
     this.process = child;
+    trackFreebuffProcess(child, 'chat');
 
     const tuiAutomation = stdinText && child.stdin ? new FreebuffTuiAutomation(child.stdin, stdinText) : null;
     const maybeRetryPromptSubmission = (): void => {
@@ -217,11 +223,14 @@ export class FreebuffChatRuntime implements ChatRuntime {
     const captureStateResponse = (): void => {
       maybeRetryPromptSubmission();
       if (responseCaptured) return;
-      const response = stateWatcher.readAssistantResponse();
-      if (!response) return;
+      const logCompletion = stateWatcher.readLogCompletion();
+      const response = logCompletion?.type === 'text' ? logCompletion.content : stateWatcher.readAssistantResponse();
+      if (!response && logCompletion?.type !== 'error') return;
       responseCaptured = true;
+      untrackFreebuffProcess(child);
       if (this.process === child) this.process = null;
-      push({ type: 'text', content: response });
+      if (logCompletion?.type === 'error') push({ type: 'error', content: logCompletion.message });
+      else if (response) push({ type: 'text', content: response });
       terminateFreebuffProcess(child, 'SIGTERM');
       if (pollTimer) {
         clearInterval(pollTimer);
@@ -245,6 +254,7 @@ export class FreebuffChatRuntime implements ChatRuntime {
     });
     child.stderr!.on('data', chunk => { stderr += String(chunk); });
     child.on('error', error => {
+      untrackFreebuffProcess(child);
       if (this.process === child) this.process = null;
       if (pollTimer) {
         clearInterval(pollTimer);
@@ -255,6 +265,7 @@ export class FreebuffChatRuntime implements ChatRuntime {
       wake();
     });
     child.on('close', (code, signal) => {
+      untrackFreebuffProcess(child);
       if (this.process === child) this.process = null;
       if (pollTimer) {
         clearInterval(pollTimer);

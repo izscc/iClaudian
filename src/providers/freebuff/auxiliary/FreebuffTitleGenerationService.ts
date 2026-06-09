@@ -1,17 +1,22 @@
-import { QueryBackedTitleGenerationService } from '../../../core/auxiliary/QueryBackedTitleGenerationService';
+import type {
+  TitleGenerationCallback,
+  TitleGenerationService,
+} from '../../../core/providers/types';
 import type ClaudianPlugin from '../../../main';
-import { FreebuffAuxQueryRunner } from '../runtime/FreebuffAuxQueryRunner';
-import { freebuffChatUIConfig } from '../ui/FreebuffChatUIConfig';
 
-export class FreebuffTitleGenerationService extends QueryBackedTitleGenerationService {
-  constructor(plugin: ClaudianPlugin) {
-    super({
-      createRunner: () => new FreebuffAuxQueryRunner(plugin),
-      resolveModel: () => {
-        const settings = plugin.settings as unknown as Record<string, unknown>;
-        const titleModel = typeof settings.titleGenerationModel === 'string' ? settings.titleGenerationModel : '';
-        return freebuffChatUIConfig.ownsModel(titleModel, settings) ? titleModel : undefined;
-      },
+export class FreebuffTitleGenerationService implements TitleGenerationService {
+  constructor(_plugin: ClaudianPlugin) {}
+
+  async generateTitle(
+    conversationId: string,
+    _userMessage: string,
+    callback: TitleGenerationCallback,
+  ): Promise<void> {
+    await callback(conversationId, {
+      success: false,
+      error: 'Freebuff title generation is disabled because the Freebuff CLI allows only one active instance per account.',
     });
   }
+
+  cancel(): void {}
 }

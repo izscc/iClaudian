@@ -15,11 +15,20 @@ interface FreebuffTextBlock {
   type?: unknown;
 }
 
+export type FreebuffLogCompletion =
+  | { type: 'error'; message: string }
+  | { type: 'text'; content: string };
+
 export class FreebuffChatStateWatcher {
   private readonly chatsDir: string;
   private readonly knownChatDirs: Set<string>;
 
-  constructor(cwd: string, env: NodeJS.ProcessEnv, private readonly startMs: number = Date.now()) {
+  constructor(
+    cwd: string,
+    env: NodeJS.ProcessEnv,
+    private readonly expectedPrompt = '',
+    private readonly startMs: number = Date.now(),
+  ) {
     this.chatsDir = getFreebuffChatsDir(cwd, env);
     this.knownChatDirs = listChatDirs(this.chatsDir);
   }
@@ -27,7 +36,7 @@ export class FreebuffChatStateWatcher {
   readAssistantResponse(): string | null {
     const candidates = this.listCandidateMessageFiles();
     for (const candidate of candidates) {
-      const response = readAssistantResponseFromFile(candidate.path);
+      const response = readAssistantResponseFromFile(candidate.path, this.expectedPrompt);
       if (response) return response;
     }
     return null;
@@ -35,9 +44,17 @@ export class FreebuffChatStateWatcher {
 
   hasPromptStarted(): boolean {
     for (const candidate of this.listCandidateLogFiles()) {
-      if (readPromptStartedFromLogFile(candidate.path)) return true;
+      if (readPromptStartedFromLogFile(candidate.path, this.expectedPrompt)) return true;
     }
     return false;
+  }
+
+  readLogCompletion(): FreebuffLogCompletion | null {
+    for (const candidate of this.listCandidateLogFiles()) {
+      const completion = readCompletionFromLogFile(candidate.path, this.expectedPrompt);
+      if (completion) return completion;
+    }
+    return null;
   }
 
   private listCandidateMessageFiles(): Array<{ mtimeMs: number; path: string }> {
@@ -74,18 +91,40 @@ export class FreebuffChatStateWatcher {
   }
 }
 
-export function readPromptStartedFromLogFile(logPath: string): boolean {
+export function readPromptStartedFromLogFile(logPath: string, expectedPrompt = ''): boolean {
   try {
-    return fs.readFileSync(logPath, 'utf8').includes('Start agent');
+    return parseLogLines(logPath).some(entry => {
+      if (!String(entry.msg ?? '').includes('Start agent')) return false;
+      return matchesExpectedPrompt(JSON.stringify(entry), expectedPrompt);
+    });
   } catch {
     return false;
   }
 }
 
-export function readAssistantResponseFromFile(messagesPath: string): string | null {
+export function readCompletionFromLogFile(logPath: string, expectedPrompt = ''): FreebuffLogCompletion | null {
+  let belongsToPrompt = !expectedPrompt.trim();
+  for (const entry of parseLogLines(logPath)) {
+    const serialized = JSON.stringify(entry);
+    if (String(entry.msg ?? '').includes('Start agent') && matchesExpectedPrompt(serialized, expectedPrompt)) {
+      belongsToPrompt = true;
+    }
+    if (!belongsToPrompt || entry.msg !== 'Main prompt finished') continue;
+    const output = getRecord(getRecord(entry.data).output);
+    if (output.type === 'error') {
+      return { type: 'error', message: typeof output.message === 'string' ? output.message : 'Freebuff failed.' };
+    }
+    const text = extractTextFromLogOutput(output).trim();
+    if (text) return { type: 'text', content: text };
+  }
+  return null;
+}
+
+export function readAssistantResponseFromFile(messagesPath: string, expectedPrompt = ''): string | null {
   try {
     const parsed = JSON.parse(fs.readFileSync(messagesPath, 'utf8')) as unknown;
     if (!Array.isArray(parsed)) return null;
+    if (!messagesMatchExpectedPrompt(parsed as FreebuffChatMessage[], expectedPrompt)) return null;
     return extractLatestAssistantResponse(parsed as FreebuffChatMessage[]);
   } catch {
     return null;
@@ -143,4 +182,54 @@ function extractBlockText(blocks: FreebuffTextBlock[]): string {
     }
   }
   return parts.join('\n\n');
+}
+
+
+function parseLogLines(logPath: string): Array<Record<string, unknown>> {
+  try {
+    return fs.readFileSync(logPath, 'utf8')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => JSON.parse(line) as Record<string, unknown>);
+  } catch {
+    return [];
+  }
+}
+
+function extractTextFromLogOutput(output: Record<string, unknown>): string {
+  if (output.type === 'lastMessage' && Array.isArray(output.value)) {
+    const parts: string[] = [];
+    for (const message of output.value) {
+      const record = getRecord(message);
+      if (!Array.isArray(record.content)) continue;
+      for (const block of record.content) {
+        const blockRecord = getRecord(block);
+        if (blockRecord.type === 'text' && typeof blockRecord.text === 'string') parts.push(blockRecord.text);
+      }
+    }
+    return parts.join('\n\n');
+  }
+  if (typeof output.value === 'string') return output.value;
+  return '';
+}
+
+function messagesMatchExpectedPrompt(messages: FreebuffChatMessage[], expectedPrompt: string): boolean {
+  if (!expectedPrompt.trim()) return true;
+  return messages.some(message => message.variant === 'user' && matchesExpectedPrompt(extractMessageText(message), expectedPrompt));
+}
+
+function matchesExpectedPrompt(haystack: string, expectedPrompt: string): boolean {
+  const expected = normalizePromptFingerprint(expectedPrompt);
+  if (!expected) return true;
+  const actual = normalizePromptFingerprint(haystack);
+  return actual.includes(expected.slice(0, Math.min(80, expected.length)));
+}
+
+function normalizePromptFingerprint(value: string): string {
+  return value.replace(/\s+/gu, ' ').trim();
+}
+
+function getRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
