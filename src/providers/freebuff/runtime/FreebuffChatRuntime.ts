@@ -30,9 +30,11 @@ import { FREEBUFF_PROVIDER_CAPABILITIES } from '../capabilities';
 import { isFreebuffModelSelectionId } from '../models';
 import { getFreebuffProviderSettings } from '../settings';
 import { buildFreebuffPromptText } from './buildFreebuffPrompt';
+import { FreebuffChatStateWatcher } from './FreebuffChatStateWatcher';
 import { buildFreebuffCliInvocation } from './FreebuffCliInvocation';
 import { persistFreebuffModelSelection } from './FreebuffModelSettings';
 import { hasFreebuffTerminalControl, sanitizeFreebuffProcessOutput } from './FreebuffOutputSanitizer';
+import { terminateFreebuffProcess } from './FreebuffProcessControl';
 import { buildFreebuffRuntimeEnv } from './FreebuffRuntimeEnvironment';
 import { FreebuffTuiAutomation } from './FreebuffTuiAutomation';
 
@@ -118,7 +120,7 @@ export class FreebuffChatRuntime implements ChatRuntime {
   }
 
   cancel(): void {
-    this.process?.kill('SIGTERM');
+    if (this.process) terminateFreebuffProcess(this.process, 'SIGTERM');
     this.process = null;
   }
 
@@ -179,6 +181,8 @@ export class FreebuffChatRuntime implements ChatRuntime {
     let stdout = '';
     let stderr = '';
     let terminalOutputDetected = false;
+    let responseCaptured = false;
+    let pollTimer: NodeJS.Timeout | null = null;
 
     const wake = (): void => {
       while (waiters.length) waiters.shift()?.();
@@ -192,14 +196,33 @@ export class FreebuffChatRuntime implements ChatRuntime {
       await new Promise<void>(resolve => waiters.push(resolve));
     };
 
+    const stateWatcher = new FreebuffChatStateWatcher(cwd, env);
     const child = spawn(command, args, {
       cwd,
+      detached: process.platform !== 'win32',
       env,
       stdio: stdinText ? ['pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe'],
     });
     this.process = child;
 
     const tuiAutomation = stdinText && child.stdin ? new FreebuffTuiAutomation(child.stdin, stdinText) : null;
+    const captureStateResponse = (): void => {
+      if (responseCaptured) return;
+      const response = stateWatcher.readAssistantResponse();
+      if (!response) return;
+      responseCaptured = true;
+      if (this.process === child) this.process = null;
+      push({ type: 'text', content: response });
+      terminateFreebuffProcess(child, 'SIGTERM');
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      done = true;
+      wake();
+    };
+    pollTimer = setInterval(captureStateResponse, 500);
+    pollTimer.unref?.();
 
     child.stdout!.setEncoding('utf-8');
     child.stderr!.setEncoding('utf-8');
@@ -209,16 +232,30 @@ export class FreebuffChatRuntime implements ChatRuntime {
       tuiAutomation?.handleOutput(text);
       if (hasFreebuffTerminalControl(text)) terminalOutputDetected = true;
       if (text && !terminalOutputDetected) push({ type: 'text', content: text });
+      captureStateResponse();
     });
     child.stderr!.on('data', chunk => { stderr += String(chunk); });
     child.on('error', error => {
       if (this.process === child) this.process = null;
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
       push({ type: 'error', content: this.formatRuntimeError(error) });
       done = true;
       wake();
     });
     child.on('close', (code, signal) => {
       if (this.process === child) this.process = null;
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      if (responseCaptured) {
+        done = true;
+        wake();
+        return;
+      }
       if (code === 0) {
         const cleanStdout = terminalOutputDetected ? sanitizeFreebuffProcessOutput(stdout) : stdout;
         const cleanStderr = sanitizeFreebuffProcessOutput(stderr).trim();

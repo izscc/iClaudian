@@ -1,16 +1,19 @@
-import { spawn } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 
 import type { AuxQueryConfig, AuxQueryRunner } from '../../../core/auxiliary/AuxQueryRunner';
 import type ClaudianPlugin from '../../../main';
 import { getVaultPath } from '../../../utils/path';
+import { FreebuffChatStateWatcher } from './FreebuffChatStateWatcher';
 import { buildFreebuffCliInvocation } from './FreebuffCliInvocation';
 import { persistFreebuffModelSelection } from './FreebuffModelSettings';
 import { hasFreebuffTerminalControl, sanitizeFreebuffProcessOutput } from './FreebuffOutputSanitizer';
+import { terminateFreebuffProcess } from './FreebuffProcessControl';
 import { buildFreebuffRuntimeEnv } from './FreebuffRuntimeEnvironment';
 import { FreebuffTuiAutomation } from './FreebuffTuiAutomation';
 
 export class FreebuffAuxQueryRunner implements AuxQueryRunner {
   private currentAbortController: AbortController | null = null;
+  private currentProcess: ChildProcess | null = null;
 
   constructor(private readonly plugin: ClaudianPlugin) {}
 
@@ -28,15 +31,38 @@ export class FreebuffAuxQueryRunner implements AuxQueryRunner {
 
     this.currentAbortController = config.abortController ?? new AbortController();
     return await new Promise<string>((resolve, reject) => {
+      const stateWatcher = new FreebuffChatStateWatcher(cwd, env);
       const child = spawn(invocation.command, invocation.args, {
         cwd,
+        detached: process.platform !== 'win32',
         env,
         signal: this.currentAbortController?.signal,
         stdio: invocation.stdinText ? ['pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe'],
       });
+      this.currentProcess = child;
       let stdout = '';
       let stderr = '';
       let terminalOutputDetected = false;
+      let settled = false;
+      let pollTimer: NodeJS.Timeout | null = null;
+      const cleanup = (): void => {
+        if (this.currentProcess === child) this.currentProcess = null;
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      };
+      const resolveFromState = (): void => {
+        if (settled) return;
+        const response = stateWatcher.readAssistantResponse();
+        if (!response) return;
+        settled = true;
+        cleanup();
+        terminateFreebuffProcess(child, 'SIGTERM');
+        resolve(response);
+      };
+      pollTimer = setInterval(resolveFromState, 500);
+      pollTimer.unref?.();
       const tuiAutomation = invocation.stdinText && child.stdin
         ? new FreebuffTuiAutomation(child.stdin, invocation.stdinText)
         : null;
@@ -46,10 +72,19 @@ export class FreebuffAuxQueryRunner implements AuxQueryRunner {
         tuiAutomation?.handleOutput(text);
         if (hasFreebuffTerminalControl(text)) terminalOutputDetected = true;
         if (!terminalOutputDetected) config.onTextChunk?.(stdout);
+        resolveFromState();
       });
       child.stderr!.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
-      child.on('error', reject);
+      child.on('error', (error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      });
       child.on('exit', (code, signal) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
         const cleanStdout = terminalOutputDetected ? sanitizeFreebuffProcessOutput(stdout) : stdout.trim();
         const cleanStderr = sanitizeFreebuffProcessOutput(stderr).trim();
         if (code === 0) resolve(cleanStdout.trim());
@@ -59,6 +94,8 @@ export class FreebuffAuxQueryRunner implements AuxQueryRunner {
   }
 
   reset(): void {
+    if (this.currentProcess) terminateFreebuffProcess(this.currentProcess, 'SIGTERM');
+    this.currentProcess = null;
     this.currentAbortController?.abort();
     this.currentAbortController = null;
   }

@@ -4,6 +4,14 @@ import type { StreamChunk } from '@/core/types';
 
 const spawnMock = jest.fn();
 
+const mockReadAssistantResponse = jest.fn();
+
+jest.mock('@/providers/freebuff/runtime/FreebuffChatStateWatcher', () => ({
+  FreebuffChatStateWatcher: jest.fn().mockImplementation(() => ({
+    readAssistantResponse: mockReadAssistantResponse,
+  })),
+}));
+
 jest.mock('node:child_process', () => ({
   spawn: (...args: unknown[]) => spawnMock(...args),
 }));
@@ -64,6 +72,8 @@ function createRuntime(): FreebuffChatRuntime {
 describe('FreebuffChatRuntime output cleanup', () => {
   beforeEach(() => {
     spawnMock.mockReset();
+    mockReadAssistantResponse.mockReset();
+    mockReadAssistantResponse.mockReturnValue(null);
   });
 
   it('does not stream raw terminal control sequences from the Freebuff TUI', async () => {
@@ -80,6 +90,43 @@ describe('FreebuffChatRuntime output cleanup', () => {
     expect(renderedText).not.toContain('\x1b');
   });
 
+  it('sends the prompt directly when Freebuff already has an active model session', async () => {
+    const child = createMockChild();
+    spawnMock.mockReturnValue(child);
+
+    const chunksPromise = collectChunks(createRuntime());
+    await new Promise(resolve => setImmediate(resolve));
+
+    child.stdout.emit('data', 'DeepSeek V4 Flash · unlimited Enter a coding task or / for commands');
+
+    expect(child.stdin.write).toHaveBeenCalledWith('\x1b[200~hello\x1b[201~');
+    expect(child.stdin.write).toHaveBeenCalledTimes(1);
+
+    child.emit('close', 0, null);
+    await chunksPromise;
+  });
+
+  it('finishes from Freebuff chat state without waiting for the TUI process to exit', async () => {
+    const child = createMockChild();
+    spawnMock.mockReturnValue(child);
+    mockReadAssistantResponse.mockReturnValueOnce(null).mockReturnValue('final answer');
+
+    const chunksPromise = collectChunks(createRuntime());
+    await new Promise(resolve => setImmediate(resolve));
+
+    child.stdout.emit('data', '\x1b[1;1HEnter a coding task or / for commands');
+    child.stdout.emit('data', '\x1b[2;1Hworking...');
+
+    const chunks = await chunksPromise;
+    const renderedText = chunks
+      .filter((chunk): chunk is Extract<StreamChunk, { type: 'text' }> => chunk.type === 'text')
+      .map(chunk => chunk.content)
+      .join('');
+
+    expect(renderedText).toBe('final answer');
+    expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+  });
+
   it('confirms the Freebuff model picker before sending the prompt', async () => {
     const child = createMockChild();
     spawnMock.mockReturnValue(child);
@@ -91,11 +138,10 @@ describe('FreebuffChatRuntime output cleanup', () => {
 
     child.stdout.emit('data', '\x1b[?1049hPick a model to start DeepSeek V4 Flash');
     expect(child.stdin.write).toHaveBeenCalledWith('\r');
-    expect(child.stdin.write).not.toHaveBeenCalledWith('hello');
+    expect(child.stdin.write).not.toHaveBeenCalledWith('\x1b[200~hello\x1b[201~');
 
     child.stdout.emit('data', 'Enter a coding task or / for commands');
-    expect(child.stdin.write).toHaveBeenCalledWith('hello');
-    expect(child.stdin.write).toHaveBeenLastCalledWith('\r');
+    expect(child.stdin.write).toHaveBeenCalledWith('\x1b[200~hello\x1b[201~');
 
     child.emit('close', 0, null);
     await chunksPromise;
