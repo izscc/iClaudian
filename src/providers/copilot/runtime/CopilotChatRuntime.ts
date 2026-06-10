@@ -42,6 +42,7 @@ import {
   buildAcpUsageInfo,
   extractAcpSessionModelState,
   extractAcpSessionModeState,
+  readAcpTextFile,
 } from '../../acp';
 import { COPILOT_PROVIDER_CAPABILITIES } from '../capabilities';
 import type { CopilotCommandCatalog } from '../commands/CopilotCommandCatalog';
@@ -772,13 +773,7 @@ export class CopilotChatRuntime implements ChatRuntime {
   }
 
   private async readTextFile(request: AcpReadTextFileRequest): Promise<{ content: string }> {
-    const resolvedPath = this.resolveSessionPath(request.sessionId, request.path);
-    const content = await fs.readFile(resolvedPath, 'utf-8');
-    if (request.line === undefined && request.limit === undefined) return { content };
-    const lines = content.split(/\r?\n/);
-    const startIndex = Math.max(0, (request.line ?? 1) - 1);
-    const endIndex = request.limit ? startIndex + Math.max(0, request.limit) : lines.length;
-    return { content: lines.slice(startIndex, endIndex).join('\n') };
+    return readAcpTextFile(this.resolveSessionPath(request.sessionId, request.path), request);
   }
 
   private async writeTextFile(request: AcpWriteTextFileRequest): Promise<Record<string, never>> {

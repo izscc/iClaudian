@@ -215,4 +215,15 @@ describe('GeminiChatRuntime', () => {
     expect(chunks).toContainEqual(expect.objectContaining({ level: 'info', type: 'notice' }));
     expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
   });
+
+  it('answers fs reads for missing files with empty content', async () => {
+    const runtime = new GeminiChatRuntime(createMockPlugin());
+    await runtime.ensureReady({ allowSessionCreation: false });
+
+    const delegate = (MockAcpClientConnection.mock.calls[0][0] as any).delegate;
+    await expect(delegate.fileSystem.readTextFile({
+      path: '/nonexistent/iclaudian-missing-file.md',
+      sessionId: 'sess-1',
+    })).resolves.toEqual({ content: '' });
+  });
 });

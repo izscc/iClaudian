@@ -1,4 +1,3 @@
-import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import type { AuxQueryConfig, AuxQueryRunner } from '../../../core/auxiliary/AuxQueryRunner';
@@ -15,6 +14,7 @@ import {
   AcpSessionUpdateNormalizer,
   AcpSubprocess,
   extractAcpSessionModelState,
+  readAcpTextFile,
 } from '../../acp';
 import { decodeOpencodeModelId } from '../models';
 import { opencodeChatUIConfig } from '../ui/OpencodeChatUIConfig';
@@ -290,22 +290,7 @@ export class OpencodeAuxQueryRunner implements AuxQueryRunner {
   private async readTextFile(
     request: AcpReadTextFileRequest,
   ): Promise<{ content: string }> {
-    const resolvedPath = this.resolveSessionPath(request.sessionId, request.path);
-    const content = await fs.readFile(resolvedPath, 'utf-8');
-
-    if (request.line === undefined && request.limit === undefined) {
-      return { content };
-    }
-
-    const lines = content.split(/\r?\n/);
-    const startIndex = Math.max(0, (request.line ?? 1) - 1);
-    const endIndex = request.limit
-      ? startIndex + Math.max(0, request.limit)
-      : lines.length;
-
-    return {
-      content: lines.slice(startIndex, endIndex).join('\n'),
-    };
+    return readAcpTextFile(this.resolveSessionPath(request.sessionId, request.path), request);
   }
 
   private async handlePermissionRequest(

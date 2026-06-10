@@ -6,6 +6,7 @@ export * from './AcpSubprocess';
 export * from './AcpToolStreamAdapter';
 export * from './buildAcpPrompt';
 export * from './buildAcpUsageInfo';
+export * from './fsDelegate';
 export * from './methodNames';
 export * from './stopReason';
 export * from './types';
