@@ -1,3 +1,5 @@
+import * as path from 'node:path';
+
 import type { ChatTurnRequest } from '../../core/runtime/types';
 import type { ChatMessage } from '../../core/types';
 import { appendBrowserContext } from '../../utils/browser';
@@ -92,9 +94,20 @@ function rewriteCurrentNoteSkillTrigger(text: string, currentNotePath: string): 
   ].join('\n');
 }
 
+export interface AcpPromptBlockOptions {
+  /**
+   * Vault root for resolving relative context paths. When set, the current note is
+   * also attached as a file:// resource_link block — capable agents (gemini-cli's
+   * @-path pipeline) then ingest the file content natively instead of re-finding it
+   * with their own file tools, which is where weaker models hallucinate paths.
+   */
+  fileResourceBaseDir?: string;
+}
+
 export function buildAcpPromptBlocks(
   request: ChatTurnRequest,
   conversationHistory: ChatMessage[] = [],
+  options?: AcpPromptBlockOptions,
 ): AcpContentBlock[] {
   const blocks: AcpContentBlock[] = [
     { type: 'text', text: buildAcpPromptText(request, conversationHistory) },
@@ -109,6 +122,19 @@ export function buildAcpPromptBlocks(
       data: image.data,
       mimeType: image.mediaType,
       type: 'image',
+    });
+  }
+
+  if (options?.fileResourceBaseDir && request.currentNotePath) {
+    const absolutePath = path.isAbsolute(request.currentNotePath)
+      ? request.currentNotePath
+      : path.join(options.fileResourceBaseDir, request.currentNotePath);
+    blocks.push({
+      name: path.basename(request.currentNotePath),
+      type: 'resource_link',
+      // gemini-cli slices the file:// prefix off verbatim, so the path must stay
+      // unencoded even though that is not a strictly valid URI.
+      uri: `file://${absolutePath}`,
     });
   }
 

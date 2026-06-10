@@ -106,16 +106,18 @@ describe('buildAcpPromptBlocks', () => {
     ]);
   });
 
-  it('keeps current note as Claude-style text context instead of a file resource', () => {
+  it('links the current note as a file resource when a base dir is provided', () => {
     const blocks = buildAcpPromptBlocks(
       { text: '翻译', currentNotePath: '00-资料库/📄 素材库/note.md' },
       [],
+      { fileResourceBaseDir: '/vault/root' },
     );
 
-    expect(blocks).toHaveLength(1);
-    expect(blocks[0]).toEqual(expect.objectContaining({ type: 'text' }));
-    expect((blocks[0] as { text: string }).text).toContain('<current_note>');
-    expect((blocks[0] as { text: string }).text).toContain('00-资料库/📄 素材库/note.md');
+    expect(blocks).toContainEqual({
+      name: 'note.md',
+      type: 'resource_link',
+      uri: 'file:///vault/root/00-资料库/📄 素材库/note.md',
+    });
   });
 
   it('emits no resource link without a base dir', () => {

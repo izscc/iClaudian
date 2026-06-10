@@ -247,21 +247,22 @@ describe('GeminiChatRuntime', () => {
     expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
   });
 
-  it('passes the current note to Gemini the same way Claude does', async () => {
+  it('attaches the current note as a Gemini file resource link', async () => {
     const runtime = new GeminiChatRuntime(createMockPlugin());
-    const turn = runtime.prepareTurn({ text: '仅翻译整理这条笔记', currentNotePath: 'notes/current.md' } as any);
+    const turn = runtime.prepareTurn({ text: '翻译', currentNotePath: 'notes/current.md' } as any);
 
     const chunks: unknown[] = [];
     for await (const chunk of runtime.query(turn)) chunks.push(chunk);
 
     const promptArg = mockConnection.prompt.mock.calls[0][0];
-    expect(promptArg.prompt).toEqual([
-      expect.objectContaining({
-        text: expect.stringContaining('<current_note>\nnotes/current.md\n</current_note>'),
-        type: 'text',
-      }),
-    ]);
-    expect(promptArg.prompt[0].text).toContain('read and update this exact Markdown file');
-    expect(promptArg.prompt.some((block: any) => block.type === 'resource_link')).toBe(false);
+    expect(promptArg.prompt).toContainEqual(expect.objectContaining({
+      name: 'current.md',
+      type: 'resource_link',
+      uri: 'file:///tmp/claudian-gemini-vault/notes/current.md',
+    }));
+    expect(promptArg.prompt[0]).toEqual(expect.objectContaining({
+      text: expect.stringContaining('<current_note>\nnotes/current.md\n</current_note>'),
+      type: 'text',
+    }));
   });
 });
