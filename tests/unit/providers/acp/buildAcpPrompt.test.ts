@@ -33,6 +33,19 @@ describe('buildAcpPromptText', () => {
     expect(prompt).toContain('refers to that note');
   });
 
+  it('adds strict external context scope instructions for ACP providers', () => {
+    const prompt = buildAcpPromptText({
+      externalContextPaths: [
+        '/Users/zscc.in/Desktop/船仓文件/Obsidian/OB/00-资料库/📄 素材库',
+      ],
+      text: '翻译这个文件夹里的内容',
+    });
+
+    expect(prompt).toContain('<external_context_paths>');
+    expect(prompt).toContain('/Users/zscc.in/Desktop/船仓文件/Obsidian/OB/00-资料库/📄 素材库');
+    expect(prompt).toContain('Do not search outside these paths');
+  });
+
   it('adds no tag explanation when there is no current note', () => {
     const prompt = buildAcpPromptText({ text: 'hello' });
 

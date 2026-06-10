@@ -200,6 +200,38 @@ describe('GeminiChatRuntime', () => {
     expect(mockConnection.newSession).toHaveBeenCalledWith({ cwd: '/tmp/claudian-gemini-vault', mcpServers: [] });
   });
 
+  it('starts Gemini ACP without a model launch flag so per-turn model switches do not restart the process', async () => {
+    const runtime = new GeminiChatRuntime(createMockPlugin({
+      model: 'gemini:gemini-3.1-flash-lite',
+    }));
+
+    await collectQueryChunks(runtime);
+
+    const subprocessOptions = MockAcpSubprocess.mock.calls[0][0] as any;
+    expect(subprocessOptions.args).toEqual(['--acp', '--approval-mode', 'yolo']);
+    expect(mockConnection.setModel).toHaveBeenCalledWith({
+      modelId: 'gemini-3.1-flash-lite',
+      sessionId: 'sess-1',
+    });
+  });
+
+  it('uses a single external context directory as the Gemini session cwd', async () => {
+    const runtime = new GeminiChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({
+      externalContextPaths: ['/tmp/claudian-gemini-vault/00-资料库/📄 素材库'],
+      text: '翻译',
+    } as any);
+
+    const chunks: unknown[] = [];
+    for await (const chunk of runtime.query(turn)) chunks.push(chunk);
+
+    expect(mockConnection.newSession).toHaveBeenCalledWith({
+      cwd: '/tmp/claudian-gemini-vault/00-资料库/📄 素材库',
+      mcpServers: [],
+    });
+    expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
+  });
+
   it('bootstraps history without adding a synthetic notice when a stale session cannot be resumed', async () => {
     mockConnection.loadSession = jest.fn().mockRejectedValue(new Error('session not found'));
     const runtime = new GeminiChatRuntime(createMockPlugin());
@@ -215,7 +247,7 @@ describe('GeminiChatRuntime', () => {
     expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
   });
 
-  it('keeps the v2.1.0 plain prompt shape without current-note resource links', async () => {
+  it('attaches the current note as a Gemini file resource link', async () => {
     const runtime = new GeminiChatRuntime(createMockPlugin());
     const turn = runtime.prepareTurn({ text: '翻译', currentNotePath: 'notes/current.md' } as any);
 
@@ -223,6 +255,10 @@ describe('GeminiChatRuntime', () => {
     for await (const chunk of runtime.query(turn)) chunks.push(chunk);
 
     const promptArg = mockConnection.prompt.mock.calls[0][0];
-    expect(promptArg.prompt).not.toContainEqual(expect.objectContaining({ type: 'resource_link' }));
+    expect(promptArg.prompt).toContainEqual(expect.objectContaining({
+      name: 'current.md',
+      type: 'resource_link',
+      uri: 'file:///tmp/claudian-gemini-vault/notes/current.md',
+    }));
   });
 });

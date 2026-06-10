@@ -29,6 +29,16 @@ export function buildAcpPromptText(
     prompt += '\n(The <current_note> above is the note currently open in Obsidian, path relative to the vault root. Unless the user names a different file, this request refers to that note. Use this exact path with your file tools; do not search for the file.)';
   }
 
+  if (request.externalContextPaths && request.externalContextPaths.length > 0) {
+    prompt += [
+      '',
+      '<external_context_paths>',
+      ...request.externalContextPaths.map(contextPath => contextPath.trim()).filter(Boolean),
+      '</external_context_paths>',
+      '(The <external_context_paths> above are the only external folders selected for this turn. Treat them as the locked search scope for file discovery. Do not search outside these paths unless the user explicitly names another path. If a current note is provided, operate on that exact note first.)',
+    ].join('\n');
+  }
+
   if (request.editorSelection && request.editorSelection.mode !== 'none') {
     prompt = appendEditorContext(prompt, request.editorSelection);
   }

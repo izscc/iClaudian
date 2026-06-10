@@ -145,8 +145,7 @@ export class GeminiChatRuntime implements ChatRuntime {
     const resolvedCliPath = this.plugin.getResolvedProviderCliPath('gemini') ?? 'gemini';
     const runtimeEnv = buildGeminiRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, resolvedCliPath);
     const approvalMode = this.resolveSelectedApprovalMode();
-    const initialModel = this.resolveSelectedRawModelId();
-    const launchArgs = ['--acp', '--approval-mode', approvalMode, ...(initialModel ? ['--model', initialModel] : [])];
+    const launchArgs = ['--acp', '--approval-mode', approvalMode];
     const nextLaunchKey = JSON.stringify({ command: resolvedCliPath, cwd, env: this.getEnvFingerprint(runtimeEnv), args: launchArgs });
     const shouldRestart = !this.process || !this.transport || !this.connection || !this.process.isAlive() || options?.force === true || this.currentLaunchKey !== nextLaunchKey;
 
@@ -181,7 +180,7 @@ export class GeminiChatRuntime implements ChatRuntime {
     const expectedSessionId = this.sessionId;
     let shouldBootstrapHistory = previousMessages.length > 0 && (!expectedSessionId || this.sessionInvalidated);
 
-    if (!(await this.ensureReady())) {
+    if (!(await this.ensureReady({ allowSessionCreation: false }))) {
       yield { type: 'error', content: 'Failed to start Gemini. Check the CLI path and login state.' };
       yield { type: 'done' };
       return;
@@ -192,7 +191,8 @@ export class GeminiChatRuntime implements ChatRuntime {
       return;
     }
 
-    const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
+    const vaultCwd = getVaultPath(this.plugin.app) ?? process.cwd();
+    const cwd = this.resolveTurnCwd(vaultCwd, turn.request.externalContextPaths ?? queryOptions?.externalContextPaths);
     if (expectedSessionId && !this.sessionId) shouldBootstrapHistory = previousMessages.length > 0;
     if (!this.sessionId) {
       const sessionId = await this.createSession(cwd);
@@ -227,6 +227,7 @@ export class GeminiChatRuntime implements ChatRuntime {
       prompt: buildAcpPromptBlocks(
         turn.request,
         shouldBootstrapHistory ? previousMessages : [],
+        { fileResourceBaseDir: vaultCwd },
       ),
       sessionId,
     })
@@ -354,6 +355,12 @@ export class GeminiChatRuntime implements ChatRuntime {
       .map(key => `${key}=${env[key]}`)
       .sort()
       .join('|');
+  }
+
+  private resolveTurnCwd(vaultCwd: string, externalContextPaths?: string[]): string {
+    const paths = (externalContextPaths ?? []).map(value => value.trim()).filter(Boolean);
+    if (paths.length !== 1) return vaultCwd;
+    return path.isAbsolute(paths[0]) ? paths[0] : path.resolve(vaultCwd, paths[0]);
   }
 
   private resolveSelectedApprovalMode(): string {
