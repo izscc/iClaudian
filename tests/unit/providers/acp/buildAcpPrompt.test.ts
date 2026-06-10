@@ -33,6 +33,18 @@ describe('buildAcpPromptText', () => {
     expect(prompt).toContain('refers to that note');
   });
 
+  it('states the current note as an explicit user-provided target file path', () => {
+    const prompt = buildAcpPromptText({
+      currentNotePath: '00-资料库/📄 素材库/AI 生图/note.md',
+      text: '$md-translator 仅翻译整理这条笔记',
+    });
+
+    expect(prompt).toContain('用户已指定目标 Markdown 文件路径');
+    expect(prompt).toContain('00-资料库/📄 素材库/AI 生图/note.md');
+    expect(prompt).toContain('不要要求用户再提供文件名');
+    expect(prompt).toContain('不要扫描目录来寻找其他候选文件');
+  });
+
   it('adds strict external context scope instructions for ACP providers', () => {
     const prompt = buildAcpPromptText({
       externalContextPaths: [
