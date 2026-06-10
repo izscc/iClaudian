@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import type { AuxQueryConfig, AuxQueryRunner } from '../../../core/auxiliary/AuxQueryRunner';
 import type ClaudianPlugin from '../../../main';
 import { getVaultPath } from '../../../utils/path';
+import { ensureGeminiWorkspaceSettingsGuard } from '../env/GeminiWorkspaceSettingsGuard';
 import { decodeGeminiModelId } from '../models';
 import { buildGeminiRuntimeEnv } from './GeminiRuntimeEnvironment';
 
@@ -20,6 +21,11 @@ export class GeminiAuxQueryRunner implements AuxQueryRunner {
     if (model) args.unshift('--model', model);
 
     this.currentAbortController = config.abortController ?? new AbortController();
+    try {
+      await ensureGeminiWorkspaceSettingsGuard(cwd);
+    } catch {
+      // Best-effort guard; auxiliary queries should still run on a read-only vault.
+    }
     return await new Promise<string>((resolve, reject) => {
       const child = spawn(resolvedCliPath, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], signal: this.currentAbortController?.signal });
       let stdout = '';

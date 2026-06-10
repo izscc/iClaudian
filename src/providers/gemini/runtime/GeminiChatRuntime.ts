@@ -42,6 +42,7 @@ import {
 } from '../../acp';
 import { GEMINI_PROVIDER_CAPABILITIES } from '../capabilities';
 import type { GeminiCommandCatalog } from '../commands/GeminiCommandCatalog';
+import { ensureGeminiWorkspaceSettingsGuard } from '../env/GeminiWorkspaceSettingsGuard';
 import { decodeGeminiModelId, encodeGeminiModelId, isGeminiModelSelectionId } from '../models';
 import { geminiApprovalModeToAcpModeId, geminiApprovalModeToPermissionMode } from '../modes';
 import { getGeminiProviderSettings, normalizeGeminiDiscoveredModels, updateGeminiProviderSettings } from '../settings';
@@ -151,6 +152,11 @@ export class GeminiChatRuntime implements ChatRuntime {
 
     if (shouldRestart) {
       await this.shutdownProcess();
+      try {
+        await ensureGeminiWorkspaceSettingsGuard(cwd);
+      } catch {
+        // Best-effort guard; a read-only vault must not block the chat runtime.
+      }
       await this.startProcess({ command: resolvedCliPath, args: launchArgs, cwd, runtimeEnv });
       this.currentLaunchKey = nextLaunchKey;
       this.loadedSessionId = null;
