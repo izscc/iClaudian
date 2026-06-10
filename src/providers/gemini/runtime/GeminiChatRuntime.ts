@@ -37,10 +37,8 @@ import {
   buildAcpPromptBlocks,
   buildAcpPromptText,
   buildAcpUsageInfo,
-  describeAcpStopReason,
   extractAcpSessionModelState,
   extractAcpSessionModeState,
-  readAcpTextFile,
 } from '../../acp';
 import { GEMINI_PROVIDER_CAPABILITIES } from '../capabilities';
 import type { GeminiCommandCatalog } from '../commands/GeminiCommandCatalog';
@@ -51,9 +49,6 @@ import { type GeminiProviderState,getGeminiState } from '../types';
 import { buildGeminiRuntimeEnv } from './GeminiRuntimeEnvironment';
 
 const GEMINI_ACP_INITIALIZE_TIMEOUT_MS = 120_000;
-// session/new and session/load walk the full skill/extension catalog (and replay
-// history on load); the 30s transport default times out on skill-heavy installs.
-const GEMINI_ACP_SESSION_TIMEOUT_MS = 120_000;
 
 interface ActiveTurn { queue: StreamChunkQueue; sessionId: string }
 
@@ -208,14 +203,6 @@ export class GeminiChatRuntime implements ChatRuntime {
       }
     }
 
-    if (shouldBootstrapHistory) {
-      yield {
-        content: 'Starting a fresh Gemini session; recent conversation history was included with this request.',
-        level: 'info',
-        type: 'notice',
-      };
-    }
-
     const sessionId = this.sessionId!;
     this.activeTurn?.queue.close();
     this.activeTurn = { queue: new StreamChunkQueue(), sessionId };
@@ -240,7 +227,6 @@ export class GeminiChatRuntime implements ChatRuntime {
       prompt: buildAcpPromptBlocks(
         turn.request,
         shouldBootstrapHistory ? previousMessages : [],
-        { fileResourceBaseDir: cwd },
       ),
       sessionId,
     })
@@ -249,8 +235,6 @@ export class GeminiChatRuntime implements ChatRuntime {
         this.promptUsage = response.usage ?? null;
         const usage = buildAcpUsageInfo({ contextWindow: this.contextUsage, model: this.getActiveDisplayModel(queryOptions), promptUsage: this.promptUsage });
         if (usage) activeTurn.queue.push({ sessionId, type: 'usage', usage });
-        const stopNotice = describeAcpStopReason(response.stopReason);
-        if (stopNotice) activeTurn.queue.push({ content: stopNotice, level: 'warning', type: 'notice' });
         activeTurn.queue.push({ type: 'done' });
         activeTurn.queue.close();
       })
@@ -403,13 +387,8 @@ export class GeminiChatRuntime implements ChatRuntime {
       this.currentSessionModeId = modeId;
       this.emitPermissionModeSync(modeId);
     } catch {
-      try {
-        const response = await this.connection.setConfigOption({ configId: 'mode', sessionId, type: 'select', value: modeId });
-        await this.syncSessionModeState({ configOptions: response.configOptions });
-      } catch {
-        // Mode application is best-effort: --approval-mode at launch still governs the
-        // session, and a failed switch must not abort the turn before session/prompt.
-      }
+      const response = await this.connection.setConfigOption({ configId: 'mode', sessionId, type: 'select', value: modeId });
+      await this.syncSessionModeState({ configOptions: response.configOptions });
     }
   }
 
@@ -423,15 +402,15 @@ export class GeminiChatRuntime implements ChatRuntime {
       await this.syncSessionModelState({ configOptions: response.configOptions ?? null, models: response.models ?? null });
       return;
     } catch {
-      // Older CLIs predate session/set_model; fall through to the config-option path.
+      // Older Gemini CLI builds used the ACP config-option method for model switches.
     }
     try {
       const response = await this.connection.setConfigOption({ configId: 'model', sessionId, type: 'select', value: rawModelId });
       this.currentSessionModelId = rawModelId;
       await this.syncSessionModelState({ configOptions: response.configOptions });
     } catch {
-      // Neither switch method is supported (gemini-cli through 0.46 rejects
-      // session/set_config_option); --model at launch remains the only control.
+      // Gemini CLI versions that expose models but reject both switch methods still use
+      // the --model launch argument from persisted settings. Ignore per-turn switches.
     }
   }
 
@@ -477,10 +456,7 @@ export class GeminiChatRuntime implements ChatRuntime {
     if (!this.connection) return null;
     try {
       this.setSupportedCommands([]);
-      const response = await this.connection.newSession(
-        { cwd, mcpServers: [] },
-        { timeoutMs: GEMINI_ACP_SESSION_TIMEOUT_MS },
-      );
+      const response = await this.connection.newSession({ cwd, mcpServers: [] });
       this.loadedSessionId = response.sessionId;
       this.sessionId = response.sessionId;
       this.sessionCwds.set(response.sessionId, cwd);
@@ -494,10 +470,7 @@ export class GeminiChatRuntime implements ChatRuntime {
     if (!this.connection) return false;
     try {
       this.setSupportedCommands([]);
-      const response = await this.connection.loadSession(
-        { cwd, mcpServers: [], sessionId },
-        { timeoutMs: GEMINI_ACP_SESSION_TIMEOUT_MS },
-      );
+      const response = await this.connection.loadSession({ cwd, mcpServers: [], sessionId });
       this.sessionInvalidated = false;
       this.loadedSessionId = response.sessionId;
       this.sessionId = response.sessionId;
@@ -571,7 +544,13 @@ export class GeminiChatRuntime implements ChatRuntime {
   }
 
   private async readTextFile(request: AcpReadTextFileRequest): Promise<{ content: string }> {
-    return readAcpTextFile(this.resolveSessionPath(request.sessionId, request.path), request);
+    const resolvedPath = this.resolveSessionPath(request.sessionId, request.path);
+    const content = await fs.readFile(resolvedPath, 'utf-8');
+    if (request.line === undefined && request.limit === undefined) return { content };
+    const lines = content.split(/\r?\n/);
+    const startIndex = Math.max(0, (request.line ?? 1) - 1);
+    const endIndex = request.limit ? startIndex + Math.max(0, request.limit) : lines.length;
+    return { content: lines.slice(startIndex, endIndex).join('\n') };
   }
 
   private async writeTextFile(request: AcpWriteTextFileRequest): Promise<Record<string, never>> {

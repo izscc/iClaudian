@@ -135,40 +135,13 @@ describe('GeminiChatRuntime', () => {
     return chunks;
   }
 
-  it('surfaces non-end_turn stop reasons as a warning notice', async () => {
-    mockConnection.prompt.mockResolvedValue({ stopReason: 'max_turn_requests' });
-    const runtime = new GeminiChatRuntime(createMockPlugin());
-
-    const chunks = await collectQueryChunks(runtime);
-
-    expect(chunks.some(chunk => chunk.type === 'error')).toBe(false);
-    expect(chunks).toContainEqual(expect.objectContaining({
-      content: expect.stringContaining('max_turn_requests'),
-      level: 'warning',
-      type: 'notice',
-    }));
-    expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
-  });
-
-  it('keeps end_turn completions silent', async () => {
+  it('keeps prompt completions silent unless Gemini streams content or errors', async () => {
     mockConnection.prompt.mockResolvedValue({ stopReason: 'end_turn' });
     const runtime = new GeminiChatRuntime(createMockPlugin());
 
     const chunks = await collectQueryChunks(runtime);
 
     expect(chunks.some(chunk => chunk.type === 'notice')).toBe(false);
-    expect(chunks.some(chunk => chunk.type === 'error')).toBe(false);
-    expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
-  });
-
-  it('still prompts when set_mode and the config-option fallback are both unsupported', async () => {
-    mockConnection.setMode.mockRejectedValue(new Error('Method not found'));
-    mockConnection.setConfigOption.mockRejectedValue(new Error('Method not found'));
-    const runtime = new GeminiChatRuntime(createMockPlugin());
-
-    const chunks = await collectQueryChunks(runtime);
-
-    expect(mockConnection.prompt).toHaveBeenCalled();
     expect(chunks.some(chunk => chunk.type === 'error')).toBe(false);
     expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
   });
@@ -187,18 +160,29 @@ describe('GeminiChatRuntime', () => {
     );
   });
 
-  it('gives session creation a generous timeout for skill-heavy installs', async () => {
+  it('falls back to the v2.1.0 config-option model switch when session/set_model is unavailable', async () => {
+    mockConnection.setModel.mockRejectedValue(new Error('Method not found'));
     const runtime = new GeminiChatRuntime(createMockPlugin());
 
     await collectQueryChunks(runtime);
 
-    expect(mockConnection.newSession).toHaveBeenCalledWith(
-      expect.objectContaining({ mcpServers: [] }),
-      { timeoutMs: 120_000 },
-    );
+    expect(mockConnection.setConfigOption).toHaveBeenCalledWith({
+      configId: 'model',
+      sessionId: 'sess-1',
+      type: 'select',
+      value: 'gemini-3.1-pro-preview',
+    });
   });
 
-  it('notifies and bounds history when a stale session cannot be resumed', async () => {
+  it('uses the v2.1.0 session/new request shape', async () => {
+    const runtime = new GeminiChatRuntime(createMockPlugin());
+
+    await collectQueryChunks(runtime);
+
+    expect(mockConnection.newSession).toHaveBeenCalledWith({ cwd: '/tmp/claudian-gemini-vault', mcpServers: [] });
+  });
+
+  it('bootstraps history without adding a synthetic notice when a stale session cannot be resumed', async () => {
     mockConnection.loadSession = jest.fn().mockRejectedValue(new Error('session not found'));
     const runtime = new GeminiChatRuntime(createMockPlugin());
     runtime.syncConversationState({ sessionId: 'stale-sess' });
@@ -208,26 +192,12 @@ describe('GeminiChatRuntime', () => {
       { id: 'a1', role: 'assistant', content: 'earlier reply', timestamp: 2 },
     ]);
 
-    expect(mockConnection.loadSession).toHaveBeenCalledWith(
-      expect.objectContaining({ sessionId: 'stale-sess' }),
-      { timeoutMs: 120_000 },
-    );
-    expect(chunks).toContainEqual(expect.objectContaining({ level: 'info', type: 'notice' }));
+    expect(mockConnection.loadSession).toHaveBeenCalledWith({ cwd: '/tmp/claudian-gemini-vault', mcpServers: [], sessionId: 'stale-sess' });
+    expect(chunks.some(chunk => chunk.type === 'notice')).toBe(false);
     expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
   });
 
-  it('answers fs reads for missing files with empty content', async () => {
-    const runtime = new GeminiChatRuntime(createMockPlugin());
-    await runtime.ensureReady({ allowSessionCreation: false });
-
-    const delegate = (MockAcpClientConnection.mock.calls[0][0] as any).delegate;
-    await expect(delegate.fileSystem.readTextFile({
-      path: '/nonexistent/iclaudian-missing-file.md',
-      sessionId: 'sess-1',
-    })).resolves.toEqual({ content: '' });
-  });
-
-  it('attaches the current note as a file resource link in the prompt', async () => {
+  it('keeps the v2.1.0 plain prompt shape without current-note resource links', async () => {
     const runtime = new GeminiChatRuntime(createMockPlugin());
     const turn = runtime.prepareTurn({ text: '翻译', currentNotePath: 'notes/current.md' } as any);
 
@@ -235,9 +205,6 @@ describe('GeminiChatRuntime', () => {
     for await (const chunk of runtime.query(turn)) chunks.push(chunk);
 
     const promptArg = mockConnection.prompt.mock.calls[0][0];
-    expect(promptArg.prompt).toContainEqual(expect.objectContaining({
-      type: 'resource_link',
-      uri: expect.stringContaining('notes/current.md'),
-    }));
+    expect(promptArg.prompt).not.toContainEqual(expect.objectContaining({ type: 'resource_link' }));
   });
 });
