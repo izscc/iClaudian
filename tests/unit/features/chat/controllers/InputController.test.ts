@@ -936,6 +936,40 @@ describe('InputController - Message Queue', () => {
       expect(prompts[1]).not.toContain('<current_note>');
     });
 
+    it('should resend the current note when the user explicitly asks for this note only', async () => {
+      const preparedRequests: any[] = [];
+      const fileContextManager = {
+        startSession: jest.fn(),
+        getCurrentNotePath: jest.fn().mockReturnValue('notes/session.md'),
+        shouldSendCurrentNote: jest.fn().mockReturnValue(false),
+        markCurrentNoteSent: jest.fn(),
+        transformContextMentions: jest.fn().mockImplementation((text: string) => text),
+      };
+
+      deps = createSendableDeps({
+        getFileContextManager: () => fileContextManager as any,
+      });
+      (deps as any).mockAgentService.prepareTurn = jest.fn().mockImplementation((request: any) => {
+        preparedRequests.push(request);
+        return {
+          isCompact: false,
+          mcpMentions: new Set(),
+          persistedContent: request.text,
+          prompt: request.text,
+          request,
+        };
+      });
+      (deps as any).mockAgentService.query = jest.fn().mockImplementation(() => createMockStream([{ type: 'done' }]));
+
+      inputEl = deps.getInputEl() as ReturnType<typeof createMockInputEl>;
+      inputEl.value = '仅翻译本条笔记';
+      controller = new InputController(deps);
+
+      await controller.sendMessage();
+
+      expect(preparedRequests[0].currentNotePath).toBe('notes/session.md');
+    });
+
     it('should not persist currentNote metadata for /compact turns', async () => {
       const fileContextManager = {
         startSession: jest.fn(),

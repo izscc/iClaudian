@@ -62,6 +62,11 @@ const DEFAULT_APPROVAL_DECISION_OPTIONS: ApprovalDecisionOption[] =
     decision,
   }));
 
+const CURRENT_NOTE_EXPLICIT_REQUEST_PATTERNS = [
+  /(?:仅|只|單|单|only)\s*(?:翻译|翻譯|处理|處理|修改|总结|總結|整理|translate|process|edit|summarize)?\s*(?:本条|本條|这条|這條|当前|目前|this|current)\s*(?:笔记|筆記|note)/i,
+  /(?:本条|本條|这条|這條|当前|目前|this|current)\s*(?:笔记|筆記|note)\s*(?:仅|只|only)?/i,
+];
+
 export interface InputControllerDeps {
   plugin: ClaudianPlugin;
   state: ChatState;
@@ -668,13 +673,19 @@ export class InputController {
       ? fileContextManager.transformContextMentions(options.content)
       : options.content;
     const enabledMcpServers = mcpServerSelector?.getEnabledServers();
+    const shouldForceCurrentNote = !isCompact
+      && !!currentNotePath
+      && isCurrentNoteExplicitlyRequested(options.content);
+    const effectiveCurrentNotePath = (shouldSendCurrentNote || shouldForceCurrentNote) && currentNotePath
+      ? currentNotePath
+      : undefined;
 
     return {
       displayContent: options.content,
       turnRequest: {
         text: transformedText,
         images: options.images,
-        currentNotePath: shouldSendCurrentNote && currentNotePath ? currentNotePath : undefined,
+        currentNotePath: effectiveCurrentNotePath,
         editorSelection: editorContext,
         browserSelection: browserContext,
         canvasSelection: canvasContext,
@@ -1586,4 +1597,8 @@ export class InputController {
       }
     );
   }
+}
+
+function isCurrentNoteExplicitlyRequested(text: string): boolean {
+  return CURRENT_NOTE_EXPLICIT_REQUEST_PATTERNS.some(pattern => pattern.test(text));
 }
