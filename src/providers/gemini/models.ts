@@ -13,18 +13,20 @@ export const GEMINI_FALLBACK_MODELS = [
     description: 'Latest Gemini 3.1 Pro preview model in Gemini CLI',
   },
   {
-    rawId: 'gemini-3-pro-preview',
-    label: 'gemini-3-pro-preview',
-    description: 'Gemini 3 Pro preview model',
-  },
-  {
     rawId: 'gemini-3-flash-preview',
     label: 'gemini-3-flash-preview',
     description: 'Gemini 3 Flash preview model',
   },
-  { rawId: 'gemini-2.5-pro', label: 'gemini-2.5-pro', description: 'Gemini 2.5 Pro model' },
-  { rawId: 'gemini-2.5-flash', label: 'gemini-2.5-flash', description: 'Gemini 2.5 Flash model' },
-  { rawId: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite', description: 'Gemini 2.5 Flash Lite model' },
+  {
+    rawId: 'gemini-3.1-flash-lite',
+    label: 'gemini-3.1-flash-lite',
+    description: 'Gemini 3.1 Flash Lite model',
+  },
+  {
+    rawId: 'gemma-4-31b-it',
+    label: 'gemma-4-31b-it',
+    description: 'Gemma 4 31B instruction-tuned model',
+  },
 ] as const;
 
 export function normalizeGeminiRawModelId(rawId: string): string {
