@@ -667,7 +667,6 @@ export class InputController {
       ? options.canvasContextOverride
       : canvasSelectionController.getContext();
 
-    const externalContextPaths = externalContextSelector?.getExternalContexts();
     const isCompact = /^\/compact(\s|$)/i.test(options.content);
     const transformedText = !isCompact && fileContextManager
       ? fileContextManager.transformContextMentions(options.content)
@@ -679,6 +678,9 @@ export class InputController {
     const effectiveCurrentNotePath = (shouldSendCurrentNote || shouldForceCurrentNote) && currentNotePath
       ? currentNotePath
       : undefined;
+    const externalContextPaths = shouldForceCurrentNote
+      ? []
+      : externalContextSelector?.getExternalContexts();
 
     return {
       displayContent: options.content,
