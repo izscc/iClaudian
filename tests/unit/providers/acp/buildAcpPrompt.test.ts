@@ -21,6 +21,24 @@ describe('buildAcpPromptText', () => {
     expect(prompt).toContain('selected text');
   });
 
+  it('explains the current note tag for agents that receive no system prompt', () => {
+    const prompt = buildAcpPromptText({
+      currentNotePath: 'notes/current.md',
+      text: '翻译',
+    });
+
+    const tagIndex = prompt.indexOf('<current_note>');
+    const explanationIndex = prompt.indexOf('currently open in Obsidian');
+    expect(explanationIndex).toBeGreaterThan(tagIndex);
+    expect(prompt).toContain('refers to that note');
+  });
+
+  it('adds no tag explanation when there is no current note', () => {
+    const prompt = buildAcpPromptText({ text: 'hello' });
+
+    expect(prompt).toBe('hello');
+  });
+
   it('rebuilds previous history when requested', () => {
     const prompt = buildAcpPromptText({ text: 'Continue' }, [
       { id: 'u1', role: 'user', content: 'First', timestamp: 1 },

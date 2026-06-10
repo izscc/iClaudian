@@ -21,6 +21,10 @@ export function buildAcpPromptText(
 
   if (request.currentNotePath) {
     prompt = appendCurrentNote(prompt, request.currentNotePath);
+    // ACP agents get no system prompt, so the tag semantics Claude learns from
+    // mainAgent.ts must travel inline — otherwise models treat the bare tag as
+    // noise and pick "plausible" files out of their own directory listing.
+    prompt += '\n(The <current_note> above is the note currently open in Obsidian, path relative to the vault root. Unless the user names a different file, this request refers to that note.)';
   }
 
   if (request.editorSelection && request.editorSelection.mode !== 'none') {
