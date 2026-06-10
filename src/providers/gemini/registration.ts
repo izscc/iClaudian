@@ -24,7 +24,7 @@ export const geminiProviderRegistration: ProviderRegistration = {
   createInlineEditService: plugin => new GeminiInlineEditService(plugin),
   createInstructionRefineService: plugin => new GeminiInstructionRefineService(plugin),
   createRuntime: ({ plugin }) => new GeminiChatRuntime(plugin),
-  createTitleGenerationService: plugin => new GeminiTitleGenerationService(plugin),
+  createTitleGenerationService: () => new GeminiTitleGenerationService(),
   displayName: 'Gemini',
   environmentKeyPatterns: [/^GEMINI_/i, /^GOOGLE_/i],
   historyService: noHistoryService,

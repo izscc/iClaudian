@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import type { AuxQueryConfig, AuxQueryRunner } from '../../../core/auxiliary/AuxQueryRunner';
 import type ClaudianPlugin from '../../../main';
 import { getVaultPath } from '../../../utils/path';
-import { ensureGeminiWorkspaceSettingsGuard } from '../env/GeminiWorkspaceSettingsGuard';
+import { ensureGeminiSystemSettingsOverride, GEMINI_SYSTEM_SETTINGS_ENV_KEY } from '../env/GeminiWorkspaceSettingsGuard';
 import { decodeGeminiModelId } from '../models';
 import { buildGeminiRuntimeEnv } from './GeminiRuntimeEnvironment';
 
@@ -22,7 +22,7 @@ export class GeminiAuxQueryRunner implements AuxQueryRunner {
 
     this.currentAbortController = config.abortController ?? new AbortController();
     try {
-      await ensureGeminiWorkspaceSettingsGuard(cwd);
+      env[GEMINI_SYSTEM_SETTINGS_ENV_KEY] = await ensureGeminiSystemSettingsOverride(cwd);
     } catch {
       // Best-effort guard; auxiliary queries should still run on a read-only vault.
     }

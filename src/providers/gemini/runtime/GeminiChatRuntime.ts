@@ -42,7 +42,7 @@ import {
 } from '../../acp';
 import { GEMINI_PROVIDER_CAPABILITIES } from '../capabilities';
 import type { GeminiCommandCatalog } from '../commands/GeminiCommandCatalog';
-import { ensureGeminiWorkspaceSettingsGuard } from '../env/GeminiWorkspaceSettingsGuard';
+import { ensureGeminiSystemSettingsOverride, ensureGeminiWorkspaceSettingsGuard, GEMINI_SYSTEM_SETTINGS_ENV_KEY } from '../env/GeminiWorkspaceSettingsGuard';
 import { decodeGeminiModelId, encodeGeminiModelId, isGeminiModelSelectionId } from '../models';
 import { geminiApprovalModeToAcpModeId, geminiApprovalModeToPermissionMode } from '../modes';
 import { getGeminiProviderSettings, normalizeGeminiDiscoveredModels, updateGeminiProviderSettings } from '../settings';
@@ -145,6 +145,11 @@ export class GeminiChatRuntime implements ChatRuntime {
     const targetSessionId = this.sessionId;
     const resolvedCliPath = this.plugin.getResolvedProviderCliPath('gemini') ?? 'gemini';
     const runtimeEnv = buildGeminiRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, resolvedCliPath);
+    try {
+      runtimeEnv[GEMINI_SYSTEM_SETTINGS_ENV_KEY] = await ensureGeminiSystemSettingsOverride(cwd);
+    } catch {
+      // Best-effort guard; a read-only vault must not block the chat runtime.
+    }
     const approvalMode = this.resolveSelectedApprovalMode();
     const launchArgs = ['--acp', '--approval-mode', approvalMode];
     const nextLaunchKey = JSON.stringify({ command: resolvedCliPath, cwd, env: this.getEnvFingerprint(runtimeEnv), args: launchArgs });

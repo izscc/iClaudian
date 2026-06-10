@@ -39,3 +39,34 @@ export async function ensureGeminiWorkspaceSettingsGuard(vaultCwd: string): Prom
   await fs.mkdir(settingsDir, { recursive: true });
   await fs.writeFile(settingsPath, `${JSON.stringify(current, null, 2)}\n`, 'utf8');
 }
+
+// The workspace guard above is not sufficient on its own: session e04267ef
+// still ran update_topic with the vault-level file in place (workspace settings
+// can be skipped, e.g. for untrusted folders). gemini-cli's system overrides
+// have the final say in the settings merge and their path can be redirected via
+// GEMINI_CLI_SYSTEM_SETTINGS_PATH, so every spawned process gets this
+// plugin-managed file. The default macOS system path
+// (/Library/Application Support/GeminiCli/settings.json) is enterprise-managed
+// and absent on typical installs, so shadowing it is acceptable.
+const GEMINI_SYSTEM_OVERRIDES = { experimental: { contextManagement: false } };
+
+export const GEMINI_SYSTEM_SETTINGS_ENV_KEY = 'GEMINI_CLI_SYSTEM_SETTINGS_PATH';
+
+export async function ensureGeminiSystemSettingsOverride(vaultCwd: string): Promise<string> {
+  const dir = path.join(vaultCwd, '.claudian');
+  const overridePath = path.join(dir, 'gemini-system-settings.json');
+  const content = `${JSON.stringify(GEMINI_SYSTEM_OVERRIDES, null, 2)}\n`;
+
+  let existing: string | null;
+  try {
+    existing = await fs.readFile(overridePath, 'utf8');
+  } catch {
+    existing = null;
+  }
+
+  if (existing !== content) {
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(overridePath, content, 'utf8');
+  }
+  return overridePath;
+}
