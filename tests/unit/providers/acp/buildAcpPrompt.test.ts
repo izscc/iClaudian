@@ -31,6 +31,23 @@ describe('buildAcpPromptText', () => {
     expect(prompt).toContain('Assistant: Second');
     expect(prompt).toContain('User: Continue');
   });
+
+  it('caps inlined history to a recent bounded window and marks the truncation', () => {
+    const history = Array.from({ length: 40 }, (_, i) => ({
+      id: `m${i}`,
+      role: i % 2 === 0 ? 'user' as const : 'assistant' as const,
+      content: `message ${i} ${'x'.repeat(2000)}`,
+      timestamp: i,
+    }));
+
+    const prompt = buildAcpPromptText({ text: 'Continue' }, history);
+
+    expect(prompt.length).toBeLessThan(30_000);
+    expect(prompt).toContain('message 39');
+    expect(prompt).not.toContain('message 0 ');
+    expect(prompt).toContain('omitted');
+    expect(prompt).toContain('User: Continue');
+  });
 });
 
 describe('buildAcpPromptBlocks', () => {

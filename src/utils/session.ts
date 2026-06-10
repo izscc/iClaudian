@@ -197,6 +197,46 @@ export function buildContextFromHistory(messages: ChatMessage[]): string {
   return parts.join('\n\n');
 }
 
+export interface HistoryContextBounds {
+  maxChars: number;
+  maxMessages: number;
+}
+
+const HISTORY_TRUNCATION_MARKER = '[Earlier conversation history omitted to fit the context window]';
+
+/**
+ * Bounded variant of buildContextFromHistory for inlining history into a single
+ * prompt (ACP session bootstrap). Unbounded inlining of a long conversation can
+ * exceed the agent's context window mid-turn, truncating the actual request.
+ * Keeps the most recent messages within both bounds and marks any truncation.
+ */
+export function buildBoundedContextFromHistory(
+  messages: ChatMessage[],
+  bounds: HistoryContextBounds,
+): string {
+  const windowed = messages.slice(-bounds.maxMessages);
+  let dropped = messages.length - windowed.length;
+  let context = buildContextFromHistory(windowed);
+
+  let startIndex = 0;
+  while (context.length > bounds.maxChars && startIndex < windowed.length - 1) {
+    startIndex++;
+    dropped++;
+    context = buildContextFromHistory(windowed.slice(startIndex));
+  }
+
+  let truncatedInPlace = false;
+  if (context.length > bounds.maxChars) {
+    context = context.slice(context.length - bounds.maxChars);
+    truncatedInPlace = true;
+  }
+
+  if (dropped > 0 || truncatedInPlace) {
+    return `${HISTORY_TRUNCATION_MARKER}\n\n${context}`;
+  }
+  return context;
+}
+
 export function getLastUserMessage(messages: ChatMessage[]): ChatMessage | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'user') {

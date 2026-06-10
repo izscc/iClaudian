@@ -120,12 +120,12 @@ export class FileContextManager {
   /** Checks whether current note should be sent for this session. */
   shouldSendCurrentNote(notePath?: string | null): boolean {
     const resolvedPath = notePath ?? this.currentNotePath;
-    return !!resolvedPath && !this.state.hasSentCurrentNote();
+    return !!resolvedPath && !this.state.hasSentCurrentNote(resolvedPath);
   }
 
   /** Marks current note as sent (call after sending a message). */
   markCurrentNoteSent() {
-    this.state.markCurrentNoteSent();
+    this.state.markCurrentNoteSent(this.currentNotePath);
   }
 
   isSessionStarted(): boolean {

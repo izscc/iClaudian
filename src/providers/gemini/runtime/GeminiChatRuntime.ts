@@ -50,6 +50,9 @@ import { type GeminiProviderState,getGeminiState } from '../types';
 import { buildGeminiRuntimeEnv } from './GeminiRuntimeEnvironment';
 
 const GEMINI_ACP_INITIALIZE_TIMEOUT_MS = 120_000;
+// session/new and session/load walk the full skill/extension catalog (and replay
+// history on load); the 30s transport default times out on skill-heavy installs.
+const GEMINI_ACP_SESSION_TIMEOUT_MS = 120_000;
 
 interface ActiveTurn { queue: StreamChunkQueue; sessionId: string }
 
@@ -202,6 +205,14 @@ export class GeminiChatRuntime implements ChatRuntime {
         yield { type: 'done' };
         return;
       }
+    }
+
+    if (shouldBootstrapHistory) {
+      yield {
+        content: 'Starting a fresh Gemini session; recent conversation history was included with this request.',
+        level: 'info',
+        type: 'notice',
+      };
     }
 
     const sessionId = this.sessionId!;
@@ -464,7 +475,10 @@ export class GeminiChatRuntime implements ChatRuntime {
     if (!this.connection) return null;
     try {
       this.setSupportedCommands([]);
-      const response = await this.connection.newSession({ cwd, mcpServers: [] });
+      const response = await this.connection.newSession(
+        { cwd, mcpServers: [] },
+        { timeoutMs: GEMINI_ACP_SESSION_TIMEOUT_MS },
+      );
       this.loadedSessionId = response.sessionId;
       this.sessionId = response.sessionId;
       this.sessionCwds.set(response.sessionId, cwd);
@@ -478,7 +492,10 @@ export class GeminiChatRuntime implements ChatRuntime {
     if (!this.connection) return false;
     try {
       this.setSupportedCommands([]);
-      const response = await this.connection.loadSession({ cwd, mcpServers: [], sessionId });
+      const response = await this.connection.loadSession(
+        { cwd, mcpServers: [], sessionId },
+        { timeoutMs: GEMINI_ACP_SESSION_TIMEOUT_MS },
+      );
       this.sessionInvalidated = false;
       this.loadedSessionId = response.sessionId;
       this.sessionId = response.sessionId;

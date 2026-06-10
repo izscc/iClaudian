@@ -49,6 +49,7 @@ describe('GeminiChatRuntime', () => {
     cancel: jest.Mock;
     dispose: jest.Mock;
     initialize: jest.Mock;
+    loadSession: jest.Mock;
     newSession: jest.Mock;
     prompt: jest.Mock;
     setConfigOption: jest.Mock;
@@ -76,6 +77,7 @@ describe('GeminiChatRuntime', () => {
       cancel: jest.fn(),
       dispose: jest.fn(),
       initialize: jest.fn().mockResolvedValue({}),
+      loadSession: jest.fn().mockResolvedValue({ sessionId: 'sess-1' }),
       newSession: jest.fn().mockResolvedValue({ sessionId: 'sess-1' }),
       prompt: jest.fn().mockResolvedValue({ stopReason: 'end_turn' }),
       setConfigOption: jest.fn().mockResolvedValue({}),
@@ -121,10 +123,13 @@ describe('GeminiChatRuntime', () => {
     expect(runtime.isReady()).toBe(false);
   });
 
-  async function collectQueryChunks(runtime: GeminiChatRuntime): Promise<Array<Record<string, unknown>>> {
+  async function collectQueryChunks(
+    runtime: GeminiChatRuntime,
+    conversationHistory?: Array<Record<string, unknown>>,
+  ): Promise<Array<Record<string, unknown>>> {
     const turn = runtime.prepareTurn({ text: 'hello' } as any);
     const chunks: Array<Record<string, unknown>> = [];
-    for await (const chunk of runtime.query(turn)) {
+    for await (const chunk of runtime.query(turn, conversationHistory as any)) {
       chunks.push(chunk as Record<string, unknown>);
     }
     return chunks;
@@ -180,5 +185,34 @@ describe('GeminiChatRuntime', () => {
     expect(mockConnection.setConfigOption).not.toHaveBeenCalledWith(
       expect.objectContaining({ configId: 'model' }),
     );
+  });
+
+  it('gives session creation a generous timeout for skill-heavy installs', async () => {
+    const runtime = new GeminiChatRuntime(createMockPlugin());
+
+    await collectQueryChunks(runtime);
+
+    expect(mockConnection.newSession).toHaveBeenCalledWith(
+      expect.objectContaining({ mcpServers: [] }),
+      { timeoutMs: 120_000 },
+    );
+  });
+
+  it('notifies and bounds history when a stale session cannot be resumed', async () => {
+    mockConnection.loadSession = jest.fn().mockRejectedValue(new Error('session not found'));
+    const runtime = new GeminiChatRuntime(createMockPlugin());
+    runtime.syncConversationState({ sessionId: 'stale-sess' });
+
+    const chunks = await collectQueryChunks(runtime, [
+      { id: 'u1', role: 'user', content: 'earlier request', timestamp: 1 },
+      { id: 'a1', role: 'assistant', content: 'earlier reply', timestamp: 2 },
+    ]);
+
+    expect(mockConnection.loadSession).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'stale-sess' }),
+      { timeoutMs: 120_000 },
+    );
+    expect(chunks).toContainEqual(expect.objectContaining({ level: 'info', type: 'notice' }));
+    expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
   });
 });

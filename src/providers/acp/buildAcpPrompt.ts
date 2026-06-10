@@ -4,8 +4,14 @@ import { appendBrowserContext } from '../../utils/browser';
 import { appendCanvasContext } from '../../utils/canvas';
 import { appendCurrentNote } from '../../utils/context';
 import { appendEditorContext } from '../../utils/editor';
-import { buildContextFromHistory, buildPromptWithHistoryContext } from '../../utils/session';
+import { buildBoundedContextFromHistory, buildPromptWithHistoryContext } from '../../utils/session';
 import type { AcpContentBlock } from './types';
+
+// Inlined history shares one prompt with the actual request; unbounded inlining of a
+// long conversation can blow past the agent's context window and clip the request
+// itself (observed with gemini-cli mid-turn compression). Keep a recent window only.
+const ACP_HISTORY_MAX_MESSAGES = 16;
+const ACP_HISTORY_MAX_CHARS = 24_000;
 
 export function buildAcpPromptText(
   request: ChatTurnRequest,
@@ -30,7 +36,10 @@ export function buildAcpPromptText(
   }
 
   if (conversationHistory.length > 0) {
-    const historyContext = buildContextFromHistory(conversationHistory);
+    const historyContext = buildBoundedContextFromHistory(conversationHistory, {
+      maxChars: ACP_HISTORY_MAX_CHARS,
+      maxMessages: ACP_HISTORY_MAX_MESSAGES,
+    });
     prompt = buildPromptWithHistoryContext(
       historyContext,
       prompt,

@@ -157,12 +157,18 @@ export class AcpClientConnection {
     return this.requestWithFallback<AcpAuthenticateResponse>('authenticate', request);
   }
 
-  newSession(request: AcpNewSessionRequest): Promise<AcpNewSessionResponse> {
-    return this.requestWithFallback<AcpNewSessionResponse>('newSession', request);
+  newSession(
+    request: AcpNewSessionRequest,
+    requestOptions?: JsonRpcRequestOptions,
+  ): Promise<AcpNewSessionResponse> {
+    return this.requestWithFallback<AcpNewSessionResponse>('newSession', request, requestOptions);
   }
 
-  loadSession(request: AcpLoadSessionRequest): Promise<AcpLoadSessionResponse> {
-    return this.requestWithFallback<AcpLoadSessionResponse>('loadSession', request);
+  loadSession(
+    request: AcpLoadSessionRequest,
+    requestOptions?: JsonRpcRequestOptions,
+  ): Promise<AcpLoadSessionResponse> {
+    return this.requestWithFallback<AcpLoadSessionResponse>('loadSession', request, requestOptions);
   }
 
   listSessions(request: AcpListSessionsRequest = {}): Promise<AcpListSessionsResponse> {

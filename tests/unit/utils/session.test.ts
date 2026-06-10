@@ -1,5 +1,6 @@
 import type { ChatMessage, ToolCallInfo } from '@/core/types';
 import {
+  buildBoundedContextFromHistory,
   buildContextFromHistory,
   buildPromptWithHistoryContext,
   formatContextLine,
@@ -296,6 +297,63 @@ describe('session utilities', () => {
       const result = formatContextLine(message);
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('buildBoundedContextFromHistory', () => {
+    it('returns the full context untouched when within bounds', () => {
+      const messages: ChatMessage[] = [
+        { id: 'msg-1', role: 'user', content: 'Hello', timestamp: 1000 },
+        { id: 'msg-2', role: 'assistant', content: 'Hi there!', timestamp: 2000 },
+      ];
+
+      const result = buildBoundedContextFromHistory(messages, { maxChars: 10_000, maxMessages: 10 });
+
+      expect(result).toBe(buildContextFromHistory(messages));
+      expect(result).not.toContain('omitted');
+    });
+
+    it('drops the oldest messages beyond the char budget and marks the truncation', () => {
+      const messages: ChatMessage[] = Array.from({ length: 10 }, (_, i) => ({
+        id: `msg-${i}`,
+        role: i % 2 === 0 ? 'user' as const : 'assistant' as const,
+        content: `message ${i} ${'x'.repeat(1000)}`,
+        timestamp: i,
+      }));
+
+      const result = buildBoundedContextFromHistory(messages, { maxChars: 3000, maxMessages: 10 });
+
+      expect(result.length).toBeLessThanOrEqual(3000 + 200);
+      expect(result).toContain('message 9');
+      expect(result).not.toContain('message 0 ');
+      expect(result).toContain('omitted');
+    });
+
+    it('keeps only the recent message window', () => {
+      const messages: ChatMessage[] = Array.from({ length: 30 }, (_, i) => ({
+        id: `msg-${i}`,
+        role: i % 2 === 0 ? 'user' as const : 'assistant' as const,
+        content: `message ${i}`,
+        timestamp: i,
+      }));
+
+      const result = buildBoundedContextFromHistory(messages, { maxChars: 100_000, maxMessages: 6 });
+
+      expect(result).toContain('message 29');
+      expect(result).not.toContain('message 23');
+      expect(result).toContain('omitted');
+    });
+
+    it('hard-truncates a single oversized message keeping its tail', () => {
+      const messages: ChatMessage[] = [
+        { id: 'msg-1', role: 'assistant', content: `${'a'.repeat(5000)} THE-END`, timestamp: 1 },
+      ];
+
+      const result = buildBoundedContextFromHistory(messages, { maxChars: 1000, maxMessages: 10 });
+
+      expect(result.length).toBeLessThanOrEqual(1000 + 200);
+      expect(result).toContain('THE-END');
+      expect(result).toContain('omitted');
     });
   });
 

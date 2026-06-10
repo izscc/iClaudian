@@ -35,6 +35,20 @@ describe('FileContextState', () => {
       state.markCurrentNoteSent();
       expect(state.hasSentCurrentNote()).toBe(true);
     });
+
+    it('re-arms current note sending when the active note changes', () => {
+      state.markCurrentNoteSent('notes/a.md');
+
+      expect(state.hasSentCurrentNote('notes/a.md')).toBe(true);
+      expect(state.hasSentCurrentNote('notes/b.md')).toBe(false);
+    });
+
+    it('keeps suppressing resend for loaded conversations regardless of note', () => {
+      state.resetForLoadedConversation(true);
+
+      expect(state.hasSentCurrentNote('notes/a.md')).toBe(true);
+      expect(state.hasSentCurrentNote('notes/b.md')).toBe(true);
+    });
   });
 
   describe('resetForNewConversation', () => {

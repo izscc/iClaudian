@@ -156,6 +156,25 @@ describe('FileContextManager', () => {
     manager.destroy();
   });
 
+  it('resends the current note after the active note changes mid-conversation', () => {
+    const app = createMockApp();
+    const manager = new FileContextManager(
+      app,
+      containerEl as any,
+      inputEl,
+      createMockCallbacks()
+    );
+
+    manager.setCurrentNote('notes/alpha.md');
+    manager.markCurrentNoteSent();
+    expect(manager.shouldSendCurrentNote()).toBe(false);
+
+    manager.setCurrentNote('notes/beta.md');
+    expect(manager.shouldSendCurrentNote()).toBe(true);
+
+    manager.destroy();
+  });
+
   it('should NOT resend current note when loading conversation with existing messages', () => {
     const app = createMockApp();
     const manager = new FileContextManager(
