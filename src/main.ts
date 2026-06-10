@@ -12,6 +12,7 @@ import { SharedStorageService } from './app/storage/SharedStorageService';
 import type { SharedAppStorage } from './core/bootstrap/storage';
 import {
   getEnvironmentVariablesForScope as getScopedEnvironmentVariables,
+  getProvidersAffectedByEnvironmentUpdates,
   getRuntimeEnvironmentText,
   setEnvironmentVariablesForScope,
 } from './core/providers/providerEnvironment';
@@ -415,6 +416,10 @@ export default class ClaudianPlugin extends Plugin {
       nextEnvironmentByScope.set(update.scope, update.envText);
     }
 
+    // Computed against the pre-update settings: only providers whose parsed runtime
+    // env actually changes get their sessions reconciled and processes restarted.
+    const affectedProviderIds = getProvidersAffectedByEnvironmentUpdates(settingsBag, updates);
+
     const changedScopes: EnvironmentScope[] = [];
     for (const [scope, envText] of nextEnvironmentByScope) {
       const currentValue = getScopedEnvironmentVariables(settingsBag, scope);
@@ -429,7 +434,6 @@ export default class ClaudianPlugin extends Plugin {
       return;
     }
 
-    const affectedProviderIds = this.getAffectedEnvironmentProviders(changedScopes);
     ProviderSettingsCoordinator.handleEnvironmentChange(settingsBag, affectedProviderIds);
     const { changed, invalidatedConversations } = this.reconcileModelWithEnvironment(affectedProviderIds);
     await this.saveSettings();
@@ -552,27 +556,6 @@ export default class ClaudianPlugin extends Plugin {
       this.conversations,
       providerIds,
     );
-  }
-
-  private getAffectedEnvironmentProviders(scopes: EnvironmentScope[]): ProviderId[] {
-    const registeredProviderIds = new Set(ProviderRegistry.getRegisteredProviderIds());
-    const affectedProviderIds = new Set<ProviderId>();
-
-    for (const scope of scopes) {
-      if (scope === 'shared') {
-        for (const providerId of registeredProviderIds) {
-          affectedProviderIds.add(providerId);
-        }
-        continue;
-      }
-
-      const providerId = scope.slice('provider:'.length) as ProviderId;
-      if (registeredProviderIds.has(providerId)) {
-        affectedProviderIds.add(providerId);
-      }
-    }
-
-    return Array.from(affectedProviderIds);
   }
 
   private generateConversationId(): string {

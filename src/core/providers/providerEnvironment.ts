@@ -12,7 +12,7 @@ export interface EnvironmentScopeUpdate {
 type EnvironmentKeyOwnership =
   | { type: 'shared-known' }
   | { type: 'shared-unknown' }
-  | { type: 'provider'; providerId: ProviderId };
+  | { type: 'provider'; providerIds: ProviderId[] };
 
 interface ClassifiedEnvironmentLines {
   shared: string[];
@@ -50,11 +50,15 @@ function classifyEnvironmentKey(key: string): EnvironmentKeyOwnership {
     return { type: 'shared-known' };
   }
 
-  for (const providerId of ProviderRegistry.getRegisteredProviderIds()) {
+  // Some prefixes are legitimately claimed by several providers (e.g. GOOGLE_* by
+  // gemini and antigravity); collect every claimant instead of letting registration
+  // order silently pick a winner.
+  const providerIds = ProviderRegistry.getRegisteredProviderIds().filter((providerId) => {
     const patterns = ProviderRegistry.getEnvironmentKeyPatterns(providerId);
-    if (patterns.some((pattern) => pattern.test(normalized))) {
-      return { type: 'provider', providerId };
-    }
+    return patterns.some((pattern) => pattern.test(normalized));
+  });
+  if (providerIds.length > 0) {
+    return { type: 'provider', providerIds };
   }
 
   return { type: 'shared-unknown' };
@@ -140,9 +144,11 @@ export function classifyEnvironmentVariablesByOwnership(input: string): {
 
     const ownership = classifyEnvironmentKey(key);
     if (ownership.type === 'provider') {
-      const target = result.providers[ownership.providerId] ?? [];
-      appendLines(target, pendingDecorators, line);
-      result.providers[ownership.providerId] = target;
+      for (const providerId of ownership.providerIds) {
+        const target = result.providers[providerId] ?? [];
+        appendLines(target, pendingDecorators, line);
+        result.providers[providerId] = target;
+      }
     } else {
       appendLines(result.shared, pendingDecorators, line);
       if (ownership.type === 'shared-unknown') {
@@ -291,7 +297,7 @@ export function getEnvironmentReviewKeysForScope(
       continue;
     }
 
-    if (ownership.type !== 'provider' || ownership.providerId !== expectedProviderId) {
+    if (ownership.type !== 'provider' || !ownership.providerIds.includes(expectedProviderId ?? '')) {
       reviewKeys.add(key);
     }
   }
@@ -361,4 +367,38 @@ export function getEnvironmentScopeUpdates(
   }
 
   return [];
+}
+
+function environmentRecordsEqual(
+  a: Record<string, string>,
+  b: Record<string, string>,
+): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
+  return aKeys.every((key) => Object.prototype.hasOwnProperty.call(b, key) && a[key] === b[key]);
+}
+
+// Restart blast radius: a scope edit only affects providers whose *parsed* runtime env
+// actually changes — provider-scope overrides, comment edits, and reordering stay local.
+export function getProvidersAffectedByEnvironmentUpdates(
+  settings: Record<string, unknown>,
+  updates: EnvironmentScopeUpdate[],
+): ProviderId[] {
+  const next: Record<string, unknown> = {
+    ...settings,
+    ...(settings.providerConfigs
+      ? { providerConfigs: JSON.parse(JSON.stringify(settings.providerConfigs)) as Record<string, unknown> }
+      : {}),
+  };
+  for (const update of updates) {
+    setEnvironmentVariablesForScope(next, update.scope, update.envText);
+  }
+
+  return ProviderRegistry.getRegisteredProviderIds().filter((providerId) => !environmentRecordsEqual(
+    getRuntimeEnvironmentVariables(settings, providerId),
+    getRuntimeEnvironmentVariables(next, providerId),
+  ));
 }

@@ -5,6 +5,7 @@ import {
   getEnvironmentReviewKeysForScope,
   getEnvironmentScopeUpdates,
   getProviderEnvironmentVariables,
+  getProvidersAffectedByEnvironmentUpdates,
   getRuntimeEnvironmentText,
   getSharedEnvironmentVariables,
   inferEnvironmentSnippetScope,
@@ -44,6 +45,15 @@ describe('providerEnvironment', () => {
 
       expect(result.shared).toBe(['# shared comment', 'PATH=/usr/local/bin'].join('\n'));
       expect(result.providers.claude).toBe(['', '# claude comment', 'ANTHROPIC_MODEL=claude-custom'].join('\n'));
+    });
+
+    it('routes keys claimed by multiple providers into every claiming scope', () => {
+      const result = classifyEnvironmentVariablesByOwnership('GOOGLE_API_KEY=google-key');
+
+      expect(result.providers.gemini).toBe('GOOGLE_API_KEY=google-key');
+      expect(result.providers.antigravity).toBe('GOOGLE_API_KEY=google-key');
+      expect(result.shared).toBe('');
+      expect(result.reviewKeys).toEqual([]);
     });
   });
 
@@ -157,6 +167,53 @@ describe('providerEnvironment', () => {
       expect(getEnvironmentScopeUpdates('', 'provider:claude')).toEqual([
         { scope: 'provider:claude', envText: '' },
       ]);
+    });
+  });
+
+  describe('getProvidersAffectedByEnvironmentUpdates', () => {
+    it('limits the blast radius to providers whose parsed runtime env changes', () => {
+      const settings: Record<string, unknown> = {
+        sharedEnvironmentVariables: 'HTTP_PROXY=http://proxy:8080',
+        providerConfigs: {
+          codex: { environmentVariables: 'OPENAI_API_KEY=codex-key' },
+          gemini: { environmentVariables: 'GEMINI_API_KEY=old-key' },
+        },
+      };
+
+      const affected = getProvidersAffectedByEnvironmentUpdates(settings, [
+        { scope: 'provider:gemini', envText: 'GEMINI_API_KEY=new-key' },
+      ]);
+
+      expect(affected).toEqual(['gemini']);
+    });
+
+    it('treats comment-only and whitespace-only edits as affecting no provider', () => {
+      const settings: Record<string, unknown> = {
+        sharedEnvironmentVariables: 'HTTP_PROXY=http://proxy:8080',
+      };
+
+      const affected = getProvidersAffectedByEnvironmentUpdates(settings, [
+        { scope: 'shared', envText: '# routed through corp proxy\nHTTP_PROXY=http://proxy:8080' },
+      ]);
+
+      expect(affected).toEqual([]);
+    });
+
+    it('keeps providers that override a changed shared key unaffected', () => {
+      const settings: Record<string, unknown> = {
+        sharedEnvironmentVariables: 'CUSTOM_FLAG=0',
+        providerConfigs: {
+          gemini: { environmentVariables: 'CUSTOM_FLAG=1' },
+        },
+      };
+
+      const affected = getProvidersAffectedByEnvironmentUpdates(settings, [
+        { scope: 'shared', envText: 'CUSTOM_FLAG=2' },
+      ]);
+
+      expect(affected).not.toContain('gemini');
+      expect(affected).toContain('claude');
+      expect(affected).toContain('codex');
     });
   });
 });

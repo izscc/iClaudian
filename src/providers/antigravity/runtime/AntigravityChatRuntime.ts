@@ -145,7 +145,9 @@ export class AntigravityChatRuntime implements ChatRuntime {
       return false;
     }
 
-    await this.persistSelectedModel(this.resolveSelectedRawModelId()).catch(() => {});
+    // No writes here: ensureReady also runs for blank-tab prewarm, and warmup must not
+    // touch the agy settings file under ~/.gemini. queryPrintMode persists the model
+    // right before each spawn.
     await this.shutdownProcess();
     if (!this.sessionId) this.sessionId = `antigravity-${Date.now()}`;
     this.loadedSessionId = this.sessionId;
