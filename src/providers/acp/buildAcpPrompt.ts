@@ -17,7 +17,9 @@ export function buildAcpPromptText(
   request: ChatTurnRequest,
   conversationHistory: ChatMessage[] = [],
 ): string {
-  let prompt = request.text;
+  let prompt = request.currentNotePath
+    ? rewriteCurrentNoteSkillTrigger(request.text, request.currentNotePath)
+    : request.text;
 
   if (request.currentNotePath) {
     prompt = appendCurrentNote(prompt, request.currentNotePath);
@@ -75,6 +77,19 @@ export function buildAcpPromptText(
   }
 
   return prompt;
+}
+
+function rewriteCurrentNoteSkillTrigger(text: string, currentNotePath: string): string {
+  if (!/\$md-translator\b/.test(text)) return text;
+  const userInstruction = text.replace(/\$md-translator\b/g, '').trim() || '翻译整理这条笔记';
+  return [
+    userInstruction,
+    '',
+    '请按 md-translator 技能规则立即执行当前笔记翻译任务，但不要触发或停留在 Gemini CLI 的 `$md-translator` 技能激活流程。',
+    `目标文件路径：${currentNotePath}`,
+    '执行要求：读取该 exact Markdown 文件，完整翻译为简体中文，保持 Frontmatter、图片链接、标签、引用和排版结构，必要时按内容重命名，最后写回文件。',
+    '禁止：不要扫描目录，不要寻找其他候选文件，不要只说明 skill 已激活，不要等待下一条指令。',
+  ].join('\n');
 }
 
 export function buildAcpPromptBlocks(
