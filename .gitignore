@@ -86,6 +86,7 @@ test-results/
 # Development files
 sandbox/
 dev
+.context/
 
 # Lock files (uncomment based on package manager)
 # yarn.lock

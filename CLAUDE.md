@@ -1,25 +1,30 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Project Overview
 
-Claudian is an Obsidian plugin that embeds provider-backed chat runtimes in a sidebar and inline-edit flow. Claude is the default and full-feature provider. Six additional providers join the same conversation model through `Conversation.providerId` plus provider-owned `providerState`: Codex (`codex app-server`), ACP, Antigravity (`agy`), Copilot (`copilot --acp`), Gemini (`gemini --acp`), and OpenCode.
+Claudian is an Obsidian plugin that embeds provider-backed chat runtimes in a sidebar and inline-edit flow. Claude is the default and full-feature provider. Seven additional providers join the same conversation model through `Conversation.providerId` plus provider-owned `providerState`: Codex (`codex app-server`), ACP, Antigravity (`agy`), Copilot (`copilot --acp`), Gemini (`gemini --acp`), OpenCode, and Freebuff (TUI CLI driven through a pty bridge).
+
+The product ships as **iClaudian** (manifest/package `id: iclaudian`, plugin folder `.obsidian/plugins/iclaudian`). "Claudian" is the internal code name and appears throughout the source in class names (`ClaudianSettings*`), the `.claudian/` storage root, and most identifiers — both names refer to the same plugin.
 
 ## Architecture Status
 
-- Product status: Claudian is a multi-provider product with seven providers. Claude is the full-feature provider (stream, cancel, resume, history, fork, rewind, plan mode, images, inline edit, `#`/`/`/`$`, subagents, MCP, plugins). Claude Opus 4.8 (including `opus[1m]`) defaults to `xhigh` reasoning effort and renders thinking via the SDK `display: 'summarized'` mode. Rewind supports two modes — conversation-only and code + conversation.
-- Other providers: Codex supports send, stream, cancel, resume, history reload, fork, plan mode, images, inline edit, `#`, `$` skills, and subagents; rewind, runtime-discovered commands, in-app MCP management, and Claude plugin integration are gated. ACP, Antigravity, Copilot, Gemini, and OpenCode are ACP/CLI-backed adaptors with provider-owned model discovery, permission modes, and CLI-managed MCP/plugins; depth varies per provider.
+- Product status: Claudian is a multi-provider product with eight providers. Claude is the full-feature provider (stream, cancel, resume, history, fork, rewind, plan mode, images, inline edit, `#`/`/`/`$`, subagents, MCP, plugins). Claude Opus 4.8 (including `opus[1m]`) defaults to `xhigh` reasoning effort and renders thinking via the SDK `display: 'summarized'` mode. Rewind supports two modes — conversation-only and code + conversation.
+- Other providers: Codex supports send, stream, cancel, resume, history reload, fork, plan mode, images, inline edit, `#`, `$` skills, and subagents; rewind, runtime-discovered commands, in-app MCP management, and Claude plugin integration are gated. ACP, Antigravity, Copilot, Gemini, and OpenCode are ACP/CLI-backed adaptors with provider-owned model discovery, permission modes, and CLI-managed MCP/plugins; depth varies per provider. Freebuff drives the Freebuff TUI CLI per turn via a Python pty bridge with TUI automation and output sanitizing; it supports plan mode, instruction mode, and MCP but not persistent runtime, native history, rewind, fork, or images.
 - App shell: `src/app/` owns shared settings defaults and plugin-level storage helpers. `src/core/` owns provider-neutral runtime, registry, tool, and type contracts.
 - Provider boundary: `src/core/runtime/` and `src/core/providers/` define the chat-facing seam. `ProviderRegistry` creates runtimes and provider-owned auxiliary services. `ProviderWorkspaceRegistry` owns workspace services such as command catalogs, agent mention providers, CLI resolution, MCP managers, and provider settings tabs.
 - Claude adaptor: `src/providers/claude/` owns the Claude runtime, prompt encoding, stream transforms, history hydration, CLI resolution, plugin and agent discovery, MCP storage, and Claude-specific settings UI. `ClaudeCommandCatalog` merges vault commands, vault skills, and runtime-supported commands behind the shared command catalog contract.
 - Codex adaptor: `src/providers/codex/` owns the `codex app-server` runtime, JSON-RPC transport, prompt encoding, JSONL history reload, session tailing, settings reconciliation, normalization, skill cataloging, subagent storage, and Codex settings UI. `CodexSkillCatalog` provides `$` skill discovery from `.codex/skills/` and `.agents/skills/` without relying on runtime command discovery.
-- Other provider adaptors: `src/providers/acp/`, `src/providers/antigravity/`, `src/providers/copilot/`, `src/providers/gemini/`, and `src/providers/opencode/` each own their runtime, transport, model catalog, and settings UI behind the same `ChatRuntime` / workspace-service contracts.
+- Other provider adaptors: `src/providers/acp/`, `src/providers/antigravity/`, `src/providers/copilot/`, `src/providers/gemini/`, `src/providers/opencode/`, and `src/providers/freebuff/` each own their runtime, transport, model catalog, and settings UI behind the same `ChatRuntime` / workspace-service contracts.
 - Conversations: `Conversation` carries `providerId` and opaque `providerState`. Each provider types its own state (e.g. `ClaudeProviderState`, `CodexProviderState`).
 
 ## Commands
 
 ```bash
-npm run dev
-npm run build
+npm run dev          # build:css once, then esbuild in watch mode
+npm run build        # production bundle: scripts/build.mjs (CSS + esbuild) → main.js, styles.css
+npm run build:css    # regenerate styles.css from src/style/ only
 npm run typecheck
 npm run lint
 npm run lint:fix
@@ -27,6 +32,8 @@ npm run test
 npm run test:watch
 npm run test:coverage
 ```
+
+`npm version <patch|minor|major>` runs `scripts/sync-version.js`, which copies the new `package.json` version into `manifest.json` and stages it. `versions.json` (plugin version → min Obsidian version) is maintained manually and must be updated in the same release commit.
 
 ## Architecture
 
@@ -41,6 +48,7 @@ npm run test:coverage
 | **providers/copilot** | GitHub Copilot CLI ACP adaptor | `copilot --acp` runtime, model IDs (incl. `claude-opus-4.8`), prompt fallback |
 | **providers/gemini** | Gemini CLI ACP adaptor | `gemini --acp` runtime, model discovery, permission modes |
 | **providers/opencode** | OpenCode adaptor | ACP/runtime model discovery, auxiliary query runner, managed config |
+| **providers/freebuff** | Freebuff TUI CLI adaptor | Per-turn pty-bridge runtime, TUI automation, output sanitizing, chat-state watcher, fixed model catalog |
 | **features/chat** | Main sidebar interface | See [`src/features/chat/CLAUDE.md`](src/features/chat/CLAUDE.md) |
 | **features/inline-edit** | Inline edit modal and provider-backed edit services | `InlineEditModal` plus provider-owned inline edit services |
 | **features/settings** | Shared settings shell with provider tabs | General tab plus per-provider tab renderers |
@@ -55,9 +63,13 @@ npm run test:coverage
 npm run test -- --selectProjects unit
 npm run test -- --selectProjects integration
 npm run test:coverage -- --selectProjects unit
+
+# Single file or single test name (args pass straight through to Jest)
+npm run test -- tests/unit/utils/utils.test.ts
+npm run test -- -t "resolves vault paths"
 ```
 
-Tests mirror the `src/` layout under `tests/unit/` and `tests/integration/`.
+Tests run through `scripts/run-jest.js`, a wrapper that sets a temp `--localstorage-file` so the jsdom environment has a working `localStorage`; always invoke tests via the npm scripts rather than calling `jest` directly. Tests mirror the `src/` layout under `tests/unit/` and `tests/integration/`.
 
 ## Storage
 
@@ -75,6 +87,7 @@ Tests mirror the `src/` layout under `tests/unit/` and `tests/integration/`.
 | `.codex/agents/*.toml` | Codex vault subagent definitions |
 | `~/.claude/projects/{vault}/*.jsonl` | Claude-native transcripts |
 | `~/.codex/sessions/**/*.jsonl` | Codex-native transcripts |
+| `~/.config/manicode*/projects/{vault}/chats/` | Freebuff chat state (read by `FreebuffChatStateWatcher`) |
 
 ## Development Notes
 
@@ -85,3 +98,12 @@ Tests mirror the `src/` layout under `tests/unit/` and `tests/integration/`.
 - Run `npm run typecheck && npm run lint && npm run test && npm run build` after editing.
 - No `console.*` in production code.
 - Put non-committed notes, handoff files, and throwaway scripts in `.context/`.
+
+## Delivery & Release
+
+This workflow is also recorded in `AGENTS.md`; keep the two in sync.
+
+- **Every iteration**: after a fix or feature is complete and verified (`typecheck && lint && test && build`), commit and push the change.
+- **Local plugin sync**: after building, copy the fresh `main.js`, `manifest.json`, and `styles.css` over the local plugin install at `/Users/zscc.in/Desktop/船仓文件/Obsidian/OB/.obsidian/plugins/iclaudian` so the running vault picks up the build.
+- **Release** (version task): bump `package.json` (`npm version …` syncs `manifest.json`), update `versions.json`, commit, then push a git **tag**. `.github/workflows/release.yml` builds and publishes a GitHub Release with `main.js`, `manifest.json`, `styles.css` and an auto-generated changelog.
+- **CI** (`.github/workflows/ci.yml`): pushes and PRs to `main` run `lint`, `typecheck`, and `test` as separate jobs — keep all three green.
