@@ -43,6 +43,8 @@ describe('buildAcpPromptText', () => {
     expect(prompt).toContain('00-资料库/📄 素材库/AI 生图/note.md');
     expect(prompt).toContain('不要要求用户再提供文件名');
     expect(prompt).toContain('不要扫描目录来寻找其他候选文件');
+    expect(prompt).toContain('不要只激活技能或设置上下文后等待下一条指令');
+    expect(prompt).toContain('execute the requested translation/edit now');
   });
 
   it('adds strict external context scope instructions for ACP providers', () => {

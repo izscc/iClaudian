@@ -31,7 +31,9 @@ export function buildAcpPromptText(
       '这是本轮请求的唯一目标文件。请把这个路径直接当作用户提供的文件路径参数使用。',
       '不要要求用户再提供文件名，不要扫描目录来寻找其他候选文件，不要切换到其他 Obsidian 清理/整理任务。',
       '如果用户要求翻译、整理、编辑或优化笔记，请读取并写回这个 exact Markdown 文件，而不是只描述计划。',
+      '不要只激活技能或设置上下文后等待下一条指令；本轮消息已经包含完整任务，必须立即执行。',
       'read and update this exact Markdown file. Do not ask which file to use.',
+      'execute the requested translation/edit now; do not stop after activating a skill or setting context.',
       '</current_note_task>',
       '(The <current_note> above is the note currently open in Obsidian, path relative to the vault root. Unless the user names a different file, this request refers to that note. Use this exact path with your file tools; do not search for the file.)',
     ].join('\n');
