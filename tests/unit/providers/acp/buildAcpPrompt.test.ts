@@ -78,4 +78,24 @@ describe('buildAcpPromptBlocks', () => {
       { type: 'image', mimeType: 'image/png', data: 'abc' },
     ]);
   });
+
+  it('links the current note as a file resource when a base dir is provided', () => {
+    const blocks = buildAcpPromptBlocks(
+      { text: '翻译', currentNotePath: '00-资料库/📄 素材库/note.md' },
+      [],
+      { fileResourceBaseDir: '/vault/root' },
+    );
+
+    expect(blocks).toContainEqual({
+      name: 'note.md',
+      type: 'resource_link',
+      uri: 'file:///vault/root/00-资料库/📄 素材库/note.md',
+    });
+  });
+
+  it('emits no resource link without a base dir', () => {
+    const blocks = buildAcpPromptBlocks({ text: '翻译', currentNotePath: 'note.md' });
+
+    expect(blocks.some(block => block.type === 'resource_link')).toBe(false);
+  });
 });

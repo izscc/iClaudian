@@ -1,3 +1,5 @@
+import * as path from 'node:path';
+
 import type { ChatTurnRequest } from '../../core/runtime/types';
 import type { ChatMessage } from '../../core/types';
 import { appendBrowserContext } from '../../utils/browser';
@@ -24,7 +26,7 @@ export function buildAcpPromptText(
     // ACP agents get no system prompt, so the tag semantics Claude learns from
     // mainAgent.ts must travel inline — otherwise models treat the bare tag as
     // noise and pick "plausible" files out of their own directory listing.
-    prompt += '\n(The <current_note> above is the note currently open in Obsidian, path relative to the vault root. Unless the user names a different file, this request refers to that note.)';
+    prompt += '\n(The <current_note> above is the note currently open in Obsidian, path relative to the vault root. Unless the user names a different file, this request refers to that note. Use this exact path with your file tools; do not search for the file.)';
   }
 
   if (request.editorSelection && request.editorSelection.mode !== 'none') {
@@ -55,9 +57,20 @@ export function buildAcpPromptText(
   return prompt;
 }
 
+export interface AcpPromptBlockOptions {
+  /**
+   * Vault root for resolving relative context paths. When set, the current note is
+   * also attached as a file:// resource_link block — capable agents (gemini-cli's
+   * @-path pipeline) then ingest the file content natively instead of re-finding it
+   * with their own file tools, which is where weaker models hallucinate paths.
+   */
+  fileResourceBaseDir?: string;
+}
+
 export function buildAcpPromptBlocks(
   request: ChatTurnRequest,
   conversationHistory: ChatMessage[] = [],
+  options?: AcpPromptBlockOptions,
 ): AcpContentBlock[] {
   const blocks: AcpContentBlock[] = [
     { type: 'text', text: buildAcpPromptText(request, conversationHistory) },
@@ -72,6 +85,19 @@ export function buildAcpPromptBlocks(
       data: image.data,
       mimeType: image.mediaType,
       type: 'image',
+    });
+  }
+
+  if (options?.fileResourceBaseDir && request.currentNotePath) {
+    const absolutePath = path.isAbsolute(request.currentNotePath)
+      ? request.currentNotePath
+      : path.join(options.fileResourceBaseDir, request.currentNotePath);
+    blocks.push({
+      name: path.basename(request.currentNotePath),
+      type: 'resource_link',
+      // gemini-cli slices the file:// prefix off verbatim, so the path must stay
+      // unencoded even though that is not a strictly valid URI.
+      uri: `file://${absolutePath}`,
     });
   }
 

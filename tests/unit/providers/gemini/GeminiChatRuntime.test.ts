@@ -226,4 +226,18 @@ describe('GeminiChatRuntime', () => {
       sessionId: 'sess-1',
     })).resolves.toEqual({ content: '' });
   });
+
+  it('attaches the current note as a file resource link in the prompt', async () => {
+    const runtime = new GeminiChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: '翻译', currentNotePath: 'notes/current.md' } as any);
+
+    const chunks: unknown[] = [];
+    for await (const chunk of runtime.query(turn)) chunks.push(chunk);
+
+    const promptArg = mockConnection.prompt.mock.calls[0][0];
+    expect(promptArg.prompt).toContainEqual(expect.objectContaining({
+      type: 'resource_link',
+      uri: expect.stringContaining('notes/current.md'),
+    }));
+  });
 });

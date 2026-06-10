@@ -240,6 +240,7 @@ export class GeminiChatRuntime implements ChatRuntime {
       prompt: buildAcpPromptBlocks(
         turn.request,
         shouldBootstrapHistory ? previousMessages : [],
+        { fileResourceBaseDir: cwd },
       ),
       sessionId,
     })
