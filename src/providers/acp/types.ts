@@ -311,6 +311,16 @@ export interface AcpSetSessionModeRequest {
 
 export type AcpSetSessionModeResponse = Record<string, never>;
 
+export interface AcpSetSessionModelRequest {
+  modelId: string;
+  sessionId: AcpSessionId;
+}
+
+export interface AcpSetSessionModelResponse {
+  configOptions?: AcpSessionConfigOption[] | null;
+  models?: AcpSessionModelState | null;
+}
+
 export type AcpSetSessionConfigOptionRequest =
   | {
     configId: AcpSessionConfigId;

@@ -55,6 +55,10 @@ export type AcpNormalizedUpdate =
     type: 'tool_call_update';
   }
   | {
+    sessionUpdate: string;
+    type: 'unknown';
+  }
+  | {
     type: 'usage';
     usage: AcpUsageUpdate;
   };
@@ -110,6 +114,13 @@ export class AcpSessionUpdateNormalizer {
         };
       case 'usage_update':
         return { type: 'usage', usage: update };
+      default:
+        // Newer agents may stream update kinds this client predates; surface them as
+        // inert markers instead of crashing the session-notification dispatch.
+        return {
+          sessionUpdate: String((update as { sessionUpdate?: unknown }).sessionUpdate ?? ''),
+          type: 'unknown',
+        };
     }
   }
 

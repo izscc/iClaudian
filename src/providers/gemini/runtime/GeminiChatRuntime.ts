@@ -37,6 +37,7 @@ import {
   buildAcpPromptBlocks,
   buildAcpPromptText,
   buildAcpUsageInfo,
+  describeAcpStopReason,
   extractAcpSessionModelState,
   extractAcpSessionModeState,
 } from '../../acp';
@@ -235,6 +236,8 @@ export class GeminiChatRuntime implements ChatRuntime {
         this.promptUsage = response.usage ?? null;
         const usage = buildAcpUsageInfo({ contextWindow: this.contextUsage, model: this.getActiveDisplayModel(queryOptions), promptUsage: this.promptUsage });
         if (usage) activeTurn.queue.push({ sessionId, type: 'usage', usage });
+        const stopNotice = describeAcpStopReason(response.stopReason);
+        if (stopNotice) activeTurn.queue.push({ content: stopNotice, level: 'warning', type: 'notice' });
         activeTurn.queue.push({ type: 'done' });
         activeTurn.queue.close();
       })
@@ -387,8 +390,13 @@ export class GeminiChatRuntime implements ChatRuntime {
       this.currentSessionModeId = modeId;
       this.emitPermissionModeSync(modeId);
     } catch {
-      const response = await this.connection.setConfigOption({ configId: 'mode', sessionId, type: 'select', value: modeId });
-      await this.syncSessionModeState({ configOptions: response.configOptions });
+      try {
+        const response = await this.connection.setConfigOption({ configId: 'mode', sessionId, type: 'select', value: modeId });
+        await this.syncSessionModeState({ configOptions: response.configOptions });
+      } catch {
+        // Mode application is best-effort: --approval-mode at launch still governs the
+        // session, and a failed switch must not abort the turn before session/prompt.
+      }
     }
   }
 
@@ -397,13 +405,20 @@ export class GeminiChatRuntime implements ChatRuntime {
     const rawModelId = this.resolveSelectedRawModelId(queryOptions);
     if (!rawModelId || rawModelId === this.currentSessionModelId) return;
     try {
+      const response = await this.connection.setModel({ modelId: rawModelId, sessionId });
+      this.currentSessionModelId = rawModelId;
+      await this.syncSessionModelState({ configOptions: response.configOptions ?? null, models: response.models ?? null });
+      return;
+    } catch {
+      // Older CLIs predate session/set_model; fall through to the config-option path.
+    }
+    try {
       const response = await this.connection.setConfigOption({ configId: 'model', sessionId, type: 'select', value: rawModelId });
       this.currentSessionModelId = rawModelId;
       await this.syncSessionModelState({ configOptions: response.configOptions });
     } catch {
-      // Gemini CLI 0.40 exposes its model catalog over ACP but does not yet implement
-      // session/set_config_option. The selected model is still applied at process launch
-      // with --model when it comes from persisted settings, so ignore per-turn switches.
+      // Neither switch method is supported (gemini-cli through 0.46 rejects
+      // session/set_config_option); --model at launch remains the only control.
     }
   }
 

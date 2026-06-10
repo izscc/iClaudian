@@ -7,4 +7,5 @@ export * from './AcpToolStreamAdapter';
 export * from './buildAcpPrompt';
 export * from './buildAcpUsageInfo';
 export * from './methodNames';
+export * from './stopReason';
 export * from './types';

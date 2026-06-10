@@ -116,6 +116,20 @@ describe('AcpSessionUpdateNormalizer', () => {
     });
   });
 
+  it('returns an unknown marker for unrecognized session update kinds', () => {
+    const normalizer = new AcpSessionUpdateNormalizer();
+
+    const result = normalizer.normalize({
+      sessionUpdate: 'skill_state_update',
+      skill: { name: 'md-translator' },
+    } as never);
+
+    expect(result).toEqual({
+      sessionUpdate: 'skill_state_update',
+      type: 'unknown',
+    });
+  });
+
   it('parses session info timestamps and renders non-text content blocks', () => {
     const normalizer = new AcpSessionUpdateNormalizer();
     const updatedAt = '2026-04-19T00:00:00.000Z';
