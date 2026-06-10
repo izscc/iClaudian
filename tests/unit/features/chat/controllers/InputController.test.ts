@@ -2005,6 +2005,25 @@ describe('InputController - Message Queue', () => {
   });
 
   describe('External context in query', () => {
+    it('should pass the active tab model in queryOptions', async () => {
+      deps = createSendableDeps({
+        getActiveModel: () => 'gemini:gemini-3-flash-preview',
+      } as Partial<InputControllerDeps>);
+
+      ((deps as any).mockAgentService.query as jest.Mock).mockReturnValue(
+        createMockStream([{ type: 'done' }])
+      );
+
+      inputEl = deps.getInputEl() as ReturnType<typeof createMockInputEl>;
+      inputEl.value = 'test message';
+      controller = new InputController(deps);
+
+      await controller.sendMessage();
+
+      const queryCall = ((deps as any).mockAgentService.query as jest.Mock).mock.calls[0];
+      expect(queryCall[2]).toEqual({ model: 'gemini:gemini-3-flash-preview' });
+    });
+
     it('should pass externalContextPaths in queryOptions', async () => {
       const externalPaths = ['/external/path1', '/external/path2'];
 

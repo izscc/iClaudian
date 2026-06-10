@@ -160,6 +160,24 @@ describe('GeminiChatRuntime', () => {
     );
   });
 
+  it('prefers the per-turn model over persisted provider settings', async () => {
+    const runtime = new GeminiChatRuntime(createMockPlugin({
+      model: 'gemini:gemini-3.1-pro-preview',
+    }));
+    const turn = runtime.prepareTurn({ text: 'hello' } as any);
+
+    const chunks: unknown[] = [];
+    for await (const chunk of runtime.query(turn, [], { model: 'gemini:gemini-3-flash-preview' })) {
+      chunks.push(chunk);
+    }
+
+    expect(mockConnection.setModel).toHaveBeenCalledWith({
+      modelId: 'gemini-3-flash-preview',
+      sessionId: 'sess-1',
+    });
+    expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
+  });
+
   it('falls back to the v2.1.0 config-option model switch when session/set_model is unavailable', async () => {
     mockConnection.setModel.mockRejectedValue(new Error('Method not found'));
     const runtime = new GeminiChatRuntime(createMockPlugin());

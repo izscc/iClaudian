@@ -1395,6 +1395,7 @@ export function initializeTabControllers(
     resetInputHeight: () => {
       // Per-tab input height is managed by CSS, no dynamic adjustment needed
     },
+    getActiveModel: () => getTabSettingsSnapshot(tab, plugin).model,
     getAuxiliaryModel: () => tab.service?.getAuxiliaryModel?.() ?? tab.draftModel ?? null,
     getAgentService: () => tab.service,
     getSubagentManager: () => services.subagentManager,
