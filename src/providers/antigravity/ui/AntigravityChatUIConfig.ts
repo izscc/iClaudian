@@ -29,8 +29,12 @@ const FALLBACK_MODELS: ProviderUIOption[] = [
     label: model.label,
     ...(model.description ? { description: model.description } : {}),
   })),
-  { value: ANTIGRAVITY_SYNTHETIC_MODEL_ID, label: 'Antigravity', description: 'Antigravity CLI default model' },
 ];
+const SYNTHETIC_MODEL: ProviderUIOption = {
+  value: ANTIGRAVITY_SYNTHETIC_MODEL_ID,
+  label: 'Antigravity',
+  description: 'Antigravity CLI default model',
+};
 
 export const antigravityChatUIConfig: ProviderChatUIConfig = {
   getModelOptions(settings): ProviderUIOption[] {
@@ -47,7 +51,10 @@ export const antigravityChatUIConfig: ProviderChatUIConfig = {
         ...(model?.description ? { description: model.description } : {}),
       }];
     });
-    return options.length > 0 ? options : FALLBACK_MODELS;
+    if (antigravitySettings.visibleModels.length > 0) return options.length > 0 ? options : [...FALLBACK_MODELS, SYNTHETIC_MODEL];
+    const fallbackValues = new Set(FALLBACK_MODELS.map(model => model.value));
+    const discoveredExtras = options.filter(model => !fallbackValues.has(model.value));
+    return [...FALLBACK_MODELS, ...discoveredExtras, SYNTHETIC_MODEL];
   },
 
   ownsModel(model: string): boolean { return isAntigravityModelSelectionId(model); },

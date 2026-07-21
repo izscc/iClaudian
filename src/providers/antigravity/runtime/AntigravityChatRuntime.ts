@@ -1,6 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { ProviderCapabilities } from '../../../core/providers/types';
@@ -48,6 +47,7 @@ import { decodeAntigravityModelId, encodeAntigravityModelId, isAntigravityModelS
 import { antigravityApprovalModeToAcpModeId, antigravityApprovalModeToPermissionMode } from '../modes';
 import { getAntigravityProviderSettings, normalizeAntigravityDiscoveredModels, updateAntigravityProviderSettings } from '../settings';
 import { type AntigravityProviderState,getAntigravityState } from '../types';
+import { buildAntigravityPrintArgs } from './AntigravityCliInvocation';
 import { buildAntigravityRuntimeEnv } from './AntigravityRuntimeEnvironment';
 
 const ANTIGRAVITY_ACP_INITIALIZE_TIMEOUT_MS = 120_000;
@@ -146,9 +146,6 @@ export class AntigravityChatRuntime implements ChatRuntime {
       return false;
     }
 
-    // No writes here: ensureReady also runs for blank-tab prewarm, and warmup must not
-    // touch the agy settings file under ~/.gemini. queryPrintMode persists the model
-    // right before each spawn.
     await this.shutdownProcess();
     if (!this.sessionId) this.sessionId = `antigravity-${Date.now()}`;
     this.loadedSessionId = this.sessionId;
@@ -170,6 +167,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
   cancel(): void {
     this.printProcess?.kill('SIGTERM');
     this.printProcess = null;
+    this.hasNativeContinuation = false;
     if (this.connection && this.sessionId) this.connection.cancel({ sessionId: this.sessionId });
     this.activeTurn?.queue.close();
   }
@@ -318,14 +316,14 @@ export class AntigravityChatRuntime implements ChatRuntime {
     const selectedModel = this.resolveSelectedRawModelId(queryOptions);
     const useNativeContinuation = this.hasNativeContinuation && previousMessages.length > 0 && !this.sessionInvalidated;
     try {
-      await this.persistSelectedModel(selectedModel);
       yield* this.runPrintStream({
+        approvalMode: getAntigravityProviderSettings(this.plugin.settings as unknown as Record<string, unknown>).selectedApprovalMode,
         command,
         cwd,
         env: { ...process.env, ...runtimeEnv },
         continueConversation: useNativeContinuation,
+        model: selectedModel,
         prompt: this.buildPrintPrompt(turn, previousMessages, useNativeContinuation),
-        skipPermissions: getAntigravityProviderSettings(this.plugin.settings as unknown as Record<string, unknown>).selectedApprovalMode === 'yolo',
       });
     } catch (error) {
       yield { type: 'error', content: this.formatRuntimeError(error) };
@@ -333,37 +331,16 @@ export class AntigravityChatRuntime implements ChatRuntime {
     yield { type: 'done' };
   }
 
-  private async persistSelectedModel(model: string | null): Promise<void> {
-    if (!model) return;
-    const settingsPath = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'settings.json');
-    let parsed: Record<string, unknown> = {};
-    try {
-      parsed = JSON.parse(await fs.readFile(settingsPath, 'utf-8')) as Record<string, unknown>;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    }
-    if (parsed.model === model) return;
-    parsed.model = model;
-    await fs.mkdir(path.dirname(settingsPath), { recursive: true });
-    await fs.writeFile(settingsPath, `${JSON.stringify(parsed, null, 2)}\n`, 'utf-8');
-  }
-
   private async *runPrintStream(params: {
+    approvalMode: ReturnType<typeof getAntigravityProviderSettings>['selectedApprovalMode'];
     command: string;
     cwd: string;
     env: NodeJS.ProcessEnv;
     continueConversation: boolean;
+    model: string | null;
     prompt: string;
-    skipPermissions: boolean;
   }): AsyncGenerator<StreamChunk> {
-    const args = [
-      ...(params.skipPermissions ? ['--dangerously-skip-permissions'] : []),
-      ...(params.continueConversation ? ['--continue'] : []),
-      '--print',
-      params.prompt,
-      '--print-timeout',
-      '5m',
-    ];
+    const args = buildAntigravityPrintArgs(params);
 
     const queue: StreamChunk[] = [];
     const waiters: Array<() => void> = [];
@@ -399,6 +376,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
     child.stderr.on('data', chunk => { stderr += String(chunk); });
     child.on('error', error => {
       if (this.printProcess === child) this.printProcess = null;
+      this.hasNativeContinuation = false;
       push({ type: 'error', content: this.formatRuntimeError(error) });
       done = true;
       wake();
@@ -409,6 +387,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
         this.hasNativeContinuation = true;
         if (!stdout.trim() && stderr.trim()) push({ type: 'notice', content: stderr.trim(), level: 'warning' });
       } else {
+        this.hasNativeContinuation = false;
         const details = [stderr.trim(), stdout.trim()].filter(Boolean).join('\n\n');
         push({ type: 'error', content: details || `Antigravity CLI exited with code ${code ?? signal ?? 'unknown'}.` });
       }
@@ -451,9 +430,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
       this.currentSessionModelId = rawModelId;
       await this.syncSessionModelState({ configOptions: response.configOptions });
     } catch {
-      // Antigravity CLI 0.40 exposes its model catalog over ACP but does not yet implement
-      // session/set_config_option. The selected model is still applied at process launch
-      // with --model when it comes from persisted settings, so ignore per-turn switches.
+      return;
     }
   }
 

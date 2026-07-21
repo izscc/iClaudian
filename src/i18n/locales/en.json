@@ -438,7 +438,7 @@
     "antigravity": {
       "enable": {
         "name": "Enable Antigravity provider",
-        "desc": "Run `agy --print` for non-interactive Antigravity requests. Antigravity models will appear in the model selector for new conversations."
+        "desc": "Run `agy -p` for non-interactive Antigravity requests. Antigravity models will appear in the model selector for new conversations."
       },
       "cliPath": {
         "name": "Antigravity CLI path ({host})",
@@ -446,18 +446,18 @@
       },
       "approvalMode": {
         "name": "Approval mode",
-        "desc": "Permission mode used by Antigravity CLI print mode. YOLO adds --dangerously-skip-permissions.",
+        "desc": "Permission mode passed to Antigravity CLI print mode. Auto-edit and Plan use --mode; YOLO adds --dangerously-skip-permissions.",
         "default": "Default",
         "autoEdit": "Auto Edit",
         "plan": "Plan"
       },
       "visibleModels": {
         "name": "Visible Models",
-        "desc": "Choose which Antigravity models appear in the chat selector. iClaudian writes the selected model name to ~/.gemini/antigravity-cli/settings.json."
+        "desc": "Choose which Antigravity models appear in the chat selector. iClaudian passes the selected model ID to agy --model for each request."
       },
       "customVisibleModels": {
         "name": "Model IDs",
-        "desc": "One Antigravity model name per line. Use the labels shown by the Antigravity CLI model switcher."
+        "desc": "One Antigravity model ID per line. Run agy models to list the IDs supported by the installed CLI."
       },
       "discovered": "Configured {count} Antigravity models.",
       "notDiscovered": "No custom Antigravity models configured yet. iClaudian will use its built-in model list.",

@@ -38,10 +38,16 @@ export const antigravitySettingsReconciler: ProviderSettingsReconciler = {
 function normalizeProjectedModel(settings: Record<string, unknown>, providerId: string): boolean {
   let changed = false;
   if (typeof settings.model === 'string' && isAntigravityModelSelectionId(settings.model)) {
-    const raw = decodeAntigravityModelId(settings.model);
-    const normalized = raw ? encodeAntigravityModelId(raw) : settings.model;
+    const normalized = normalizeProjectedModelValue(settings.model);
     if (normalized !== settings.model) {
       settings.model = normalized;
+      changed = true;
+    }
+  }
+  if (typeof settings.titleGenerationModel === 'string' && isAntigravityModelSelectionId(settings.titleGenerationModel)) {
+    const normalized = normalizeProjectedModelValue(settings.titleGenerationModel);
+    if (normalized !== settings.titleGenerationModel) {
+      settings.titleGenerationModel = normalized;
       changed = true;
     }
   }
@@ -50,8 +56,7 @@ function normalizeProjectedModel(settings: Record<string, unknown>, providerId: 
     const map = saved as Record<string, unknown>;
     const value = map[providerId];
     if (typeof value === 'string' && isAntigravityModelSelectionId(value)) {
-      const raw = decodeAntigravityModelId(value);
-      const normalized = raw ? encodeAntigravityModelId(raw) : value;
+      const normalized = normalizeProjectedModelValue(value);
       if (normalized !== value) {
         map[providerId] = normalized;
         changed = true;
@@ -59,4 +64,9 @@ function normalizeProjectedModel(settings: Record<string, unknown>, providerId: 
     }
   }
   return changed;
+}
+
+function normalizeProjectedModelValue(value: string): string {
+  const raw = decodeAntigravityModelId(value);
+  return raw ? encodeAntigravityModelId(raw) : value;
 }

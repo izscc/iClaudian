@@ -7,52 +7,80 @@ export const ANTIGRAVITY_MODEL_PREFIX = 'antigravity:';
  */
 export const ANTIGRAVITY_FALLBACK_MODELS = [
   {
-    rawId: 'Gemini 3.5 Flash (Medium)',
+    rawId: 'gemini-3.6-flash-medium',
+    label: 'Gemini 3.6 Flash (Medium)',
+    description: 'Antigravity Gemini 3.6 Flash - Medium Effort',
+  },
+  {
+    rawId: 'gemini-3.6-flash-high',
+    label: 'Gemini 3.6 Flash (High)',
+    description: 'Antigravity Gemini 3.6 Flash - High Effort',
+  },
+  {
+    rawId: 'gemini-3.6-flash-low',
+    label: 'Gemini 3.6 Flash (Low)',
+    description: 'Antigravity Gemini 3.6 Flash - Low Effort',
+  },
+  {
+    rawId: 'gemini-3.5-flash-medium',
     label: 'Gemini 3.5 Flash (Medium)',
     description: 'Antigravity Gemini 3.5 Flash - Medium Effort',
   },
   {
-    rawId: 'Gemini 3.5 Flash (High)',
+    rawId: 'gemini-3.5-flash-high',
     label: 'Gemini 3.5 Flash (High)',
     description: 'Antigravity Gemini 3.5 Flash - High Effort',
   },
   {
-    rawId: 'Gemini 3.1 Pro (High)',
+    rawId: 'gemini-3.5-flash-low',
+    label: 'Gemini 3.5 Flash (Low)',
+    description: 'Antigravity Gemini 3.5 Flash - Low Effort',
+  },
+  {
+    rawId: 'gemini-3.1-pro-high',
     label: 'Gemini 3.1 Pro (High)',
     description: 'Antigravity Gemini 3.1 Pro - High Effort',
   },
   {
-    rawId: 'Gemini 3.1 Pro (Low)',
+    rawId: 'gemini-3.1-pro-low',
     label: 'Gemini 3.1 Pro (Low)',
     description: 'Antigravity Gemini 3.1 Pro - Low Effort',
   },
   {
-    rawId: 'Claude Sonnet 4.6 (Thinking)',
+    rawId: 'claude-sonnet-4-6',
     label: 'Claude Sonnet 4.6 (Thinking)',
     description: 'Antigravity Claude Sonnet 4.6 - Thinking Mode',
   },
   {
-    rawId: 'Claude Opus 4.6 (Thinking)',
+    rawId: 'claude-opus-4-6-thinking',
     label: 'Claude Opus 4.6 (Thinking)',
     description: 'Antigravity Claude Opus 4.6 - Thinking Mode',
   },
   {
-    rawId: 'GPT-OSS 120B (Medium)',
+    rawId: 'gpt-oss-120b-medium',
     label: 'GPT-OSS 120B (Medium)',
     description: 'Antigravity GPT-OSS 120B - Medium Effort',
   },
 ] as const;
 
 const ANTIGRAVITY_MODEL_ALIASES = new Map<string, string>([
-  ['Gemini 3.5 Flash (Low)'.toLowerCase(), 'Gemini 3.5 Flash (Medium)'],
-  ['gemini-3.5-flash-low', 'Gemini 3.5 Flash (Medium)'],
-  ['gemini-3.5-flash-medium', 'Gemini 3.5 Flash (Medium)'],
-  ['gemini-3-flash-agent', 'Gemini 3.5 Flash (High)'],
-  ['gemini-3.1-pro-high', 'Gemini 3.1 Pro (High)'],
-  ['gemini-3.1-pro-low', 'Gemini 3.1 Pro (Low)'],
-  ['claude-sonnet-4-6@default', 'Claude Sonnet 4.6 (Thinking)'],
-  ['claude-opus-4-6@default', 'Claude Opus 4.6 (Thinking)'],
-  ['openai/gpt-oss-120b-maas', 'GPT-OSS 120B (Medium)'],
+  ['gemini 3.6 flash (medium)', 'gemini-3.6-flash-medium'],
+  ['gemini 3.6 flash (high)', 'gemini-3.6-flash-high'],
+  ['gemini 3.6 flash (low)', 'gemini-3.6-flash-low'],
+  ['gemini-3.6-flash', 'gemini-3.6-flash-medium'],
+  ['gemini 3.5 flash (medium)', 'gemini-3.5-flash-medium'],
+  ['gemini 3.5 flash (high)', 'gemini-3.5-flash-high'],
+  ['gemini 3.5 flash (low)', 'gemini-3.5-flash-low'],
+  ['gemini-3.5-flash', 'gemini-3.5-flash-medium'],
+  ['gemini 3.1 pro (high)', 'gemini-3.1-pro-high'],
+  ['gemini 3.1 pro (low)', 'gemini-3.1-pro-low'],
+  ['claude sonnet 4.6 (thinking)', 'claude-sonnet-4-6'],
+  ['claude opus 4.6 (thinking)', 'claude-opus-4-6-thinking'],
+  ['gpt-oss 120b (medium)', 'gpt-oss-120b-medium'],
+  ['gemini-3-flash-agent', 'gemini-3.5-flash-high'],
+  ['claude-sonnet-4-6@default', 'claude-sonnet-4-6'],
+  ['claude-opus-4-6@default', 'claude-opus-4-6-thinking'],
+  ['openai/gpt-oss-120b-maas', 'gpt-oss-120b-medium'],
 ]);
 
 export function normalizeAntigravityRawModelId(rawId: string): string {

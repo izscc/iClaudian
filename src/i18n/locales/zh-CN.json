@@ -438,7 +438,7 @@
     "antigravity": {
       "enable": {
         "name": "启用 Antigravity 提供方",
-        "desc": "通过 `agy --print` 执行 Antigravity 非交互请求。新对话的模型选择器会显示 Antigravity 模型。"
+        "desc": "通过 `agy -p` 执行 Antigravity 非交互请求。新对话的模型选择器会显示 Antigravity 模型。"
       },
       "cliPath": {
         "name": "Antigravity CLI 路径（{host}）",
@@ -446,18 +446,18 @@
       },
       "approvalMode": {
         "name": "审批模式",
-        "desc": "Antigravity CLI print 模式使用的权限模式。YOLO 会追加 --dangerously-skip-permissions。",
+        "desc": "传给 Antigravity CLI print 模式的权限设置。自动编辑和计划模式使用 --mode，YOLO 会追加 --dangerously-skip-permissions。",
         "default": "默认",
         "autoEdit": "自动批准编辑",
         "plan": "计划模式"
       },
       "visibleModels": {
         "name": "可见模型",
-        "desc": "选择聊天模型列表中显示哪些 Antigravity 模型。iClaudian 会把选中的模型名称写入 ~/.gemini/antigravity-cli/settings.json。"
+        "desc": "选择聊天模型列表中显示哪些 Antigravity 模型。iClaudian 会在每次请求中通过 agy --model 传入选中的模型 ID。"
       },
       "customVisibleModels": {
         "name": "模型 ID",
-        "desc": "每行一个 Antigravity 模型名称。请使用 Antigravity CLI 模型切换器中显示的名称。"
+        "desc": "每行一个 Antigravity 模型 ID。运行 agy models 可查看已安装 CLI 支持的 ID。"
       },
       "discovered": "已配置 {count} 个 Antigravity 模型。",
       "notDiscovered": "尚未配置自定义 Antigravity 模型。iClaudian 会使用内置模型列表。",

@@ -36,7 +36,7 @@ function createMockPlugin() {
     manifest: { version: '0.0.0-test' },
     saveSettings: jest.fn().mockResolvedValue(undefined),
     settings: {
-      model: 'antigravity:gemini-3-pro',
+      model: 'antigravity:gemini-3.6-flash-medium',
       providerConfigs: {
         antigravity: {
           enabled: true,
@@ -56,7 +56,7 @@ function createFakeChild() {
   return child;
 }
 
-describe('AntigravityChatRuntime model persistence', () => {
+describe('AntigravityChatRuntime model invocation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockReadFile.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
@@ -81,7 +81,7 @@ describe('AntigravityChatRuntime model persistence', () => {
     expect(mockMkdir).not.toHaveBeenCalled();
   });
 
-  it('persists the selected model before launching a print query', async () => {
+  it('passes the selected model directly to the headless print query', async () => {
     const runtime = new AntigravityChatRuntime(createMockPlugin());
     const turn = runtime.prepareTurn({ text: 'hello' } as any);
 
@@ -90,11 +90,106 @@ describe('AntigravityChatRuntime model persistence', () => {
       chunks.push(chunk as Record<string, unknown>);
     }
 
-    expect(mockWriteFile).toHaveBeenCalledWith(
-      expect.stringContaining('antigravity-cli'),
-      expect.stringContaining('"model"'),
-      'utf-8',
-    );
+    const args = spawn.mock.calls[0]?.[1] as string[];
+    expect(args).toEqual(expect.arrayContaining([
+      '--dangerously-skip-permissions',
+      '--model',
+      'gemini-3.6-flash-medium',
+      '-p',
+      'hello',
+    ]));
+    expect(args).not.toContain('--print');
+    expect(mockWriteFile).not.toHaveBeenCalled();
     expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
+  });
+
+  it('falls back to prompt history after native continuation fails', async () => {
+    let invocation = 0;
+    spawn.mockImplementation(() => {
+      const child = createFakeChild();
+      invocation += 1;
+      setImmediate(() => {
+        if (invocation === 2) {
+          child.stderr.emit('data', 'continuation failed');
+          child.emit('close', 1, null);
+          return;
+        }
+        child.stdout.emit('data', 'agy output');
+        child.emit('close', 0, null);
+      });
+      return child;
+    });
+    const runtime = new AntigravityChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: 'hello' } as any);
+    const history = [{ role: 'user', content: 'previous' }] as any;
+
+    for await (const chunk of runtime.query(turn)) void chunk;
+    for await (const chunk of runtime.query(turn, history)) void chunk;
+    for await (const chunk of runtime.query(turn, history)) void chunk;
+
+    expect(spawn.mock.calls[1]?.[1]).toContain('--continue');
+    expect(spawn.mock.calls[2]?.[1]).not.toContain('--continue');
+  });
+
+  it('falls back to prompt history after the print process errors', async () => {
+    let invocation = 0;
+    spawn.mockImplementation(() => {
+      const child = createFakeChild();
+      invocation += 1;
+      setImmediate(() => {
+        if (invocation === 2) {
+          child.emit('error', new Error('spawn failed'));
+          return;
+        }
+        child.stdout.emit('data', 'agy output');
+        child.emit('close', 0, null);
+      });
+      return child;
+    });
+    const runtime = new AntigravityChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: 'hello' } as any);
+    const history = [{ role: 'user', content: 'previous' }] as any;
+
+    for await (const chunk of runtime.query(turn)) void chunk;
+    for await (const chunk of runtime.query(turn, history)) void chunk;
+    for await (const chunk of runtime.query(turn, history)) void chunk;
+
+    expect(spawn.mock.calls[1]?.[1]).toContain('--continue');
+    expect(spawn.mock.calls[2]?.[1]).not.toContain('--continue');
+  });
+
+  it('falls back to prompt history after cancellation', async () => {
+    let invocation = 0;
+    spawn.mockImplementation(() => {
+      const child = createFakeChild();
+      invocation += 1;
+      if (invocation === 2) {
+        child.kill.mockImplementation(() => {
+          setImmediate(() => child.emit('close', null, 'SIGTERM'));
+          return true;
+        });
+      } else {
+        setImmediate(() => {
+          child.stdout.emit('data', 'agy output');
+          child.emit('close', 0, null);
+        });
+      }
+      return child;
+    });
+    const runtime = new AntigravityChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: 'hello' } as any);
+    const history = [{ role: 'user', content: 'previous' }] as any;
+
+    for await (const chunk of runtime.query(turn)) void chunk;
+    const continuedQuery = runtime.query(turn, history);
+    const pendingChunk = continuedQuery.next();
+    await new Promise(resolve => setImmediate(resolve));
+    runtime.cancel();
+    await pendingChunk;
+    for await (const chunk of continuedQuery) void chunk;
+    for await (const chunk of runtime.query(turn, history)) void chunk;
+
+    expect(spawn.mock.calls[1]?.[1]).toContain('--continue');
+    expect(spawn.mock.calls[2]?.[1]).not.toContain('--continue');
   });
 });

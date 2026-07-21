@@ -30,7 +30,7 @@
 | Codex CLI | `codex app-server` | 发送、流式、取消、恢复、历史重载、分叉、Plan、图片、行内编辑、`#`、`$` Skills、子代理；部分运行时命令、MCP 管理、Claude 插件能力不适用 |
 | OpenCode | OpenCode CLI | ACP/运行时模型发现、模型筛选、模式选择、命令下拉、行内编辑和标题生成等基础代理能力 |
 | Gemini CLI | `gemini --acp` | ACP 会话、模型发现、Plan/YOLO 权限模式、运行时命令、MCP 由 Gemini CLI 管理 |
-| Antigravity CLI | `agy --print` / `agy --continue --print` | 流式输出、原生继续会话、模型选择、YOLO 权限模式；模型写入 `~/.gemini/antigravity-cli/settings.json`，MCP/插件由 Antigravity CLI 管理 |
+| Antigravity CLI | `agy --model <id> -p` / `agy --continue --model <id> -p` | 流式输出、原生继续会话、模型与 effort ID、YOLO/Auto-edit/Plan 权限模式；每次请求直接传入模型，MCP/插件由 Antigravity CLI 管理 |
 | Freebuff CLI | `freebuff` | Freebuff 内置模型预选（Premium/Unlimited）、流式 stdout、行内编辑与标题生成；工具/MCP/浏览器能力由 Freebuff CLI 自身管理 |
 | GitHub Copilot CLI | `copilot --acp` | ACP 会话、模型选择、Plan/YOLO 权限模式、运行时命令；插件、MCP、BYOK 等由 Copilot CLI 管理；ACP 不可用时会走保留 Obsidian 当前笔记上下文的 prompt fallback |
 
@@ -61,21 +61,25 @@ gpt-4.1
 
 旧配置中的 `gpt-5.1` 会自动迁移到 `gpt-5.4`，`claude-sonnet-4` 会自动迁移到 `claude-sonnet-4.6`。如需使用其他 Copilot CLI 模型，可在 **Settings → iClaudian → Copilot → Model IDs** 中每行填写一个模型 ID。
 
-### Antigravity CLI 模型名称
+### Antigravity CLI 模型 ID
 
-Antigravity CLI 1.0.x 没有稳定的 `--model` 参数；iClaudian 会把选择的真实模型名称写入 `~/.gemini/antigravity-cli/settings.json` 的 `model` 字段，然后通过 `agy --print` 执行请求。当前预置模型名称为：
+Antigravity CLI 1.1.5 及以上版本提供稳定的 `--model` 参数和 `models` 子命令；iClaudian 会把选择的模型 ID 直接传给 `agy -p`，不再修改全局的 `~/.gemini/antigravity-cli/settings.json`。当前预置模型 ID 为：
 
 ```text
-Gemini 3.5 Flash (High)
-Gemini 3.5 Flash (Medium)
-Gemini 3.1 Pro (High)
-Gemini 3.1 Pro (Low)
-Claude Sonnet 4.6 (Thinking)
-Claude Opus 4.6 (Thinking)
-GPT-OSS 120B (Medium)
+gemini-3.6-flash-medium
+gemini-3.6-flash-high
+gemini-3.6-flash-low
+gemini-3.5-flash-medium
+gemini-3.5-flash-high
+gemini-3.5-flash-low
+gemini-3.1-pro-high
+gemini-3.1-pro-low
+claude-sonnet-4-6
+claude-opus-4-6-thinking
+gpt-oss-120b-medium
 ```
 
-旧配置中的 `Gemini 3.5 Flash (Low)` 会自动迁移到真实可用的 `Gemini 3.5 Flash (Medium)`。
+旧配置中的模型显示名称会自动迁移到对应的 CLI 模型 ID；未指定 effort 的 `gemini-3.6-flash` 默认归一化为 `gemini-3.6-flash-medium`。
 
 ### Freebuff 内置模型
 
@@ -182,11 +186,12 @@ Copilot 的 MCP、插件、BYOK provider、登录状态等仍由 GitHub Copilot 
 
 Antigravity provider 使用当前 CLI 支持的非交互方式：
 
-- 默认：`agy --print <prompt> --print-timeout 5m`
-- 连续对话：同一 iClaudian 运行时内第二轮起使用 `agy --continue --print <prompt>`，复用 Antigravity CLI 原生会话与缓存，不再把完整历史重新拼进 prompt。
+- 默认：`agy --model <model-id> -p <prompt> --print-timeout 5m`
+- 连续对话：同一 iClaudian 运行时内第二轮起使用 `agy --continue --model <model-id> -p <prompt>`，复用 Antigravity CLI 原生会话与缓存，不再把完整历史重新拼进 prompt。
 - 输出：stdout 边到达边渲染到聊天窗口，避免等整个进程结束后才显示。
 - YOLO：追加 `--dangerously-skip-permissions`
-- 模型：写入 `~/.gemini/antigravity-cli/settings.json` 的 `model` 字段
+- Auto-edit / Plan：分别追加 `--mode accept-edits` / `--mode plan`
+- 模型：通过每次调用的 `--model` 参数传入，不修改用户全局 CLI 设置
 
 这避免了旧版 `agy --acp` 路径导致的 `initialize` 超时问题，也尽量贴近原版 Antigravity CLI 的高速体验。
 
