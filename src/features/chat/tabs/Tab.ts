@@ -426,6 +426,7 @@ export function createTab(options: TabCreateOptions): TabData {
       instructionModeManager: null,
       bangBashModeManager: null,
       contextUsageMeter: null,
+      layoutController: null,
       statusPanel: null,
       navigationSidebar: null,
     },
@@ -931,6 +932,7 @@ function initializeInputToolbar(
   tab.ui.promptPresetMenu = toolbarComponents.promptPresetMenu;
   tab.ui.permissionToggle = toolbarComponents.permissionToggle;
   tab.ui.serviceTierToggle = toolbarComponents.serviceTierToggle;
+  tab.ui.layoutController = toolbarComponents.layoutController;
 
   tab.ui.mcpServerSelector.setMcpManager(getProviderMcpManager(getTabProviderId(tab, plugin)));
 
@@ -1393,7 +1395,7 @@ export function initializeTabControllers(
     getStatusPanel: () => ui.statusPanel,
     generateId: generateMessageId,
     resetInputHeight: () => {
-      // Per-tab input height is managed by CSS, no dynamic adjustment needed
+      autoResizeTextarea(dom.inputEl);
     },
     getActiveModel: () => getTabSettingsSnapshot(tab, plugin).model,
     getAuxiliaryModel: () => tab.service?.getAuxiliaryModel?.() ?? tab.draftModel ?? null,
@@ -1645,6 +1647,8 @@ export async function destroyTab(tab: TabData): Promise<void> {
 
   tab.controllers.inputController?.destroyResumeDropdown();
   tab.ui.fileContextManager?.destroy();
+  tab.ui.layoutController?.destroy();
+  tab.ui.layoutController = null;
   tab.ui.slashCommandDropdown?.destroy();
   tab.ui.slashCommandDropdown = null;
   tab.ui.instructionModeManager?.destroy();

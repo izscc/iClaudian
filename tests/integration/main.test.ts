@@ -47,6 +47,8 @@ describe('ClaudianPlugin', () => {
         },
       },
       workspace: {
+        on: jest.fn().mockReturnValue({}),
+        onLayoutReady: jest.fn((callback: () => void) => callback()),
         getLeavesOfType: jest.fn().mockReturnValue([]),
         getRightLeaf: jest.fn().mockReturnValue({
           setViewState: jest.fn().mockResolvedValue(undefined),
@@ -70,6 +72,16 @@ describe('ClaudianPlugin', () => {
   });
 
   describe('onload', () => {
+    it('should register the file explorer context menu', async () => {
+      await plugin.onload();
+
+      expect(mockApp.workspace.on).toHaveBeenCalledWith(
+        'file-menu',
+        expect.any(Function),
+      );
+      expect((plugin.registerEvent as jest.Mock)).toHaveBeenCalled();
+    });
+
     it('should initialize settings with defaults', async () => {
       await plugin.onload();
 

@@ -1,5 +1,6 @@
 import { getRuntimeEnvironmentVariables } from '../../core/providers/providerEnvironment';
 import type { ProviderUIOption } from '../../core/providers/types';
+import { getCodexModelsInPickerOrder, getDefaultCodexModel } from './models';
 import { getCodexProviderSettings } from './settings';
 import {
   DEFAULT_CODEX_MODEL_SET,
@@ -23,7 +24,11 @@ function getConfiguredEnvModel(settings: Record<string, unknown>): string | null
 
 export function getConfiguredEnvCustomModel(settings: Record<string, unknown>): string | null {
   const modelId = getConfiguredEnvModel(settings);
-  return modelId && !DEFAULT_CODEX_MODEL_SET.has(modelId) ? modelId : null;
+  const discoveredModels = getCodexProviderSettings(settings).discoveredModels;
+  const isKnownModel = discoveredModels.length > 0
+    ? discoveredModels.some(model => model.model === modelId)
+    : DEFAULT_CODEX_MODEL_SET.has(modelId ?? '');
+  return modelId && !isKnownModel ? modelId : null;
 }
 
 export function parseConfiguredCustomModelIds(value: string): string[] {
@@ -44,7 +49,14 @@ export function parseConfiguredCustomModelIds(value: string): string[] {
 }
 
 export function getCodexModelOptions(settings: Record<string, unknown>): ProviderUIOption[] {
-  const models = [...DEFAULT_CODEX_MODELS];
+  const codexSettings = getCodexProviderSettings(settings);
+  const models: ProviderUIOption[] = codexSettings.discoveredModels.length > 0
+    ? getCodexModelsInPickerOrder(codexSettings.discoveredModels).map(model => ({
+      value: model.model,
+      label: model.displayName,
+      description: model.description,
+    }))
+    : [...DEFAULT_CODEX_MODELS];
   const seenValues = new Set(models.map(model => model.value));
 
   const envModel = getConfiguredEnvCustomModel(settings);
@@ -53,7 +65,6 @@ export function getCodexModelOptions(settings: Record<string, unknown>): Provide
     models.unshift(createCustomCodexModelOption(envModel, 'Custom (env)'));
   }
 
-  const codexSettings = getCodexProviderSettings(settings);
   for (const modelId of parseConfiguredCustomModelIds(codexSettings.customModels)) {
     if (seenValues.has(modelId)) {
       continue;
@@ -80,5 +91,7 @@ export function resolveCodexModelSelection(
     return currentModel;
   }
 
-  return modelOptions[0]?.value ?? DEFAULT_CODEX_PRIMARY_MODEL;
+  return getDefaultCodexModel(getCodexProviderSettings(settings).discoveredModels)?.model
+    ?? modelOptions[0]?.value
+    ?? DEFAULT_CODEX_PRIMARY_MODEL;
 }

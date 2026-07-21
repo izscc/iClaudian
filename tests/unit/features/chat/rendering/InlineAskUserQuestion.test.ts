@@ -37,12 +37,13 @@ function renderWidget(
 function fireKeyDown(
   root: any,
   key: string,
-  opts: { shiftKey?: boolean } = {},
+  opts: { shiftKey?: boolean; isComposing?: boolean } = {},
 ): void {
   const event = {
     type: 'keydown',
     key,
     shiftKey: opts.shiftKey ?? false,
+    isComposing: opts.isComposing ?? false,
     preventDefault: jest.fn(),
     stopPropagation: jest.fn(),
   };
@@ -535,6 +536,18 @@ describe('InlineAskUserQuestion', () => {
   });
 
   describe('keyboard navigation', () => {
+    it('ignores Enter while an IME composition is active', () => {
+      const input = makeInput([
+        { question: 'Choose', options: ['A', 'B'] },
+      ]);
+      const { container, resolve } = renderWidget(input);
+      const root = findRoot(container);
+
+      fireKeyDown(root, 'Enter', { isComposing: true });
+
+      expect(resolve).not.toHaveBeenCalled();
+    });
+
     it('Escape resolves null', () => {
       const input = makeInput([{ question: 'Q', options: ['A', 'B'] }]);
       const { container, resolve } = renderWidget(input);

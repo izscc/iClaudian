@@ -6,6 +6,7 @@ import {
   createInputToolbar,
   getPromptPresetMode,
   getPromptPresets,
+  InputToolbarLayoutController,
   McpServerSelector,
   ModelSelector,
   ModeSelector,
@@ -1291,6 +1292,7 @@ describe('createInputToolbar', () => {
     expect(toolbar.permissionToggle).toBeInstanceOf(PermissionToggle);
     expect(toolbar.promptPresetMenu).toBeInstanceOf(PromptPresetMenu);
     expect(toolbar.serviceTierToggle).toBeInstanceOf(ServiceTierToggle);
+    expect(toolbar.layoutController).toBeInstanceOf(InputToolbarLayoutController);
   });
 
   it('should place the mode selector after the permission toggle in toolbar order', () => {
@@ -1306,5 +1308,32 @@ describe('createInputToolbar', () => {
     expect(permissionIndex).toBeGreaterThan(promptIndex);
     expect(modeIndex).toBeGreaterThan(permissionIndex);
     expect(modeIndex).toBe(parentEl.children.length - 1);
+  });
+});
+
+describe('InputToolbarLayoutController', () => {
+  it('compacts optional labels only when visible controls wrap', () => {
+    const toolbarEl = createMockEl();
+    const first = toolbarEl.createDiv();
+    const second = toolbarEl.createDiv();
+    first.getBoundingClientRect = () => ({
+      top: 0, left: 0, width: 80, height: 20, right: 80, bottom: 20, x: 0, y: 0, toJSON() {},
+    });
+    second.getBoundingClientRect = () => ({
+      top: 24, left: 0, width: 80, height: 20, right: 80, bottom: 44, x: 0, y: 24, toJSON() {},
+    });
+    const controller = new InputToolbarLayoutController(toolbarEl);
+
+    controller.refreshLayout();
+
+    expect(toolbarEl.hasClass('claudian-input-toolbar--compact')).toBe(true);
+
+    second.getBoundingClientRect = () => ({
+      top: 0, left: 84, width: 80, height: 20, right: 164, bottom: 20, x: 84, y: 0, toJSON() {},
+    });
+    controller.refreshLayout();
+
+    expect(toolbarEl.hasClass('claudian-input-toolbar--compact')).toBe(false);
+    controller.destroy();
   });
 });

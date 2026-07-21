@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { Setting } from 'obsidian';
+import { Notice, Setting } from 'obsidian';
 
 import { ProviderSettingsCoordinator } from '../../../core/providers/ProviderSettingsCoordinator';
 import type { ProviderSettingsTabRenderer } from '../../../core/providers/types';
@@ -57,6 +57,12 @@ export const codexSettingsTabRenderer: ProviderSettingsTabRenderer = {
           .onChange(async (value) => {
             updateCodexProviderSettings(settingsBag, { enabled: value });
             await context.plugin.saveSettings();
+            if (value) {
+              const result = await codexWorkspace.modelCatalog.refresh(true);
+              if (result.diagnostics) {
+                new Notice(`Codex model discovery failed: ${result.diagnostics}`);
+              }
+            }
             context.refreshModelSelectors();
           })
       );

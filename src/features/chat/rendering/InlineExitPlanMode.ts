@@ -165,6 +165,8 @@ export class InlineExitPlanMode {
   }
 
   private handleKeyDown(e: KeyboardEvent): void {
+    if (e.isComposing) return;
+
     if (this.isInputFocused) {
       if (e.key === 'Escape') {
         e.preventDefault();

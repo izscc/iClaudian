@@ -1,6 +1,59 @@
 import '@/providers';
 
-import { ProviderWorkspaceRegistry } from '@/core/providers/ProviderWorkspaceRegistry';
+import {
+  initializeProviderWorkspaces,
+  ProviderWorkspaceRegistry,
+} from '@/core/providers/ProviderWorkspaceRegistry';
+
+describe('initializeProviderWorkspaces', () => {
+  it('starts independent provider initializers concurrently', async () => {
+    const started: string[] = [];
+    let releaseFirst: () => void = () => undefined;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+
+    const initialization = initializeProviderWorkspaces([
+      {
+        providerId: 'claude',
+        initialize: async () => {
+          started.push('claude');
+          await firstGate;
+          return { commandCatalog: null };
+        },
+      },
+      {
+        providerId: 'codex',
+        initialize: async () => {
+          started.push('codex');
+          return { commandCatalog: null };
+        },
+      },
+    ]);
+
+    await Promise.resolve();
+    expect(started).toEqual(['claude', 'codex']);
+    releaseFirst();
+    await expect(initialization).resolves.toHaveLength(2);
+  });
+
+  it('rejects atomically when any initializer fails', async () => {
+    const dispose = jest.fn();
+    await expect(initializeProviderWorkspaces([
+      {
+        providerId: 'claude',
+        initialize: async () => ({ commandCatalog: null, dispose }),
+      },
+      {
+        providerId: 'codex',
+        initialize: async () => {
+          throw new Error('codex init failed');
+        },
+      },
+    ])).rejects.toThrow('codex init failed');
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('ProviderWorkspaceRegistry', () => {
   afterEach(() => {
@@ -37,6 +90,34 @@ describe('ProviderWorkspaceRegistry', () => {
 
     expect(refreshClaude).not.toHaveBeenCalled();
     expect(refreshCodex).toHaveBeenCalled();
+  });
+
+  it('disposes every initialized provider before clearing the registry', async () => {
+    const disposeClaude = jest.fn();
+    const disposeCodex = jest.fn().mockResolvedValue(undefined);
+    ProviderWorkspaceRegistry.setServices('claude', { dispose: disposeClaude });
+    ProviderWorkspaceRegistry.setServices('codex', { dispose: disposeCodex });
+
+    await ProviderWorkspaceRegistry.disposeAll();
+
+    expect(disposeClaude).toHaveBeenCalledTimes(1);
+    expect(disposeCodex).toHaveBeenCalledTimes(1);
+    expect(ProviderWorkspaceRegistry.getServices('claude')).toBeNull();
+    expect(ProviderWorkspaceRegistry.getServices('codex')).toBeNull();
+  });
+
+  it('continues disposing providers when one disposer throws synchronously', async () => {
+    const disposeClaude = jest.fn(() => {
+      throw new Error('dispose failed');
+    });
+    const disposeCodex = jest.fn();
+    ProviderWorkspaceRegistry.setServices('claude', { dispose: disposeClaude });
+    ProviderWorkspaceRegistry.setServices('codex', { dispose: disposeCodex });
+
+    await expect(ProviderWorkspaceRegistry.disposeAll()).resolves.toBeUndefined();
+
+    expect(disposeClaude).toHaveBeenCalledTimes(1);
+    expect(disposeCodex).toHaveBeenCalledTimes(1);
   });
 
   it('returns the assigned catalog for a provider', () => {

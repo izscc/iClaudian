@@ -16,7 +16,7 @@ function createApproval(): {
   approval: InlinePlanApproval;
   resolve: jest.Mock<void, [PlanApprovalDecision | null]>;
   container: ReturnType<typeof createMockEl>;
-  fireKey: (key: string) => void;
+  fireKey: (key: string, isComposing?: boolean) => void;
 } {
   const container = createMockEl();
   const resolve = jest.fn<void, [PlanApprovalDecision | null]>();
@@ -25,11 +25,12 @@ function createApproval(): {
 
   // The component binds keydown to rootEl via addEventListener.
   // Our mock's dispatchEvent forwards {type, key} objects to listeners.
-  const fireKey = (key: string) => {
+  const fireKey = (key: string, isComposing = false) => {
     const rootEl = (approval as any).rootEl;
     rootEl.dispatchEvent({
       type: 'keydown',
       key,
+      isComposing,
       preventDefault: () => {},
       stopPropagation: () => {},
     });
@@ -40,6 +41,14 @@ function createApproval(): {
 
 describe('InlinePlanApproval', () => {
   describe('decisions', () => {
+    it('ignores Enter while an IME composition is active', () => {
+      const { resolve, fireKey } = createApproval();
+
+      fireKey('Enter', true);
+
+      expect(resolve).not.toHaveBeenCalled();
+    });
+
     it('resolves with implement when Enter on first item (default focus)', () => {
       const { resolve, fireKey } = createApproval();
       fireKey('Enter');

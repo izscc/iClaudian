@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 import { getEnhancedPath, parseEnvironmentVariables } from '../../../utils/env';
@@ -45,20 +46,40 @@ export function findCodexBinaryPath(
   const binaryNames = platform === 'win32'
     ? ['codex.exe', 'codex.cmd', 'codex']
     : ['codex'];
-  const searchEntries = parsePathEntries(getEnhancedPath(additionalPath));
 
-  for (const dir of searchEntries) {
-    if (!dir) continue;
+  const findInDirectories = (directories: string[]): string | null => {
+    for (const dir of directories) {
+      if (!dir) continue;
 
-    for (const binaryName of binaryNames) {
-      const candidate = path.join(dir, binaryName);
-      if (isExistingFile(candidate)) {
-        return candidate;
+      for (const binaryName of binaryNames) {
+        const candidate = path.join(dir, binaryName);
+        if (isExistingFile(candidate)) {
+          return candidate;
+        }
       }
     }
-  }
+    return null;
+  };
 
-  return null;
+  const explicitBinary = findInDirectories(parsePathEntries(additionalPath ?? ''));
+  if (explicitBinary) return explicitBinary;
+
+  const home = process.env.HOME || process.env.USERPROFILE || os.homedir();
+  const preferredDirectories = platform === 'darwin'
+    ? [
+      path.join(home, 'Applications', 'Codex.app', 'Contents', 'Resources'),
+      '/Applications/Codex.app/Contents/Resources',
+      path.join(home, 'Applications', 'Codex.app', 'Contents', 'MacOS'),
+      '/Applications/Codex.app/Contents/MacOS',
+      path.join(home, '.local', 'bin'),
+    ]
+    : platform === 'win32'
+      ? []
+      : [path.join(home, '.local', 'bin')];
+  const preferredBinary = findInDirectories(preferredDirectories);
+  if (preferredBinary) return preferredBinary;
+
+  return findInDirectories(parsePathEntries(getEnhancedPath(additionalPath)));
 }
 
 export function resolveCodexCliPath(

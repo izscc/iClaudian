@@ -7,7 +7,12 @@ import type {
 } from '../../../core/providers/types';
 import { OPENAI_PROVIDER_ICON } from '../../../shared/icons';
 import { getCodexModelOptions } from '../modelOptions';
-import { applyCodexModelDefaults } from '../settings';
+import {
+  findCodexModel,
+  getCodexFastServiceTier,
+  getDefaultCodexModel,
+} from '../models';
+import { applyCodexModelDefaults, getCodexProviderSettings } from '../settings';
 import {
   DEFAULT_CODEX_MODEL_SET,
   DEFAULT_CODEX_PRIMARY_MODEL,
@@ -62,12 +67,21 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
     return true;
   },
 
-  getReasoningOptions(_model: string, _settings: Record<string, unknown>): ProviderReasoningOption[] {
+  getReasoningOptions(model: string, settings: Record<string, unknown>): ProviderReasoningOption[] {
+    const discoveredModel = findCodexModel(getCodexProviderSettings(settings).discoveredModels, model);
+    if (discoveredModel) {
+      return discoveredModel.supportedReasoningEfforts.map(option => ({
+        value: option.value,
+        label: option.value.charAt(0).toUpperCase() + option.value.slice(1),
+        description: option.description,
+      }));
+    }
     return [...EFFORT_LEVELS];
   },
 
-  getDefaultReasoningValue(_model: string, _settings: Record<string, unknown>): string {
-    return 'medium';
+  getDefaultReasoningValue(model: string, settings: Record<string, unknown>): string {
+    return findCodexModel(getCodexProviderSettings(settings).discoveredModels, model)
+      ?.defaultReasoningEffort ?? 'medium';
   },
 
   getContextWindowSize(): number {
@@ -91,7 +105,8 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
       return model;
     }
 
-    return DEFAULT_CODEX_PRIMARY_MODEL;
+    return getDefaultCodexModel(getCodexProviderSettings(settings).discoveredModels)?.model
+      ?? DEFAULT_CODEX_PRIMARY_MODEL;
   },
 
   getCustomModelIds(envVars: Record<string, string>): Set<string> {
@@ -107,7 +122,24 @@ export const codexChatUIConfig: ProviderChatUIConfig = {
   },
 
   getServiceTierToggle(settings): ProviderServiceTierToggleConfig | null {
-    return settings.model === FAST_TIER_CODEX_MODEL ? CODEX_SERVICE_TIER_TOGGLE : null;
+    const model = findCodexModel(
+      getCodexProviderSettings(settings).discoveredModels,
+      typeof settings.model === 'string' ? settings.model : undefined,
+    );
+    if (!model) {
+      return settings.model === FAST_TIER_CODEX_MODEL ? CODEX_SERVICE_TIER_TOGGLE : null;
+    }
+
+    const tier = getCodexFastServiceTier(model);
+    if (!tier) return null;
+
+    return {
+      inactiveValue: 'default',
+      inactiveLabel: 'Standard',
+      activeValue: tier.id,
+      activeLabel: tier.name,
+      description: tier.description || undefined,
+    };
   },
 
   getProviderIcon() {

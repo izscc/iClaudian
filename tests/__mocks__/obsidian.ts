@@ -12,6 +12,7 @@ export class Plugin {
   addRibbonIcon = jest.fn();
   addCommand = jest.fn();
   addSettingTab = jest.fn();
+  registerEvent = jest.fn();
   registerView = jest.fn();
   loadData = jest.fn().mockResolvedValue({});
   saveData = jest.fn().mockResolvedValue(undefined);
@@ -70,6 +71,8 @@ export class App {
     },
   };
   workspace: any = {
+    on: jest.fn().mockReturnValue({}),
+    onLayoutReady: jest.fn((callback: () => void) => callback()),
     getLeavesOfType: jest.fn().mockReturnValue([]),
     getRightLeaf: jest.fn().mockReturnValue({
       setViewState: jest.fn().mockResolvedValue(undefined),

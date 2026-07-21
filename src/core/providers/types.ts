@@ -339,6 +339,13 @@ export interface ProviderWorkspaceServices {
   mcpServerManager?: McpServerManager | null;
   settingsTabRenderer?: ProviderSettingsTabRenderer | null;
   refreshAgentMentions?(): Promise<void>;
+  refreshModelCatalog?(force?: boolean): Promise<ProviderModelCatalogRefreshResult>;
+  dispose?(): void | Promise<void>;
+}
+
+export interface ProviderModelCatalogRefreshResult {
+  readonly changed: boolean;
+  readonly diagnostics?: string;
 }
 
 export interface ProviderSettingsTabRendererContext {

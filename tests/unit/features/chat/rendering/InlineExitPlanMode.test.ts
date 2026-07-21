@@ -13,10 +13,11 @@ beforeAll(() => {
   (globalThis as any).document = { activeElement: null };
 });
 
-function fireKeyDown(root: any, key: string): void {
+function fireKeyDown(root: any, key: string, isComposing = false): void {
   root.dispatchEvent({
     type: 'keydown',
     key,
+    isComposing,
     preventDefault: jest.fn(),
     stopPropagation: jest.fn(),
   });
@@ -31,6 +32,17 @@ function findItems(root: any): any[] {
 }
 
 describe('InlineExitPlanMode', () => {
+  it('ignores Enter while an IME composition is active', () => {
+    const container = createMockEl();
+    const resolve = jest.fn();
+    const widget = new InlineExitPlanMode(container, {}, resolve);
+    widget.render();
+
+    fireKeyDown(findRoot(container), 'Enter', true);
+
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
   it('resolves with approve-new-session and includes plan content when readable', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudian-'));
     const plansDir = path.join(tmpDir, '.claude', 'plans');

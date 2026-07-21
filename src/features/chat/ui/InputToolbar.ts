@@ -18,6 +18,11 @@ import type {
   UsageInfo,
 } from '../../../core/types';
 import { CHECK_ICON_SVG, createProviderIconSvg, MCP_ICON_SVG } from '../../../shared/icons';
+import {
+  cancelScheduledAnimationFrame,
+  scheduleAnimationFrame,
+  type ScheduledAnimationFrame,
+} from '../../../utils/animationFrame';
 import { filterValidPaths, findConflictingPath, isDuplicatePath, isValidDirectoryPath, validateDirectoryPath } from '../../../utils/externalContext';
 import { expandHomePath, normalizePathForFilesystem } from '../../../utils/path';
 
@@ -110,6 +115,15 @@ export class ModelSelector {
     const displayModel = modelInfo || models[0];
 
     this.buttonEl.empty();
+
+    const icon = displayModel?.providerIcon ?? this.callbacks.getUIConfig().getProviderIcon?.();
+    if (icon) {
+      this.buttonEl.appendChild(createProviderIconSvg(icon, {
+        className: 'claudian-model-provider-icon',
+        height: 12,
+        width: 12,
+      }));
+    }
 
     const labelEl = this.buttonEl.createSpan({ cls: 'claudian-model-label' });
     labelEl.setText(displayModel?.label || 'Unknown');
@@ -1399,6 +1413,10 @@ export class ContextUsageMeter {
 
   constructor(parentEl: HTMLElement) {
     this.container = parentEl.createDiv({ cls: 'claudian-context-meter' });
+    this.container.setAttribute('role', 'progressbar');
+    this.container.setAttribute('aria-label', 'Context usage');
+    this.container.setAttribute('aria-valuemin', '0');
+    this.container.setAttribute('aria-valuemax', '100');
     this.render();
     // Initially hidden
     this.container.style.display = 'none';
@@ -1474,6 +1492,11 @@ export class ContextUsageMeter {
       tooltip += ' (Approaching limit, run `/compact` to continue)';
     }
     this.container.setAttribute('data-tooltip', tooltip);
+    this.container.setAttribute('aria-valuenow', String(usage.percentage));
+    this.container.setAttribute(
+      'aria-valuetext',
+      `${this.formatTokens(usage.contextTokens)} / ${this.formatTokens(usage.contextWindow)}`,
+    );
   }
 
   private formatTokens(tokens: number): string {
@@ -1481,6 +1504,89 @@ export class ContextUsageMeter {
       return `${Math.round(tokens / 1000)}k`;
     }
     return String(tokens);
+  }
+}
+
+const TOOLBAR_COMPACT_CLASS = 'claudian-input-toolbar--compact';
+const ROW_CENTER_TOLERANCE = 1;
+
+export class InputToolbarLayoutController {
+  private resizeObserver: ResizeObserver | null = null;
+  private mutationObserver: MutationObserver | null = null;
+  private pendingLayout: ScheduledAnimationFrame | null = null;
+
+  constructor(private readonly toolbarEl: HTMLElement) {
+    this.observeLayoutChanges();
+    this.scheduleLayout();
+  }
+
+  refreshLayout(): void {
+    this.toolbarEl.classList.remove(TOOLBAR_COMPACT_CLASS);
+    this.toolbarEl.classList.toggle(TOOLBAR_COMPACT_CLASS, this.hasWrappedItems());
+  }
+
+  destroy(): void {
+    if (this.pendingLayout !== null) {
+      cancelScheduledAnimationFrame(this.pendingLayout);
+      this.pendingLayout = null;
+    }
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+    this.mutationObserver?.disconnect();
+    this.mutationObserver = null;
+  }
+
+  private hasWrappedItems(): boolean {
+    const rowCenters = Array.from(this.toolbarEl.children)
+      .map(item => item.getBoundingClientRect())
+      .filter(rect => rect.width > 0 && rect.height > 0)
+      .map(rect => rect.top + rect.height / 2);
+    const firstRowCenter = rowCenters[0];
+    if (firstRowCenter === undefined) return false;
+
+    return rowCenters.some(center => Math.abs(center - firstRowCenter) > ROW_CENTER_TOLERANCE);
+  }
+
+  private scheduleLayout(): void {
+    if (this.pendingLayout !== null) {
+      cancelScheduledAnimationFrame(this.pendingLayout);
+    }
+    const ownerWindow = this.toolbarEl.ownerDocument?.defaultView
+      ?? (typeof window === 'undefined' ? null : window);
+    this.pendingLayout = scheduleAnimationFrame(() => {
+      this.pendingLayout = null;
+      this.refreshLayout();
+    }, ownerWindow);
+  }
+
+  private observeLayoutChanges(): void {
+    const ownerWindow = this.toolbarEl.ownerDocument?.defaultView
+      ?? (typeof window === 'undefined' ? null : window);
+    const ResizeObserverConstructor = ownerWindow?.ResizeObserver;
+    if (typeof ResizeObserverConstructor === 'function') {
+      this.resizeObserver = new ResizeObserverConstructor(() => this.scheduleLayout());
+      this.resizeObserver.observe(this.toolbarEl);
+    }
+
+    const MutationObserverConstructor = ownerWindow?.MutationObserver;
+    if (typeof MutationObserverConstructor !== 'function') return;
+    this.mutationObserver = new MutationObserverConstructor((mutations) => {
+      const hasContentChange = mutations.some(mutation => (
+        mutation.type !== 'attributes'
+        || mutation.target !== this.toolbarEl
+        || mutation.attributeName !== 'class'
+      ));
+      if (hasContentChange) {
+        this.scheduleLayout();
+      }
+    });
+    this.mutationObserver.observe(this.toolbarEl, {
+      attributes: true,
+      attributeFilter: ['class'],
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
   }
 }
 
@@ -1497,6 +1603,7 @@ export function createInputToolbar(
   permissionToggle: PermissionToggle;
   promptPresetMenu: PromptPresetMenu;
   serviceTierToggle: ServiceTierToggle;
+  layoutController: InputToolbarLayoutController;
 } {
   const modelSelector = new ModelSelector(parentEl, callbacks);
   const thinkingBudgetSelector = new ThinkingBudgetSelector(parentEl, callbacks);
@@ -1507,6 +1614,7 @@ export function createInputToolbar(
   const promptPresetMenu = new PromptPresetMenu(parentEl, callbacks);
   const permissionToggle = new PermissionToggle(parentEl, callbacks);
   const modeSelector = new ModeSelector(parentEl, callbacks);
+  const layoutController = new InputToolbarLayoutController(parentEl);
 
   return {
     modelSelector,
@@ -1518,5 +1626,6 @@ export function createInputToolbar(
     mcpServerSelector,
     promptPresetMenu,
     permissionToggle,
+    layoutController,
   };
 }

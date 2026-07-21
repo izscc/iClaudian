@@ -7,6 +7,7 @@ const mockGetHostnameKey = jest.fn(() => 'host-a');
 const mockRenderEnvironmentSettingsSection = jest.fn();
 const mockSaveSettings = jest.fn().mockResolvedValue(undefined);
 const mockBroadcastToAllTabs = jest.fn().mockResolvedValue(undefined);
+const mockRefreshModelCatalog = jest.fn().mockResolvedValue({ changed: true });
 
 jest.mock('fs');
 jest.mock('@/core/providers/ProviderSettingsCoordinator', () => ({
@@ -84,6 +85,7 @@ jest.mock('obsidian', () => {
   }
 
   return {
+    Notice: jest.fn(),
     Setting: MockSetting,
   };
 });
@@ -95,6 +97,7 @@ jest.mock('@/features/settings/ui/EnvironmentSettingsSection', () => ({
 jest.mock('@/providers/codex/app/CodexWorkspaceServices', () => ({
   getCodexWorkspaceServices: jest.fn(() => ({
     commandCatalog: null,
+    modelCatalog: { refresh: mockRefreshModelCatalog },
     subagentStorage: {},
     refreshAgentMentions: jest.fn(),
   })),
@@ -363,6 +366,25 @@ describe('CodexSettingsTab', () => {
 
     expect(findOptionalSetting('Installation method')).toBeUndefined();
     expect(findOptionalSetting('WSL distro override')).toBeUndefined();
+  });
+
+  it('discovers models when the Codex provider is enabled', async () => {
+    Object.defineProperty(process, 'platform', { value: 'darwin' });
+    const plugin = createPlugin({
+      providerConfigs: {
+        codex: {
+          ...DEFAULT_CODEX_PROVIDER_SETTINGS,
+          enabled: false,
+        },
+      },
+    });
+    const context = createContext(plugin);
+
+    codexSettingsTabRenderer.render(createContainer(), context);
+    await findSetting('Enable Codex provider').toggleComponents[0].onChangeCallback?.(true);
+
+    expect(mockRefreshModelCatalog).toHaveBeenCalledWith(true);
+    expect(context.refreshModelSelectors).toHaveBeenCalled();
   });
 
   it('uses host-native CLI path behavior on non-Windows even when WSL is saved', async () => {

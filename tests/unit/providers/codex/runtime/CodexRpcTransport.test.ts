@@ -8,6 +8,7 @@ function createMockServerProcess(): CodexAppServerProcess & {
   _stdin: Writable;
   _pushLine: (json: unknown) => void;
   _written: string[];
+  getStderrSnapshot: jest.Mock<string, []>;
 } {
   const stdout = new Readable({ read() {} });
   const written: string[] = [];
@@ -24,6 +25,7 @@ function createMockServerProcess(): CodexAppServerProcess & {
     stderr: new Readable({ read() {} }),
     isAlive: jest.fn().mockReturnValue(true),
     onExit: jest.fn(),
+    getStderrSnapshot: jest.fn().mockReturnValue(''),
     _stdout: stdout,
     _stdin: stdin,
     _written: written,
@@ -35,6 +37,7 @@ function createMockServerProcess(): CodexAppServerProcess & {
     _stdin: Writable;
     _pushLine: (json: unknown) => void;
     _written: string[];
+    getStderrSnapshot: jest.Mock<string, []>;
   };
 
   return proc;
@@ -201,6 +204,19 @@ describe('CodexRpcTransport', () => {
       exitCb(1, 'SIGTERM');
 
       await expect(promise).rejects.toThrow();
+    });
+
+    it('reports exit status without exposing stderr in persisted errors', async () => {
+      proc.getStderrSnapshot.mockReturnValue(
+        'OPENAI_API_KEY=sk-sensitive-value',
+      );
+      const exitCb = (proc.onExit as jest.Mock).mock.calls[0][0];
+      const promise = transport.request('initialize', {});
+
+      exitCb(1, null);
+
+      await expect(promise).rejects.toThrow('code 1');
+      await expect(promise).rejects.not.toThrow('sk-sensitive-value');
     });
   });
 

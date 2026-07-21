@@ -10,6 +10,58 @@ describe('CodexChatUIConfig', () => {
       expect(options.map(o => o.value)).toContain('gpt-5.4-mini');
     });
 
+    it('uses the app-server catalog when discovered models are cached', () => {
+      const options = codexChatUIConfig.getModelOptions({
+        providerConfigs: {
+          codex: {
+            discoveredModels: [
+              {
+                model: 'gpt-5.6-sol',
+                displayName: 'GPT-5.6 Sol',
+                description: 'Frontier',
+                supportedReasoningEfforts: [
+                  { value: 'low', description: 'Fast' },
+                  { value: 'max', description: 'Deep' },
+                ],
+                defaultReasoningEffort: 'max',
+                inputModalities: ['text', 'image'],
+                isDefault: true,
+              },
+            ],
+          },
+        },
+      });
+
+      expect(options).toEqual([
+        {
+          value: 'gpt-5.6-sol',
+          label: 'GPT-5.6 Sol',
+          description: 'Frontier',
+        },
+      ]);
+    });
+
+    it('reverses app-server order so the generic dropdown renders newest first', () => {
+      const makeModel = (model: string) => ({
+        model,
+        displayName: model,
+        description: '',
+        supportedReasoningEfforts: [{ value: 'medium', description: '' }],
+        defaultReasoningEffort: 'medium',
+        inputModalities: ['text'],
+        isDefault: false,
+      });
+      const options = codexChatUIConfig.getModelOptions({
+        providerConfigs: {
+          codex: {
+            discoveredModels: [makeModel('gpt-newest'), makeModel('gpt-older')],
+          },
+        },
+      });
+
+      expect(options.map(option => option.value)).toEqual(['gpt-older', 'gpt-newest']);
+    });
+
     it('appends settings-defined custom models after the built-in options', () => {
       const options = codexChatUIConfig.getModelOptions({
         providerConfigs: {
@@ -76,6 +128,27 @@ describe('CodexChatUIConfig', () => {
       });
       expect(options.length).toBe(2);
     });
+
+    it('does not duplicate an env model already present in the discovered catalog', () => {
+      const options = codexChatUIConfig.getModelOptions({
+        environmentVariables: 'OPENAI_MODEL=gpt-5.6-sol',
+        providerConfigs: {
+          codex: {
+            discoveredModels: [{
+              model: 'gpt-5.6-sol',
+              displayName: 'GPT-5.6 Sol',
+              description: '',
+              supportedReasoningEfforts: [{ value: 'medium', description: '' }],
+              defaultReasoningEffort: 'medium',
+              inputModalities: ['text'],
+              isDefault: true,
+            }],
+          },
+        },
+      });
+
+      expect(options.map(option => option.value)).toEqual(['gpt-5.6-sol']);
+    });
   });
 
   describe('isAdaptiveReasoningModel', () => {
@@ -91,6 +164,37 @@ describe('CodexChatUIConfig', () => {
       expect(options).toHaveLength(4);
       expect(options.map(o => o.value)).toEqual(['low', 'medium', 'high', 'xhigh']);
     });
+
+    it('uses reasoning efforts reported for the selected discovered model', () => {
+      const settings = {
+        providerConfigs: {
+          codex: {
+            discoveredModels: [
+              {
+                model: 'gpt-5.6-sol',
+                displayName: 'GPT-5.6 Sol',
+                description: '',
+                supportedReasoningEfforts: [
+                  { value: 'low', description: 'Fast' },
+                  { value: 'max', description: 'Deep' },
+                ],
+                defaultReasoningEffort: 'max',
+                inputModalities: ['text'],
+                isDefault: true,
+              },
+            ],
+          },
+        },
+      };
+
+      expect(codexChatUIConfig.getReasoningOptions('gpt-5.6-sol', settings))
+        .toEqual([
+          { value: 'low', label: 'Low', description: 'Fast' },
+          { value: 'max', label: 'Max', description: 'Deep' },
+        ]);
+      expect(codexChatUIConfig.getDefaultReasoningValue('gpt-5.6-sol', settings))
+        .toBe('max');
+    });
   });
 
   describe('getDefaultReasoningValue', () => {
@@ -102,6 +206,37 @@ describe('CodexChatUIConfig', () => {
   describe('getContextWindowSize', () => {
     it('should return 200000 for all models', () => {
       expect(codexChatUIConfig.getContextWindowSize(DEFAULT_CODEX_PRIMARY_MODEL)).toBe(200_000);
+    });
+  });
+
+  describe('getServiceTierToggle', () => {
+    it('uses the Fast tier advertised for a discovered model', () => {
+      const settings = {
+        model: 'gpt-5.6-sol',
+        providerConfigs: {
+          codex: {
+            discoveredModels: [{
+              model: 'gpt-5.6-sol',
+              displayName: 'GPT-5.6 Sol',
+              description: '',
+              supportedReasoningEfforts: [{ value: 'medium', description: '' }],
+              defaultReasoningEffort: 'medium',
+              serviceTiers: [{ id: 'priority', name: 'Fast', description: 'Faster responses' }],
+              defaultServiceTier: 'priority',
+              inputModalities: ['text'],
+              isDefault: true,
+            }],
+          },
+        },
+      };
+
+      expect(codexChatUIConfig.getServiceTierToggle?.(settings)).toEqual({
+        inactiveValue: 'default',
+        inactiveLabel: 'Standard',
+        activeValue: 'priority',
+        activeLabel: 'Fast',
+        description: 'Faster responses',
+      });
     });
   });
 

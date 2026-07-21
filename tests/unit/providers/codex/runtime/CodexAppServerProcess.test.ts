@@ -155,14 +155,50 @@ describe('CodexAppServerProcess', () => {
     });
   });
 
+  describe('stderr diagnostics', () => {
+    it('keeps a bounded snapshot for startup failures', () => {
+      const server = new CodexAppServerProcess(createLaunchSpec());
+      server.start();
+
+      mockProc.stderr?.emit('data', 'failed to load configuration');
+
+      expect(server.getStderrSnapshot()).toContain('failed to load configuration');
+    });
+
+    it('preserves text split across arbitrary stderr chunks', () => {
+      const server = new CodexAppServerProcess(createLaunchSpec());
+      server.start();
+
+      mockProc.stderr?.emit('data', 'unknown var');
+      mockProc.stderr?.emit('data', 'iant');
+
+      expect(server.getStderrSnapshot()).toBe('unknown variant');
+    });
+
+    it('bounds and redacts stderr before exposing diagnostics', () => {
+      const server = new CodexAppServerProcess(createLaunchSpec({
+        env: { HOME: '/Users/alice', OPENAI_API_KEY: 'sk-sensitive-value' },
+      }));
+      server.start();
+
+      mockProc.stderr?.emit('data', `${'x'.repeat(9_000)} sk-sensitive-value /Users/alice`);
+      const diagnostic = server.getStderrSnapshot();
+
+      expect(diagnostic.length).toBeLessThanOrEqual(8_192);
+      expect(diagnostic).not.toContain('sk-sensitive-value');
+      expect(diagnostic).not.toContain('/Users/alice');
+      expect(diagnostic).toContain('[REDACTED]');
+    });
+  });
+
   describe('onExit', () => {
-    it('calls registered exit callback when process exits', () => {
+    it('calls registered exit callback when stdio closes', () => {
       const server = new CodexAppServerProcess(createLaunchSpec());
       const exitCallback = jest.fn();
       server.onExit(exitCallback);
       server.start();
 
-      mockProc.emit('exit', 1, 'SIGTERM');
+      mockProc.emit('close', 1, 'SIGTERM');
 
       expect(exitCallback).toHaveBeenCalledWith(1, 'SIGTERM');
     });
@@ -174,9 +210,26 @@ describe('CodexAppServerProcess', () => {
       const exitCallback = jest.fn();
       server.onExit(exitCallback);
 
-      mockProc.emit('exit', 0, null);
+      mockProc.emit('close', 0, null);
 
       expect(exitCallback).toHaveBeenCalledWith(0, null);
+    });
+
+    it('waits for close so late stderr is available to exit handlers', () => {
+      const server = new CodexAppServerProcess(createLaunchSpec());
+      const exitCallback = jest.fn(() => {
+        expect(server.getStderrSnapshot()).toContain('unknown variant priority');
+      });
+      server.onExit(exitCallback);
+      server.start();
+
+      mockProc.emit('exit', 1, null);
+      mockProc.stderr?.emit('data', 'unknown variant priority');
+      expect(exitCallback).not.toHaveBeenCalled();
+
+      mockProc.emit('close', 1, null);
+
+      expect(exitCallback).toHaveBeenCalledWith(1, null);
     });
   });
 
@@ -187,9 +240,21 @@ describe('CodexAppServerProcess', () => {
 
       const shutdownPromise = server.shutdown();
       mockProc.emit('exit', 0, 'SIGTERM');
+      mockProc.emit('close', 0, 'SIGTERM');
       await shutdownPromise;
 
       expect(mockProc.kill).toHaveBeenCalledWith('SIGTERM');
+    });
+
+    it('finishes shutdown on close even when no exit event is emitted', async () => {
+      const server = new CodexAppServerProcess(createLaunchSpec());
+      server.start();
+
+      const shutdownPromise = server.shutdown();
+      mockProc.emit('error', new Error('spawn interrupted'));
+      mockProc.emit('close', null, null);
+
+      await expect(shutdownPromise).resolves.toBeUndefined();
     });
 
     it('sends SIGKILL if process does not exit within timeout', async () => {
@@ -204,6 +269,7 @@ describe('CodexAppServerProcess', () => {
 
       // Now simulate exit after SIGKILL
       mockProc.emit('exit', 137, 'SIGKILL');
+      mockProc.emit('close', 137, 'SIGKILL');
       await shutdownPromise;
 
       expect(mockProc.kill).toHaveBeenCalledWith('SIGTERM');
@@ -227,6 +293,7 @@ describe('CodexAppServerProcess', () => {
       mockProc.emit('error', new Error('spawn failed'));
 
       expect(server.isAlive()).toBe(false);
+      expect(server.getStderrSnapshot()).toContain('spawn failed');
     });
   });
 });

@@ -19,6 +19,7 @@ import type { ImageContextManager } from '../ui/ImageContext';
 import type {
   ContextUsageMeter,
   ExternalContextSelector,
+  InputToolbarLayoutController,
   McpServerSelector,
   ModelSelector,
   ModeSelector,
@@ -138,6 +139,7 @@ export interface TabUIComponents {
   instructionModeManager: InstructionModeManager | null;
   bangBashModeManager: BangBashModeManager | null;
   contextUsageMeter: ContextUsageMeter | null;
+  layoutController: InputToolbarLayoutController | null;
   statusPanel: StatusPanel | null;
   navigationSidebar: NavigationSidebar | null;
 }

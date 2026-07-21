@@ -11,7 +11,11 @@ import type ClaudianPlugin from '../../../main';
 import { getVaultPath } from '../../../utils/path';
 import { CodexAgentMentionProvider } from '../agents/CodexAgentMentionProvider';
 import { CodexSkillCatalog } from '../commands/CodexSkillCatalog';
+import { resolveCodexAppServerLaunchSpec } from '../runtime/codexAppServerSupport';
 import { CodexCliResolver } from '../runtime/CodexCliResolver';
+import { CodexModelCatalogService } from '../runtime/CodexModelCatalogService';
+import { CodexModelDiscoveryService } from '../runtime/CodexModelDiscoveryService';
+import { getCodexProviderSettings } from '../settings';
 import { CodexSkillListingService } from '../skills/CodexSkillListingService';
 import { CodexSkillStorage } from '../storage/CodexSkillStorage';
 import { CodexSubagentStorage } from '../storage/CodexSubagentStorage';
@@ -22,6 +26,7 @@ export interface CodexWorkspaceServices extends ProviderWorkspaceServices {
   commandCatalog: ProviderCommandCatalog;
   agentMentionProvider: CodexAgentMentionProvider;
   cliResolver: ProviderCliResolver;
+  modelCatalog: CodexModelCatalogService;
 }
 
 function createCodexCliResolver(): ProviderCliResolver {
@@ -46,12 +51,30 @@ export async function createCodexWorkspaceServices(
     skillListProvider,
     getVaultPath(plugin.app),
   );
+  const modelDiscovery = new CodexModelDiscoveryService({
+    isEnabled: () => getCodexProviderSettings(
+      plugin.settings as unknown as Record<string, unknown>,
+    ).enabled,
+    resolveLaunchSpec: () => resolveCodexAppServerLaunchSpec(plugin),
+  });
+  const modelCatalog = new CodexModelCatalogService({
+    getSettings: () => plugin.settings as unknown as Record<string, unknown>,
+    saveSettings: () => plugin.saveSettings(),
+    refreshModelSelectors: () => {
+      for (const view of plugin.getAllViews()) {
+        view.refreshModelSelector();
+      }
+    },
+  }, modelDiscovery);
 
   return {
     subagentStorage,
     commandCatalog,
     agentMentionProvider,
     cliResolver: createCodexCliResolver(),
+    modelCatalog,
+    dispose: () => modelCatalog.dispose(),
+    refreshModelCatalog: force => modelCatalog.refresh(force),
     settingsTabRenderer: codexSettingsTabRenderer,
     refreshAgentMentions: async () => {
       await agentMentionProvider.loadAgents();

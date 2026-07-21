@@ -123,6 +123,21 @@ export class ClaudianView extends ItemView {
     this.tabManager?.primeProviderRuntime();
   }
 
+  appendToActiveInput(text: string): boolean {
+    const inputEl = this.tabManager?.getActiveTab()?.dom.inputEl;
+    if (!inputEl || !text) return false;
+
+    const separator = inputEl.value && !/\s$/.test(inputEl.value) ? ' ' : '';
+    inputEl.value = `${inputEl.value}${separator}${text}`;
+    inputEl.selectionStart = inputEl.value.length;
+    inputEl.selectionEnd = inputEl.value.length;
+
+    const InputEventConstructor = inputEl.ownerDocument.defaultView?.Event ?? Event;
+    inputEl.dispatchEvent(new InputEventConstructor('input', { bubbles: true }));
+    inputEl.focus();
+    return true;
+  }
+
   invalidateProviderCommandCaches(providerIds?: ProviderId[]): void {
     this.tabManager?.invalidateProviderCommandCaches(providerIds);
   }

@@ -1454,6 +1454,42 @@ describe('CodexChatRuntime', () => {
       rt.cleanup();
     });
 
+    it('passes discovered reasoning effort and service tier through to app-server', async () => {
+      const plugin = createMockPlugin({
+        model: 'gpt-5.6-sol',
+        effortLevel: 'max',
+        serviceTier: 'priority',
+        providerConfigs: {
+          codex: {
+            enabled: true,
+            discoveredModels: [{
+              model: 'gpt-5.6-sol',
+              displayName: 'GPT-5.6 Sol',
+              description: '',
+              supportedReasoningEfforts: [
+                { value: 'medium', description: '' },
+                { value: 'max', description: '' },
+              ],
+              defaultReasoningEffort: 'medium',
+              serviceTiers: [{ id: 'priority', name: 'Fast', description: '' }],
+              defaultServiceTier: null,
+              inputModalities: ['text'],
+              isDefault: true,
+            }],
+          },
+        },
+      });
+      const rt = new CodexChatRuntime(plugin);
+
+      await collectChunks(rt.query(createTurn()));
+
+      const turnStartCall = findCall('turn/start');
+      expect(turnStartCall[1].effort).toBe('max');
+      expect(turnStartCall[1].serviceTier).toBe('priority');
+
+      rt.cleanup();
+    });
+
     it('uses workspace-write with on-request for normal mode', async () => {
       const plugin = createMockPlugin({ permissionMode: 'normal' });
       const safeRuntime = new CodexChatRuntime(plugin);

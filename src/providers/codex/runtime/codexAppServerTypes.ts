@@ -292,6 +292,32 @@ export interface SkillsListResult {
   data: SkillsListEntry[];
 }
 
+export interface AppServerModel {
+  id: string;
+  model: string;
+  displayName: string;
+  description: string;
+  hidden: boolean;
+  supportedReasoningEfforts: Array<{
+    reasoningEffort: string;
+    description: string;
+  }>;
+  defaultReasoningEffort: string;
+  serviceTiers?: Array<{
+    id: string;
+    name: string;
+    description: string;
+  }>;
+  defaultServiceTier?: string | null;
+  inputModalities?: Array<'text' | 'image'>;
+  isDefault: boolean;
+}
+
+export interface ModelListResult {
+  data: AppServerModel[];
+  nextCursor?: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // thread/start
 // ---------------------------------------------------------------------------

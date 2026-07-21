@@ -36,6 +36,7 @@ import {
   deriveCodexSessionsRootFromSessionPath,
   findCodexSessionFile,
 } from '../history/CodexHistoryStore';
+import { findCodexModel } from '../models';
 import { encodeCodexTurn } from '../prompt/encodeCodexTurn';
 import {
   type CodexSafeMode,
@@ -90,19 +91,24 @@ function resolveCodexSandboxConfig(
   return { approvalPolicy: 'on-request', sandbox: codexSafeMode };
 }
 
-function resolveCodexServiceTier(serviceTier: unknown, model: string | undefined): string | null {
-  if (model !== FAST_TIER_CODEX_MODEL) {
+function resolveCodexServiceTier(
+  serviceTier: unknown,
+  modelId: string | undefined,
+  settings: Record<string, unknown>,
+): string | null {
+  const model = findCodexModel(getCodexProviderSettings(settings).discoveredModels, modelId);
+  if (model) {
+    if (typeof serviceTier === 'string') {
+      if (model.serviceTiers.some(tier => tier.id === serviceTier)) return serviceTier;
+      if (serviceTier === 'fast') {
+        return model.serviceTiers.find(tier => tier.name.toLowerCase() === 'fast')?.id ?? null;
+      }
+    }
     return null;
   }
-  return serviceTier === 'fast' ? 'fast' : null;
-}
 
-const EFFORT_MAP: Record<string, string> = {
-  low: 'low',
-  medium: 'medium',
-  high: 'high',
-  xhigh: 'xhigh',
-};
+  return modelId === FAST_TIER_CODEX_MODEL && serviceTier === 'fast' ? 'fast' : null;
+}
 
 export class CodexChatRuntime implements ChatRuntime {
   readonly providerId: ProviderId = 'codex';
@@ -412,7 +418,11 @@ export class CodexChatRuntime implements ChatRuntime {
           model: model ?? DEFAULT_CODEX_PRIMARY_MODEL,
           approvalPolicy: permissionMode.approvalPolicy,
           sandbox: permissionMode.sandbox,
-          serviceTier: resolveCodexServiceTier(this.getProviderSettings().serviceTier, model ?? DEFAULT_CODEX_PRIMARY_MODEL),
+          serviceTier: resolveCodexServiceTier(
+            this.getProviderSettings().serviceTier,
+            model ?? DEFAULT_CODEX_PRIMARY_MODEL,
+            this.getProviderSettings(),
+          ),
           baseInstructions: promptText,
           persistExtendedHistory: true,
         });
@@ -451,7 +461,11 @@ export class CodexChatRuntime implements ChatRuntime {
           model: model ?? DEFAULT_CODEX_PRIMARY_MODEL,
           approvalPolicy: permissionMode.approvalPolicy,
           sandbox: permissionMode.sandbox,
-          serviceTier: resolveCodexServiceTier(this.getProviderSettings().serviceTier, model ?? DEFAULT_CODEX_PRIMARY_MODEL),
+          serviceTier: resolveCodexServiceTier(
+            this.getProviderSettings().serviceTier,
+            model ?? DEFAULT_CODEX_PRIMARY_MODEL,
+            this.getProviderSettings(),
+          ),
           baseInstructions: promptText,
           persistExtendedHistory: true,
         });
@@ -470,7 +484,11 @@ export class CodexChatRuntime implements ChatRuntime {
           cwd: this.launchSpec?.targetCwd ?? getVaultPath(this.plugin.app) ?? undefined,
           approvalPolicy: permissionMode.approvalPolicy,
           sandbox: permissionMode.sandbox,
-          serviceTier: resolveCodexServiceTier(this.getProviderSettings().serviceTier, model ?? DEFAULT_CODEX_PRIMARY_MODEL),
+          serviceTier: resolveCodexServiceTier(
+            this.getProviderSettings().serviceTier,
+            model ?? DEFAULT_CODEX_PRIMARY_MODEL,
+            this.getProviderSettings(),
+          ),
           baseInstructions: promptText,
           experimentalRawEvents: false,
           persistExtendedHistory: true,
@@ -522,7 +540,10 @@ export class CodexChatRuntime implements ChatRuntime {
 
         // Start turn
         const providerSettings = this.getProviderSettings();
-        const effort = EFFORT_MAP[providerSettings.effortLevel as string] ?? 'medium';
+        const selectedEffort = typeof providerSettings.effortLevel === 'string'
+          ? providerSettings.effortLevel.trim()
+          : '';
+        const effort = selectedEffort || 'medium';
         const resolvedModel = model ?? DEFAULT_CODEX_PRIMARY_MODEL;
         const isPlanMode = providerSettings.permissionMode === 'plan';
         const externalContextPaths = this.resolveExternalContextPaths(turn, queryOptions);
@@ -549,7 +570,11 @@ export class CodexChatRuntime implements ChatRuntime {
           : undefined;
 
         const summary = getEffectiveCodexReasoningSummary(providerSettings, resolvedModel);
-        const serviceTier = resolveCodexServiceTier(providerSettings.serviceTier, resolvedModel);
+        const serviceTier = resolveCodexServiceTier(
+          providerSettings.serviceTier,
+          resolvedModel,
+          providerSettings,
+        );
 
         // Configure router plan state before turn/start so buffered notifications
         // that arrive before currentTurnId is set already see the correct state.

@@ -2,12 +2,18 @@ import { getProviderConfig, setProviderConfig } from '../../core/providers/provi
 import { getProviderEnvironmentVariables } from '../../core/providers/providerEnvironment';
 import type { HostnameCliPaths } from '../../core/types/settings';
 import { getHostnameKey } from '../../utils/env';
+import {
+  type CodexDiscoveredModel,
+  findCodexModel,
+  normalizeCodexDiscoveredModels,
+} from './models';
 import { CODEX_SPARK_MODEL } from './types/models';
 
 export type CodexSafeMode = 'workspace-write' | 'read-only';
 export type CodexReasoningSummary = 'auto' | 'concise' | 'detailed' | 'none';
 export type CodexInstallationMethod = 'native-windows' | 'wsl';
 export type HostnameInstallationMethods = Record<string, CodexInstallationMethod>;
+const CATALOG_CLOCK_SKEW_MS = 5 * 60 * 1_000;
 
 function normalizeCodexInstallationMethod(value: unknown): CodexInstallationMethod {
   return value === 'wsl' ? 'wsl' : 'native-windows';
@@ -17,12 +23,26 @@ function normalizeOptionalString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function normalizeCatalogTimestamp(value: unknown): number {
+  if (
+    typeof value !== 'number'
+    || !Number.isFinite(value)
+    || value < 0
+    || value > Date.now() + CATALOG_CLOCK_SKEW_MS
+  ) {
+    return 0;
+  }
+  return value;
+}
+
 export interface CodexProviderSettings {
   enabled: boolean;
   safeMode: CodexSafeMode;
   cliPath: string;
   cliPathsByHost: HostnameCliPaths;
   customModels: string;
+  discoveredModels: readonly CodexDiscoveredModel[];
+  catalogTimestamp: number;
   reasoningSummary: CodexReasoningSummary;
   environmentVariables: string;
   environmentHash: string;
@@ -38,6 +58,8 @@ export const DEFAULT_CODEX_PROVIDER_SETTINGS: Readonly<CodexProviderSettings> = 
   cliPath: '',
   cliPathsByHost: {},
   customModels: '',
+  discoveredModels: [],
+  catalogTimestamp: 0,
   reasoningSummary: 'detailed',
   environmentVariables: '',
   environmentHash: '',
@@ -66,6 +88,10 @@ export function applyCodexModelDefaults(
   model: string,
   settings: Record<string, unknown>,
 ): void {
+  const discoveredModel = findCodexModel(getCodexProviderSettings(settings).discoveredModels, model);
+  if (discoveredModel) {
+    settings.effortLevel = discoveredModel.defaultReasoningEffort;
+  }
   if (shouldDisableCodexReasoningSummary(model)) {
     updateCodexProviderSettings(settings, { reasoningSummary: 'none' });
   }
@@ -124,6 +150,8 @@ export function getCodexProviderSettings(
     cliPathsByHost: normalizeHostnameCliPaths(config.cliPathsByHost ?? settings.codexCliPathsByHost),
     customModels: (config.customModels as string | undefined)
       ?? DEFAULT_CODEX_PROVIDER_SETTINGS.customModels,
+    discoveredModels: normalizeCodexDiscoveredModels(config.discoveredModels),
+    catalogTimestamp: normalizeCatalogTimestamp(config.catalogTimestamp),
     reasoningSummary: (config.reasoningSummary as CodexReasoningSummary | undefined)
       ?? (settings.codexReasoningSummary as CodexReasoningSummary | undefined)
       ?? DEFAULT_CODEX_PROVIDER_SETTINGS.reasoningSummary,
@@ -193,6 +221,12 @@ export function updateCodexProviderSettings(
   const next: CodexProviderSettings = {
     ...current,
     ...updates,
+    discoveredModels: normalizeCodexDiscoveredModels(
+      updates.discoveredModels ?? current.discoveredModels,
+    ),
+    catalogTimestamp: 'catalogTimestamp' in updates
+      ? normalizeCatalogTimestamp(updates.catalogTimestamp)
+      : current.catalogTimestamp,
     installationMethod: installationMethodsByHost[hostnameKey]
       ?? DEFAULT_CODEX_PROVIDER_SETTINGS.installationMethod,
     installationMethodsByHost,
@@ -207,6 +241,8 @@ export function updateCodexProviderSettings(
     cliPath: next.cliPath,
     cliPathsByHost: next.cliPathsByHost,
     customModels: next.customModels,
+    discoveredModels: next.discoveredModels,
+    catalogTimestamp: next.catalogTimestamp,
     reasoningSummary: next.reasoningSummary,
     environmentVariables: next.environmentVariables,
     environmentHash: next.environmentHash,

@@ -18,14 +18,51 @@ describe('codex settings', () => {
     jest.clearAllMocks();
   });
 
+  it('rejects non-finite and far-future catalog timestamps', () => {
+    const future = Date.now() + 60 * 60 * 1_000;
+
+    expect(getCodexProviderSettings({
+      providerConfigs: { codex: { catalogTimestamp: Number.POSITIVE_INFINITY } },
+    }).catalogTimestamp).toBe(0);
+    expect(getCodexProviderSettings({
+      providerConfigs: { codex: { catalogTimestamp: future } },
+    }).catalogTimestamp).toBe(0);
+  });
+
   it('defaults installationMethod to native-windows and leaves wslDistroOverride empty', () => {
     const settings = getCodexProviderSettings({});
 
     expect(settings.customModels).toBe('');
+    expect(settings.discoveredModels).toEqual([]);
+    expect(settings.catalogTimestamp).toBe(0);
     expect(settings.installationMethod).toBe('native-windows');
     expect(settings.wslDistroOverride).toBe('');
     expect(settings.installationMethod).toBe(DEFAULT_CODEX_PROVIDER_SETTINGS.installationMethod);
     expect(settings.wslDistroOverride).toBe(DEFAULT_CODEX_PROVIDER_SETTINGS.wslDistroOverride);
+  });
+
+  it('normalizes and persists a discovered model catalog', () => {
+    const settingsBag: Record<string, unknown> = {};
+
+    updateCodexProviderSettings(settingsBag, {
+      discoveredModels: [{
+        model: 'gpt-5.6-sol',
+        displayName: 'GPT-5.6 Sol',
+        description: 'Frontier',
+        supportedReasoningEfforts: [{ value: 'high', description: 'Deep' }],
+        defaultReasoningEffort: 'high',
+        serviceTiers: [],
+        defaultServiceTier: null,
+        inputModalities: ['text'],
+        isDefault: true,
+      }],
+      catalogTimestamp: 123,
+    });
+
+    expect(getCodexProviderSettings(settingsBag)).toMatchObject({
+      discoveredModels: [expect.objectContaining({ model: 'gpt-5.6-sol' })],
+      catalogTimestamp: 123,
+    });
   });
 
   it('normalizes invalid installationMethod and wslDistroOverride values', () => {

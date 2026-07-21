@@ -33,6 +33,7 @@ import {
 } from './core/types';
 import type { EnvironmentScope } from './core/types/settings';
 import { ClaudianView } from './features/chat/ClaudianView';
+import { registerFileMenu } from './features/chat/fileMenu';
 import { type InlineEditContext, InlineEditModal } from './features/inline-edit/ui/InlineEditModal';
 import { ClaudianSettingTab } from './features/settings/ClaudianSettings';
 import { setLocale } from './i18n/i18n';
@@ -56,10 +57,14 @@ export default class ClaudianPlugin extends Plugin {
   async onload() {
     // 必须在任何 await 之前注册，否则 Obsidian 恢复旧标签页时会认为 view type 不存在。
     this.registerClaudianViews();
+    registerFileMenu(this);
 
     try {
       await this.loadSettings();
       await ProviderWorkspaceRegistry.initializeAll(this);
+      this.app.workspace.onLayoutReady(() => {
+        void ProviderWorkspaceRegistry.refreshModelCatalog('codex');
+      });
       this.resolveStartupReady?.();
     } catch (error) {
       this.rejectStartupReady?.(error);
@@ -201,6 +206,7 @@ export default class ClaudianPlugin extends Plugin {
   }
 
   async onunload() {
+    await ProviderWorkspaceRegistry.disposeAll();
     // Ensures state is saved even if Obsidian quits without calling onClose()
     for (const view of this.getAllViews()) {
       const tabManager = view.getTabManager();

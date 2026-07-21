@@ -5,12 +5,36 @@ import type {
   AgentMentionProvider,
   ProviderCliResolver,
   ProviderId,
+  ProviderModelCatalogRefreshResult,
   ProviderRuntimeCommandLoader,
   ProviderSettingsTabRenderer,
   ProviderTabWarmupPolicy,
   ProviderWorkspaceRegistration,
   ProviderWorkspaceServices,
 } from './types';
+
+export interface ProviderWorkspaceInitializer {
+  readonly providerId: ProviderId;
+  initialize(): Promise<ProviderWorkspaceServices>;
+}
+
+export async function initializeProviderWorkspaces(
+  initializers: readonly ProviderWorkspaceInitializer[],
+): Promise<readonly [ProviderId, ProviderWorkspaceServices][]> {
+  const results = await Promise.allSettled(initializers.map(async (
+    initializer,
+  ): Promise<[ProviderId, ProviderWorkspaceServices]> => [
+    initializer.providerId,
+    await initializer.initialize(),
+  ]));
+  const initialized = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
+  const failure = results.find(result => result.status === 'rejected');
+  if (failure?.status === 'rejected') {
+    await Promise.allSettled(initialized.map(async ([, services]) => services.dispose?.()));
+    throw failure.reason;
+  }
+  return initialized;
+}
 
 /**
  * Registry for provider-owned workspace/bootstrap services.
@@ -44,14 +68,22 @@ export class ProviderWorkspaceRegistry {
     const vaultAdapter = storage.getAdapter();
     const homeAdapter = new HomeFileAdapter();
 
-    for (const providerId of providerIds) {
-      this.services[providerId] = await this.getWorkspaceRegistration(providerId).initialize({
+    const initialized = await initializeProviderWorkspaces(providerIds.map(providerId => ({
+      providerId,
+      initialize: () => this.getWorkspaceRegistration(providerId).initialize({
         plugin,
         storage,
         vaultAdapter,
         homeAdapter,
-      });
-    }
+      }),
+    })));
+
+    const previousServices = Object.values(this.services)
+      .filter((service): service is ProviderWorkspaceServices => service !== undefined);
+    this.services = Object.fromEntries(initialized) as Partial<
+      Record<ProviderId, ProviderWorkspaceServices>
+    >;
+    await Promise.allSettled(previousServices.map(async services => services.dispose?.()));
   }
 
   static setServices(
@@ -67,6 +99,13 @@ export class ProviderWorkspaceRegistry {
 
   static clear(): void {
     this.services = {};
+  }
+
+  static async disposeAll(): Promise<void> {
+    const services = Object.values(this.services)
+      .filter((service): service is ProviderWorkspaceServices => service !== undefined);
+    this.services = {};
+    await Promise.allSettled(services.map(async service => service.dispose?.()));
   }
 
   static getServices(
@@ -95,6 +134,13 @@ export class ProviderWorkspaceRegistry {
 
   static async refreshAgentMentions(providerId: ProviderId): Promise<void> {
     await this.getServices(providerId)?.refreshAgentMentions?.();
+  }
+
+  static async refreshModelCatalog(
+    providerId: ProviderId,
+    force = false,
+  ): Promise<ProviderModelCatalogRefreshResult> {
+    return this.getServices(providerId)?.refreshModelCatalog?.(force) ?? { changed: false };
   }
 
   static getCliResolver(providerId: ProviderId): ProviderCliResolver | null {
