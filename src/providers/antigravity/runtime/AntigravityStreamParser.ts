@@ -69,17 +69,18 @@ export class AntigravityStreamParser {
 
     const chunks: StreamChunk[] = [];
     const stepUpdate = asObject(parsed.step_update);
-    if (stepUpdate) chunks.push(...this.parseStepUpdate(stepUpdate));
+    if (parsed.event === 'step_update' && stepUpdate) chunks.push(...this.parseStepUpdate(stepUpdate));
 
     const result = asObject(parsed.result);
-    if (result) chunks.push(...this.parseResult(result));
+    if (parsed.event === 'result' && result) chunks.push(...this.parseResult(result));
 
     return chunks;
   }
 
   private parseStepUpdate(step: JsonObject): StreamChunk[] {
     const chunks: StreamChunk[] = [];
-    const textDelta = normalizeStatus(readString(step.step_type) ?? '') === 'agent_response'
+    const stepType = normalizeStatus(readString(step.step_type) ?? '');
+    const textDelta = stepType === 'agent_response'
       ? readString(step.text_delta)
       : null;
     if (textDelta) {
@@ -88,12 +89,14 @@ export class AntigravityStreamParser {
       chunks.push(...this.parseTaskListText(textDelta));
     }
 
-    const toolInfo = asObject(step.tool_info) ?? this.readDirectToolInfo(step);
+    const toolInfo = stepType === 'tool' ? asObject(step.tool_info) ?? this.readDirectToolInfo(step) : null;
     if (toolInfo) chunks.push(...this.parseToolInfo(toolInfo, step));
 
-    const taskBoundary = asObject(step.task_boundary)
-      ?? asObject(step.taskBoundary)
-      ?? (hasTaskBoundaryFields(step) ? step : null);
+    const taskBoundary = stepType === 'task_boundary'
+      ? asObject(step.task_boundary)
+        ?? asObject(step.taskBoundary)
+        ?? (hasTaskBoundaryFields(step) ? step : null)
+      : null;
     if (taskBoundary) chunks.push(...this.parseTaskBoundary(taskBoundary));
 
     return chunks;

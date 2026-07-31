@@ -29,6 +29,7 @@ describe('AntigravityStreamParser', () => {
     const chunks = parser.parseLine(JSON.stringify({
       event: 'step_update',
       step_update: {
+        step_type: 'tool',
         state: 'DONE',
         step_index: 2,
         tool_info: {
@@ -50,6 +51,7 @@ describe('AntigravityStreamParser', () => {
     const started = parser.parseLine(JSON.stringify({
       event: 'step_update',
       step_update: {
+        step_type: 'tool',
         state: 'ACTIVE',
         tool_info: { name: 'run_command', parameters: { CommandLine: 'date' } },
       },
@@ -57,6 +59,7 @@ describe('AntigravityStreamParser', () => {
     const completed = parser.parseLine(JSON.stringify({
       event: 'step_update',
       step_update: {
+        step_type: 'tool',
         state: 'DONE',
         tool_info: { name: 'run_command', output: 'today' },
       },
@@ -70,15 +73,17 @@ describe('AntigravityStreamParser', () => {
     const parser = new AntigravityStreamParser();
     const chunks = [
       ...parser.parseLine(JSON.stringify({
-        event: 'step_update',
-        step_update: {
+      event: 'step_update',
+      step_update: {
+          step_type: 'task_boundary',
           step_index: 1,
           task_boundary: { task_name: 'Inspect repository', task_status: 'IN_PROGRESS' },
         },
       })),
       ...parser.parseLine(JSON.stringify({
-        event: 'step_update',
-        step_update: {
+      event: 'step_update',
+      step_update: {
+          step_type: 'task_boundary',
           step_index: 2,
           task_boundary: { task_name: 'Inspect repository', task_status: 'DONE' },
         },
@@ -105,6 +110,7 @@ describe('AntigravityStreamParser', () => {
       ...parser.parseLine(JSON.stringify({
         event: 'step_update',
         step_update: {
+          step_type: 'tool',
           state: 'DONE',
           tool_info: {
             name: 'write_to_file',
@@ -156,7 +162,7 @@ describe('AntigravityStreamParser', () => {
 
     const chunks = parser.parseLine(JSON.stringify({
       event: 'step_update',
-      step_update: { task_boundary: { task_name: 'Continue work', task_status: 'IN_PROGRESS' } },
+      step_update: { step_type: 'task_boundary', task_boundary: { task_name: 'Continue work', task_status: 'IN_PROGRESS' } },
     }));
     const tasks = toolChunks(chunks);
     expect(tasks[0]).toEqual({ id: 'agy-task-3', input: { activeForm: 'Continue work', subject: 'Continue work' }, name: 'TaskCreate', type: 'tool_use' });
@@ -173,6 +179,7 @@ describe('AntigravityStreamParser', () => {
     parser.parseLine(JSON.stringify({
       event: 'step_update',
       step_update: {
+        step_type: 'tool',
         state: 'DONE',
         tool_info: { name: 'write_to_file', parameters: { TargetFile: '/tmp/task_list.md' } },
       },

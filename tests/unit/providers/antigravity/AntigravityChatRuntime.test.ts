@@ -121,6 +121,7 @@ describe('AntigravityChatRuntime model invocation', () => {
           {
             event: 'step_update',
             step_update: {
+              step_type: 'tool',
               state: 'RUNNING',
               step_index: 1,
               tool_info: { parameters: { CommandLine: 'find . -maxdepth 1' }, tool_name: 'run_command' },
@@ -129,6 +130,7 @@ describe('AntigravityChatRuntime model invocation', () => {
           {
             event: 'step_update',
             step_update: {
+              step_type: 'tool',
               state: 'DONE',
               step_index: 1,
               tool_info: { output: 'README.md', parameters: { CommandLine: 'find . -maxdepth 1' }, tool_name: 'run_command' },
@@ -136,7 +138,7 @@ describe('AntigravityChatRuntime model invocation', () => {
           },
           {
             event: 'step_update',
-            step_update: { task_boundary: { task_name: 'Inspect repository', task_status: 'IN_PROGRESS' } },
+            step_update: { step_type: 'task_boundary', task_boundary: { task_name: 'Inspect repository', task_status: 'IN_PROGRESS' } },
           },
           {
             event: 'step_update',
@@ -176,7 +178,7 @@ describe('AntigravityChatRuntime model invocation', () => {
       setImmediate(() => {
         child.stdout.emit('data', `${JSON.stringify({
           event: 'step_update',
-          step_update: { task_boundary: { task_name: 'Continue work', task_status: 'IN_PROGRESS' } },
+          step_update: { step_type: 'task_boundary', task_boundary: { task_name: 'Continue work', task_status: 'IN_PROGRESS' } },
         })}\n${JSON.stringify({
           event: 'result',
           result: { response: '', status: 'SUCCESS' },
