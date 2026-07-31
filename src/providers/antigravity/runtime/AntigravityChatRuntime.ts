@@ -90,6 +90,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
   private loadedSessionId: string | null = null;
   private hasNativeContinuation = false;
   private permissionModeSyncCallback: ((mode: string) => void) | null = null;
+  private printQueryGeneration = 0;
   private printProcess: ChildProcess | null = null;
   private process: AcpSubprocess | null = null;
   private promptUsage: AcpUsage | null = null;
@@ -167,6 +168,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
   }
 
   cancel(): void {
+    this.printQueryGeneration += 1;
     this.printProcess?.kill('SIGTERM');
     this.printProcess = null;
     this.hasNativeContinuation = false;
@@ -189,7 +191,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
     return this.waitForSupportedCommands();
   }
 
-  cleanup(): void { this.activeTurn?.queue.close(); void this.shutdownProcess(); }
+  cleanup(): void { this.printQueryGeneration += 1; this.activeTurn?.queue.close(); void this.shutdownProcess(); }
   async rewind(): Promise<ChatRewindResult> { return { canRewind: false }; }
   setApprovalCallback(callback: ApprovalCallback | null): void { this.approvalCallback = callback; }
   setApprovalDismisser(_dismisser: (() => void) | null): void {}
@@ -312,6 +314,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
     previousMessages: ChatMessage[],
     queryOptions?: ChatRuntimeQueryOptions,
   ): AsyncGenerator<StreamChunk> {
+    const queryGeneration = ++this.printQueryGeneration;
     const command = this.plugin.getResolvedProviderCliPath('antigravity') ?? 'agy';
     const cwd = getVaultPath(this.plugin.app) ?? process.cwd();
     const runtimeEnv = buildAntigravityRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, command);
@@ -321,17 +324,35 @@ export class AntigravityChatRuntime implements ChatRuntime {
       (count, message) => count + (message.toolCalls?.filter(toolCall => toolCall.name === TOOL_TASK_CREATE).length ?? 0),
       0,
     );
+    const runParams = {
+      approvalMode: getAntigravityProviderSettings(this.plugin.settings as unknown as Record<string, unknown>).selectedApprovalMode,
+      command,
+      cwd,
+      env: { ...process.env, ...runtimeEnv },
+      continueConversation: useNativeContinuation,
+      model: selectedModel,
+      prompt: this.buildPrintPrompt(turn, previousMessages, useNativeContinuation),
+      taskOffset,
+    };
     try {
-      yield* this.runPrintStream({
-        approvalMode: getAntigravityProviderSettings(this.plugin.settings as unknown as Record<string, unknown>).selectedApprovalMode,
-        command,
-        cwd,
-        env: { ...process.env, ...runtimeEnv },
-        continueConversation: useNativeContinuation,
-        model: selectedModel,
-        prompt: this.buildPrintPrompt(turn, previousMessages, useNativeContinuation),
-        taskOffset,
-      });
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        if (queryGeneration !== this.printQueryGeneration) break;
+        let deferredError: Extract<StreamChunk, { type: 'error' }> | null = null;
+        let emittedChunk = false;
+        for await (const chunk of this.runPrintStream(runParams)) {
+          if (attempt === 0 && !emittedChunk && chunk.type === 'error' && isRetryableEligibilityExhaustion(chunk.content)) {
+            deferredError = chunk;
+            continue;
+          }
+          if (deferredError) {
+            yield deferredError;
+            deferredError = null;
+          }
+          emittedChunk = true;
+          yield chunk;
+        }
+        if (!deferredError) break;
+      }
     } catch {
       yield { type: 'error', content: this.formatRuntimeError(null) };
     }
@@ -628,6 +649,13 @@ function normalizeApprovalInput(rawInput: unknown): Record<string, unknown> {
   if (rawInput && typeof rawInput === 'object' && !Array.isArray(rawInput)) return rawInput as Record<string, unknown>;
   if (rawInput === undefined) return {};
   return { value: rawInput };
+}
+
+function isRetryableEligibilityExhaustion(content: string): boolean {
+  const normalized = content.toLowerCase();
+  return normalized.includes('eligibility check failed')
+    && normalized.includes('resource_exhausted')
+    && /\b429\b/u.test(normalized);
 }
 
 function buildApprovalOptions(options: readonly { kind: 'allow_once' | 'allow_always' | 'reject_once' | 'reject_always'; name: string; optionId: string }[]) {

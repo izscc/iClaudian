@@ -67,6 +67,22 @@ function emitSuccessfulStream(child: ReturnType<typeof createFakeChild>, respons
   child.emit('close', 0, null);
 }
 
+function emitEligibilityExhaustedResult(child: ReturnType<typeof createFakeChild>) {
+  child.stdout.emit('data', `${JSON.stringify({
+    event: 'result',
+    result: {
+      error: 'Eligibility check failed: failed to get load code assist response: RESOURCE_EXHAUSTED (code 429): Resource has been exhausted (e.g. check quota).',
+      response: '',
+      status: 'ERROR',
+    },
+  })}\n`);
+}
+
+function emitEligibilityExhausted(child: ReturnType<typeof createFakeChild>) {
+  emitEligibilityExhaustedResult(child);
+  child.emit('close', 1, null);
+}
+
 describe('AntigravityChatRuntime model invocation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -255,6 +271,128 @@ describe('AntigravityChatRuntime model invocation', () => {
 
     expect(spawn.mock.calls[1]?.[1]).toContain('--continue');
     expect(spawn.mock.calls[2]?.[1]).not.toContain('--continue');
+  });
+
+  it('retries one transient eligibility exhaustion without surfacing it', async () => {
+    let invocation = 0;
+    spawn.mockImplementation(() => {
+      const child = createFakeChild();
+      invocation += 1;
+      setImmediate(() => {
+        if (invocation === 1) {
+          emitEligibilityExhausted(child);
+          return;
+        }
+        emitSuccessfulStream(child, 'recovered');
+      });
+      return child;
+    });
+    const runtime = new AntigravityChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: 'hello' });
+    const chunks = [];
+
+    for await (const chunk of runtime.query(turn)) chunks.push(chunk);
+
+    expect(spawn).toHaveBeenCalledTimes(2);
+    expect(chunks).toContainEqual({ type: 'text', content: 'recovered' });
+    expect(chunks.some(chunk => chunk.type === 'error')).toBe(false);
+    expect(spawn.mock.calls[0]?.[1]).toEqual(spawn.mock.calls[1]?.[1]);
+  });
+
+  it('surfaces eligibility exhaustion after one retry also fails', async () => {
+    spawn.mockImplementation(() => {
+      const child = createFakeChild();
+      setImmediate(() => emitEligibilityExhausted(child));
+      return child;
+    });
+    const runtime = new AntigravityChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: 'hello' });
+    const chunks = [];
+
+    for await (const chunk of runtime.query(turn)) chunks.push(chunk);
+
+    expect(spawn).toHaveBeenCalledTimes(2);
+    expect(chunks.filter(chunk => chunk.type === 'error')).toEqual([{
+      type: 'error',
+      content: 'Eligibility check failed: failed to get load code assist response: RESOURCE_EXHAUSTED (code 429): Resource has been exhausted (e.g. check quota).',
+    }]);
+  });
+
+  it('does not retry after the active query is canceled', async () => {
+    let firstChild: ReturnType<typeof createFakeChild> | null = null;
+    let invocation = 0;
+    spawn.mockImplementation(() => {
+      const child = createFakeChild();
+      invocation += 1;
+      if (invocation === 1) {
+        firstChild = child;
+      } else {
+        setImmediate(() => emitSuccessfulStream(child, 'unexpected retry'));
+      }
+      return child;
+    });
+    const runtime = new AntigravityChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: 'hello' });
+    const query = runtime.query(turn);
+    const pendingChunk = query.next();
+    await new Promise(resolve => setImmediate(resolve));
+    const activeChild = firstChild;
+    if (!activeChild) throw new Error('Expected Antigravity child process');
+
+    emitEligibilityExhaustedResult(activeChild);
+    runtime.cancel();
+    activeChild.emit('close', 1, null);
+    await pendingChunk;
+    for await (const chunk of query) void chunk;
+
+    expect(spawn).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry unrelated structured errors', async () => {
+    spawn.mockImplementation(() => {
+      const child = createFakeChild();
+      setImmediate(() => {
+        child.stdout.emit('data', `${JSON.stringify({
+          event: 'result',
+          result: { error: 'invalid model selection', response: '', status: 'ERROR' },
+        })}\n`);
+        child.emit('close', 1, null);
+      });
+      return child;
+    });
+    const runtime = new AntigravityChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: 'hello' });
+    const chunks = [];
+
+    for await (const chunk of runtime.query(turn)) chunks.push(chunk);
+
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(chunks).toContainEqual({ type: 'error', content: 'invalid model selection' });
+  });
+
+  it('does not retry eligibility exhaustion after visible output', async () => {
+    spawn.mockImplementation(() => {
+      const child = createFakeChild();
+      setImmediate(() => {
+        child.stdout.emit('data', `${JSON.stringify({
+          event: 'step_update',
+          step_update: { step_type: 'agent_response', text_delta: 'partial' },
+        })}\n`);
+        emitEligibilityExhausted(child);
+      });
+      return child;
+    });
+    const runtime = new AntigravityChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: 'hello' });
+    const chunks = [];
+
+    for await (const chunk of runtime.query(turn)) chunks.push(chunk);
+
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(chunks).toEqual(expect.arrayContaining([
+      { type: 'text', content: 'partial' },
+      expect.objectContaining({ type: 'error' }),
+    ]));
   });
 
   it('does not surface unstructured stderr as a chat error', async () => {
