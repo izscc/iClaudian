@@ -27,6 +27,7 @@ const TOOL_NAME_ALIASES: Record<string, string> = {
   task_create: 'TaskCreate',
   task_update: 'TaskUpdate',
   view_file: 'Read',
+  write_to_file: 'Write',
 };
 
 export class AntigravityStreamParser {
@@ -38,6 +39,8 @@ export class AntigravityStreamParser {
   private responseText = '';
   private successfulResult = false;
   private failedResult = false;
+  private taskListMode = false;
+  private taskListTextBuffer = '';
 
   get hasFailedResult(): boolean {
     return this.failedResult;
@@ -67,10 +70,8 @@ export class AntigravityStreamParser {
     if (textDelta) {
       this.responseText += textDelta;
       chunks.push({ content: textDelta, type: 'text' });
+      chunks.push(...this.parseTaskListText(textDelta));
     }
-
-    const thinkingDelta = readFirstString(step, ['thinking_delta', 'thought_delta', 'thinking', 'thought']);
-    if (thinkingDelta) chunks.push({ content: thinkingDelta, type: 'thinking' });
 
     const toolInfo = asObject(step.tool_info) ?? this.readDirectToolInfo(step);
     if (toolInfo) chunks.push(...this.parseToolInfo(toolInfo, step));
@@ -92,6 +93,7 @@ export class AntigravityStreamParser {
         ?? readFirstValue(step, ['parameters', 'input', 'arguments', 'args']),
       name,
     );
+    if (name === 'Write' && isTaskListPath(input.file_path)) this.taskListMode = true;
     const explicitId = readFirstIdentifier(toolInfo, ['tool_call_id', 'tool_id', 'id'])
       ?? readFirstIdentifier(step, ['tool_call_id', 'tool_id', 'id']);
     const stepIndex = readFirstIdentifier(step, ['step_index']);
@@ -191,26 +193,64 @@ export class AntigravityStreamParser {
     return chunks;
   }
 
+  private parseTaskListText(text: string, flush = false): StreamChunk[] {
+    this.taskListTextBuffer += text;
+    const lines: string[] = [];
+    let newlineIndex = this.taskListTextBuffer.indexOf('\n');
+    while (newlineIndex >= 0) {
+      lines.push(this.taskListTextBuffer.slice(0, newlineIndex));
+      this.taskListTextBuffer = this.taskListTextBuffer.slice(newlineIndex + 1);
+      newlineIndex = this.taskListTextBuffer.indexOf('\n');
+    }
+    if (flush && this.taskListTextBuffer) {
+      lines.push(this.taskListTextBuffer);
+      this.taskListTextBuffer = '';
+    }
+
+    const chunks: StreamChunk[] = [];
+    for (const line of lines) {
+      if (/^\s*(?:#{1,6}\s*)?(?:任务列表|task list)\b/i.test(line)) {
+        this.taskListMode = true;
+      }
+      if (!this.taskListMode) continue;
+
+      const match = /^\s*(\d+)\.\s+.*?\*\*(.+?)\*\*\s*(?:[-–—:]\s*)?(.+)$/u.exec(line);
+      if (!match) continue;
+      const status = parseTaskListStatus(match[3]);
+      if (!status) continue;
+      chunks.push(...this.parseTaskBoundary({
+        task_name: match[2].trim(),
+        task_status: status,
+      }));
+    }
+    return chunks;
+  }
+
   private parseResult(result: JsonObject): StreamChunk[] {
     const status = readString(result.status)?.toLowerCase();
-    const response = formatUnknownValue(result.response);
+    const response = readString(result.response) ?? '';
     if (status === 'success' || status === 'succeeded' || status === 'completed') {
       this.successfulResult = true;
-      if (!response || response === this.responseText) return [];
+      if (!response || response === this.responseText) return this.parseTaskListText('', true);
       if (response.startsWith(this.responseText)) {
         const suffix = response.slice(this.responseText.length);
         this.responseText = response;
-        return suffix ? [{ content: suffix, type: 'text' }] : [];
+        const chunks: StreamChunk[] = suffix ? [{ content: suffix, type: 'text' }] : [];
+        chunks.push(...this.parseTaskListText(suffix, true));
+        return chunks;
       }
-      if (this.responseText.includes(response)) return [];
+      if (this.responseText.includes(response)) return this.parseTaskListText('', true);
       this.responseText += response;
-      return [{ content: response, type: 'text' }];
+      return [
+        { content: response, type: 'text' },
+        ...this.parseTaskListText(response, true),
+      ];
     }
 
     this.failedResult = true;
     if (this.resultErrorEmitted) return [];
     this.resultErrorEmitted = true;
-    const error = formatUnknownValue(result.error) || response || `Antigravity CLI returned status ${result.status ?? 'ERROR'}.`;
+    const error = readString(result.error) || response || `Antigravity CLI returned status ${result.status ?? 'ERROR'}.`;
     return [{ content: error, type: 'error' }];
   }
 
@@ -297,13 +337,23 @@ function normalizeToolInput(rawInput: unknown, toolName: string): Record<string,
   }
 
   if (toolName === 'Bash' && input.command === undefined) {
-    const command = readFirstString(input, ['cmd', 'command_line', 'script']);
-    if (command) input.command = command;
+    const command = readFirstString(input, ['CommandLine', 'cmd', 'command_line', 'script']);
+    if (command) {
+      input.command = command;
+      delete input.CommandLine;
+    }
   }
-  if (toolName === 'Read' && input.file_path === undefined) {
+    if (toolName === 'Read' && input.file_path === undefined) {
     const filePath = readFirstString(input, ['path', 'file']);
-    if (filePath) input.file_path = filePath;
-  }
+      if (filePath) input.file_path = filePath;
+    }
+    if (toolName === 'Write' && input.file_path === undefined) {
+      const filePath = readFirstString(input, ['TargetFile', 'target_file', 'path', 'file']);
+      if (filePath) {
+        input.file_path = filePath;
+        delete input.TargetFile;
+      }
+    }
   if ((toolName === 'Grep' || toolName === 'Glob') && input.pattern === undefined) {
     const pattern = readFirstString(input, ['query', 'regex']);
     if (pattern) input.pattern = pattern;
@@ -319,6 +369,24 @@ function normalizeToolName(rawName: string | null): string {
   if (!rawName) return 'tool';
   const normalized = rawName.trim();
   return TOOL_NAME_ALIASES[normalizeStatus(normalized)] ?? normalized;
+}
+
+function isTaskListPath(value: unknown): value is string {
+  return typeof value === 'string' && /(?:^|[/\\])task_list\.md$/i.test(value);
+}
+
+function parseTaskListStatus(summary: string): 'DONE' | 'IN_PROGRESS' | 'TODO' | null {
+  const normalized = summary.toLowerCase();
+  if (normalized.includes('in progress') || normalized.includes('进行中') || normalized.includes('🔄')) {
+    return 'IN_PROGRESS';
+  }
+  if (normalized.includes('completed') || normalized.includes('complete') || normalized.includes('已完成') || normalized.includes('✅')) {
+    return 'DONE';
+  }
+  if (normalized.includes('pending') || normalized.includes('todo') || normalized.includes('创建') || normalized.includes('🟡')) {
+    return 'TODO';
+  }
+  return null;
 }
 
 function parseJson(value: string): unknown {

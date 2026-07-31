@@ -123,7 +123,7 @@ describe('AntigravityChatRuntime model invocation', () => {
             step_update: {
               state: 'RUNNING',
               step_index: 1,
-              tool_info: { parameters: { command: 'find . -maxdepth 1' }, tool_name: 'run_command' },
+              tool_info: { parameters: { CommandLine: 'find . -maxdepth 1' }, tool_name: 'run_command' },
             },
           },
           {
@@ -131,7 +131,7 @@ describe('AntigravityChatRuntime model invocation', () => {
             step_update: {
               state: 'DONE',
               step_index: 1,
-              tool_info: { output: 'README.md', parameters: { command: 'find . -maxdepth 1' }, tool_name: 'run_command' },
+              tool_info: { output: 'README.md', parameters: { CommandLine: 'find . -maxdepth 1' }, tool_name: 'run_command' },
             },
           },
           {

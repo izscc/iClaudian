@@ -33,7 +33,7 @@ describe('AntigravityStreamParser', () => {
         step_index: 2,
         tool_info: {
           output: 'Sat Aug 1 12:00:00 CST 2026',
-          parameters: { command: 'date' },
+          parameters: { CommandLine: 'date' },
           tool_name: 'run_command',
         },
       },
@@ -65,6 +65,48 @@ describe('AntigravityStreamParser', () => {
     ];
 
     const tasks = toolChunks(chunks);
+    expect(tasks.map(task => task.name)).toEqual(['TaskCreate', 'TaskUpdate', 'TaskUpdate']);
+    expect(foldTaskTodos(tasks.map(task => ({ name: task.name, input: task.input })))).toEqual([{
+      activeForm: 'Inspect repository',
+      content: 'Inspect repository',
+      status: 'completed',
+    }]);
+  });
+
+  it('extracts Antigravity task_list.md responses into the shared task list', () => {
+    const parser = new AntigravityStreamParser();
+    const response = [
+      '### 任务列表',
+      '1. 🟡 **Inspect repository** - 创建任务',
+      '2. 🔄 **Inspect repository** - 标记为进行中 (In Progress)',
+      '3. ✅ **Inspect repository** - 标记为已完成 (Completed)',
+    ].join('\n');
+    const chunks = [
+      ...parser.parseLine(JSON.stringify({
+        event: 'step_update',
+        step_update: {
+          state: 'DONE',
+          tool_info: {
+            name: 'write_to_file',
+            parameters: { TargetFile: '/tmp/task_list.md' },
+          },
+        },
+      })),
+      ...parser.parseLine(JSON.stringify({
+        event: 'step_update',
+        step_update: { text_delta: response.slice(0, 58) },
+      })),
+      ...parser.parseLine(JSON.stringify({
+        event: 'step_update',
+        step_update: { text_delta: response.slice(58) },
+      })),
+      ...parser.parseLine(JSON.stringify({
+        event: 'result',
+        result: { response, status: 'SUCCESS' },
+      })),
+    ];
+    const tasks = toolChunks(chunks).filter(task => task.name === 'TaskCreate' || task.name === 'TaskUpdate');
+
     expect(tasks.map(task => task.name)).toEqual(['TaskCreate', 'TaskUpdate', 'TaskUpdate']);
     expect(foldTaskTodos(tasks.map(task => ({ name: task.name, input: task.input })))).toEqual([{
       activeForm: 'Inspect repository',
