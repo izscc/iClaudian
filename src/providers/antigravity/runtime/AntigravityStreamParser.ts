@@ -16,13 +16,19 @@ interface TaskState {
   subject: string;
 }
 
+interface AntigravityStreamParserOptions {
+  taskOffset?: number;
+}
+
 const TOOL_NAME_ALIASES: Record<string, string> = {
   execute_command: 'Bash',
+  multi_replace_file_content: 'Edit',
   file_search: 'Grep',
   grep_search: 'Grep',
   list_directory: 'LS',
   list_dir: 'LS',
   read_file: 'Read',
+  replace_file_content: 'Edit',
   run_command: 'Bash',
   shell_exec: 'Bash',
   task_create: 'TaskCreate',
@@ -35,7 +41,7 @@ export class AntigravityStreamParser {
   private readonly tasks = new Map<string, TaskState>();
   private readonly tools = new Map<string, ToolState>();
   private nextToolId = 0;
-  private nextTaskId = 0;
+  private nextTaskId: number;
   private nextTaskUpdateId = 0;
   private resultErrorEmitted = false;
   private responseText = '';
@@ -43,6 +49,11 @@ export class AntigravityStreamParser {
   private failedResult = false;
   private taskListMode = false;
   private taskListTextBuffer = '';
+  private lastTaskSubject: string | null = null;
+
+  constructor(options: AntigravityStreamParserOptions = {}) {
+    this.nextTaskId = options.taskOffset ?? 0;
+  }
 
   get hasFailedResult(): boolean {
     return this.failedResult;
@@ -68,7 +79,9 @@ export class AntigravityStreamParser {
 
   private parseStepUpdate(step: JsonObject): StreamChunk[] {
     const chunks: StreamChunk[] = [];
-    const textDelta = readString(step.text_delta);
+    const textDelta = normalizeStatus(readString(step.step_type) ?? '') === 'agent_response'
+      ? readString(step.text_delta)
+      : null;
     if (textDelta) {
       this.responseText += textDelta;
       chunks.push({ content: textDelta, type: 'text' });
@@ -104,8 +117,8 @@ export class AntigravityStreamParser {
     const status = readFirstString(toolInfo, ['status', 'state'])
       ?? readFirstString(step, ['status', 'state']);
     const terminal = isTerminalStatus(status);
-    const output = formatUnknownValue(readFirstValue(toolInfo, ['output', 'result', 'content'])
-      ?? readFirstValue(step, ['output', 'result', 'content']));
+    const output = readString(readFirstValue(toolInfo, ['output', 'result', 'content'])
+      ?? readFirstValue(step, ['output', 'result', 'content'])) ?? '';
     const chunks: StreamChunk[] = [];
     let state = this.tools.get(id);
 
@@ -166,12 +179,14 @@ export class AntigravityStreamParser {
         subject,
       };
       this.tasks.set(key, task);
+      const taskId = `agy-task-${task.id}`;
       chunks.push({
-        id: `agy-task-${task.id}`,
+        id: taskId,
         input: { activeForm, subject },
         name: 'TaskCreate',
         type: 'tool_use',
       });
+      chunks.push({ content: 'Task created', id: taskId, isError: false, type: 'tool_result' });
     }
 
     const nextStatus = status ?? task.status;
@@ -180,8 +195,9 @@ export class AntigravityStreamParser {
       task.subject = subject;
       task.activeForm = activeForm;
       task.status = nextStatus;
+      const taskUpdateId = `agy-task-update-${task.id}-${++this.nextTaskUpdateId}`;
       chunks.push({
-        id: `agy-task-update-${task.id}-${++this.nextTaskUpdateId}`,
+        id: taskUpdateId,
         input: {
           activeForm,
           status: nextStatus,
@@ -191,6 +207,7 @@ export class AntigravityStreamParser {
         name: 'TaskUpdate',
         type: 'tool_use',
       });
+      chunks.push({ content: 'Task updated', id: taskUpdateId, isError: false, type: 'tool_result' });
     }
 
     return chunks;
@@ -214,12 +231,30 @@ export class AntigravityStreamParser {
     for (const line of lines) {
       if (!this.taskListMode) continue;
 
+      const codeSubjects = [...line.matchAll(/`([^`\n]+)`/gu)]
+        .map(match => match[1]?.trim())
+        .filter((value): value is string => Boolean(value))
+        .filter(value => !/^\[\s*(?:x|\/)?\s*\]$/i.test(value) && !/task_list\.md$/i.test(value));
+      const codeSubject = codeSubjects[codeSubjects.length - 1];
+      if (codeSubject) {
+        this.lastTaskSubject = codeSubject;
+        const codeStatus = parseTaskListStatus(line);
+        if (codeStatus) {
+          chunks.push(...this.parseTaskBoundary({ task_name: codeSubject, task_status: codeStatus }));
+        }
+        continue;
+      }
+
       const match = /^\s*(\d+)\.\s+.*?\*\*(.+?)\*\*\s*(?:[-–—:]\s*)?(.+)$/u.exec(line);
       if (!match) continue;
       const status = parseTaskListStatus(match[3]);
       if (!status) continue;
+      const label = match[2].trim();
+      const subject = isTaskActionLabel(label) ? this.lastTaskSubject : label;
+      if (!subject) continue;
+      if (!isTaskActionLabel(label)) this.lastTaskSubject = subject;
       chunks.push(...this.parseTaskBoundary({
-        task_name: match[2].trim(),
+        task_name: subject,
         task_status: status,
       }));
     }
@@ -275,18 +310,6 @@ function defaultToolResult(status: string | null): string {
   return isErrorStatus(status) ? 'Tool failed' : 'Tool completed';
 }
 
-function formatUnknownValue(value: unknown): string {
-  if (typeof value === 'string') return value;
-  if (value === undefined) return '';
-  if (value === null) return 'null';
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
 function hasTaskBoundaryFields(value: JsonObject): boolean {
   return ['task_name', 'task_status', 'task_summary', 'task_summary_with_citations', 'delta_summary']
     .some(key => value[key] !== undefined);
@@ -329,45 +352,39 @@ function normalizeTaskStatus(status: string | null): TaskState['status'] | null 
 }
 
 function normalizeToolInput(rawInput: unknown, toolName: string): Record<string, unknown> {
-  let input: Record<string, unknown>;
+  let raw: Record<string, unknown>;
   if (isPlainObject(rawInput)) {
-    input = { ...rawInput };
+    raw = { ...rawInput };
   } else if (typeof rawInput === 'string') {
     const parsed = parseJson(rawInput);
-    input = isPlainObject(parsed) ? { ...parsed } : { value: rawInput };
-  } else if (rawInput === undefined) {
-    input = {};
+    raw = isPlainObject(parsed) ? { ...parsed } : {};
   } else {
-    input = { value: rawInput };
+    raw = {};
   }
 
-  if (toolName === 'Bash' && input.command === undefined) {
-    const command = readFirstString(input, ['CommandLine', 'cmd', 'command_line', 'script']);
-    if (command) {
-      input.command = command;
-      delete input.CommandLine;
+  switch (toolName) {
+    case 'Bash': {
+      const command = readFirstString(raw, ['command', 'CommandLine', 'cmd', 'command_line', 'script']);
+      return command ? { command } : {};
     }
-  }
-    if (toolName === 'Read' && input.file_path === undefined) {
-    const filePath = readFirstString(input, ['path', 'file']);
-      if (filePath) input.file_path = filePath;
+    case 'Edit':
+    case 'Read':
+    case 'Write': {
+      const filePath = readFirstString(raw, ['file_path', 'TargetFile', 'target_file', 'path', 'file']);
+      return filePath ? { file_path: filePath } : {};
     }
-    if (toolName === 'Write' && input.file_path === undefined) {
-      const filePath = readFirstString(input, ['TargetFile', 'target_file', 'path', 'file']);
-      if (filePath) {
-        input.file_path = filePath;
-        delete input.TargetFile;
-      }
+    case 'Glob':
+    case 'Grep': {
+      const pattern = readFirstString(raw, ['pattern', 'query', 'regex']);
+      return pattern ? { pattern } : {};
     }
-  if ((toolName === 'Grep' || toolName === 'Glob') && input.pattern === undefined) {
-    const pattern = readFirstString(input, ['query', 'regex']);
-    if (pattern) input.pattern = pattern;
+    case 'LS': {
+      const directory = readFirstString(raw, ['path', 'directory', 'dir']);
+      return directory ? { path: directory } : {};
+    }
+    default:
+      return {};
   }
-  if (toolName === 'LS' && input.path === undefined) {
-    const directory = readFirstString(input, ['directory', 'dir']);
-    if (directory) input.path = directory;
-  }
-  return input;
 }
 
 function normalizeToolName(rawName: string | null): string {
@@ -382,16 +399,30 @@ function isTaskListPath(value: unknown): value is string {
 
 function parseTaskListStatus(summary: string): 'DONE' | 'IN_PROGRESS' | 'TODO' | null {
   const normalized = summary.toLowerCase();
-  if (normalized.includes('in progress') || normalized.includes('进行中') || normalized.includes('🔄')) {
+  if (/\[x\]/i.test(summary)) return 'DONE';
+  if (/\[\/\]/.test(summary)) return 'IN_PROGRESS';
+  if (/\[\s\]/.test(summary)) return 'TODO';
+  if (normalized.includes('进行中') || normalized.includes('🔄') || /\bin[\s-]+progress\b/i.test(normalized)) {
     return 'IN_PROGRESS';
   }
-  if (normalized.includes('completed') || normalized.includes('complete') || normalized.includes('已完成') || normalized.includes('✅')) {
+  if (normalized.includes('未完成') || /\bnot[\s-]+completed?\b/i.test(normalized)) return null;
+  if (normalized.includes('已完成') || normalized.includes('✅') || /\bcompleted?\b/i.test(normalized)) {
     return 'DONE';
   }
-  if (normalized.includes('pending') || normalized.includes('todo') || normalized.includes('创建') || normalized.includes('🟡')) {
+  if (normalized.includes('待处理') || normalized.includes('创建') || normalized.includes('🟡') || /\b(?:pending|todo)\b/i.test(normalized)) {
     return 'TODO';
   }
   return null;
+}
+
+function isTaskActionLabel(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return normalized.includes('创建任务')
+    || normalized.includes('更新状态')
+    || normalized.includes('完成任务')
+    || normalized.includes('create task')
+    || normalized.includes('update status')
+    || normalized.includes('complete task');
 }
 
 function parseJson(value: string): unknown {

@@ -17,6 +17,7 @@ import type {
   SessionUpdateResult,
   SubagentRuntimeState,
 } from '../../../core/runtime/types';
+import { TOOL_TASK_CREATE } from '../../../core/tools/toolNames';
 import type { ApprovalDecision, ChatMessage, Conversation, ExitPlanModeCallback, SlashCommand, StreamChunk, ToolCallInfo } from '../../../core/types';
 import type ClaudianPlugin from '../../../main';
 import { getVaultPath } from '../../../utils/path';
@@ -316,6 +317,10 @@ export class AntigravityChatRuntime implements ChatRuntime {
     const runtimeEnv = buildAntigravityRuntimeEnv(this.plugin.settings as unknown as Record<string, unknown>, command);
     const selectedModel = this.resolveSelectedRawModelId(queryOptions);
     const useNativeContinuation = this.hasNativeContinuation && previousMessages.length > 0 && !this.sessionInvalidated;
+    const taskOffset = previousMessages.reduce(
+      (count, message) => count + (message.toolCalls?.filter(toolCall => toolCall.name === TOOL_TASK_CREATE).length ?? 0),
+      0,
+    );
     try {
       yield* this.runPrintStream({
         approvalMode: getAntigravityProviderSettings(this.plugin.settings as unknown as Record<string, unknown>).selectedApprovalMode,
@@ -325,6 +330,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
         continueConversation: useNativeContinuation,
         model: selectedModel,
         prompt: this.buildPrintPrompt(turn, previousMessages, useNativeContinuation),
+        taskOffset,
       });
     } catch (error) {
       yield { type: 'error', content: this.formatRuntimeError(error) };
@@ -340,6 +346,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
     continueConversation: boolean;
     model: string | null;
     prompt: string;
+    taskOffset: number;
   }): AsyncGenerator<StreamChunk> {
     const args = buildAntigravityPrintArgs(params);
 
@@ -350,7 +357,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
     let stdout = '';
     let stdoutBuffer = '';
     let stderr = '';
-    const parser = new AntigravityStreamParser();
+    const parser = new AntigravityStreamParser({ taskOffset: params.taskOffset });
 
     const wake = (): void => {
       while (waiters.length) waiters.shift()?.();

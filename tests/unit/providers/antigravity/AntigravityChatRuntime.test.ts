@@ -59,7 +59,7 @@ function createFakeChild() {
 function emitSuccessfulStream(child: ReturnType<typeof createFakeChild>, response = 'agy output') {
   child.stdout.emit('data', `${JSON.stringify({
     event: 'step_update',
-    step_update: { text_delta: response },
+    step_update: { step_type: 'agent_response', text_delta: response },
   })}\n${JSON.stringify({
     event: 'result',
     result: { response, status: 'SUCCESS' },
@@ -140,7 +140,7 @@ describe('AntigravityChatRuntime model invocation', () => {
           },
           {
             event: 'step_update',
-            step_update: { text_delta: 'The repository is ready.' },
+            step_update: { step_type: 'agent_response', text_delta: 'The repository is ready.' },
           },
           {
             event: 'result',
@@ -168,6 +168,38 @@ describe('AntigravityChatRuntime model invocation', () => {
       { content: 'The repository is ready.', type: 'text' },
     ]));
     expect(chunks.some(chunk => chunk.type === 'text' && chunk.content.includes('"event"'))).toBe(false);
+  });
+
+  it('continues task ids after tasks from previous assistant messages', async () => {
+    spawn.mockImplementation(() => {
+      const child = createFakeChild();
+      setImmediate(() => {
+        child.stdout.emit('data', `${JSON.stringify({
+          event: 'step_update',
+          step_update: { task_boundary: { task_name: 'Continue work', task_status: 'IN_PROGRESS' } },
+        })}\n${JSON.stringify({
+          event: 'result',
+          result: { response: '', status: 'SUCCESS' },
+        })}\n`);
+        child.emit('close', 0, null);
+      });
+      return child;
+    });
+    const runtime = new AntigravityChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: 'continue' } as any);
+    const history = [{
+      content: 'previous',
+      role: 'assistant',
+      toolCalls: [{ id: 'previous-task', input: { subject: 'Previous task' }, name: 'TaskCreate', status: 'completed' }],
+    }] as any;
+    const chunks = [];
+
+    for await (const chunk of runtime.query(turn, history)) chunks.push(chunk);
+
+    expect(chunks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'TaskCreate', type: 'tool_use', input: { activeForm: 'Continue work', subject: 'Continue work' } }),
+      expect.objectContaining({ name: 'TaskUpdate', type: 'tool_use', input: expect.objectContaining({ taskId: '2' }) }),
+    ]));
   });
 
   it('falls back to prompt history after native continuation fails', async () => {
