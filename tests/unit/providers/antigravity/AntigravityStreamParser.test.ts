@@ -69,6 +69,53 @@ describe('AntigravityStreamParser', () => {
     expect(completed).toEqual([{ content: 'today', id: 'agy-tool-1', isError: false, type: 'tool_result' }]);
   });
 
+  it('does not merge concurrent anonymous tools with the same name', () => {
+    const parser = new AntigravityStreamParser();
+    const first = parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: {
+        step_type: 'tool',
+        state: 'ACTIVE',
+        tool_info: { name: 'run_command', parameters: { CommandLine: 'date' } },
+      },
+    }));
+    const second = parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: {
+        step_type: 'tool',
+        state: 'ACTIVE',
+        tool_info: { name: 'run_command', parameters: { CommandLine: 'pwd' } },
+      },
+    }));
+
+    expect(first[0]).toEqual({ id: 'agy-tool-1', input: { command: 'date' }, name: 'Bash', type: 'tool_use' });
+    expect(second[0]).toEqual({ id: 'agy-tool-2', input: { command: 'pwd' }, name: 'Bash', type: 'tool_use' });
+    expect(parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: {
+        step_type: 'tool',
+        state: 'DONE',
+        tool_info: { name: 'run_command', output: 'ambiguous' },
+      },
+    }))).toEqual([]);
+    expect(parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: {
+        step_type: 'tool',
+        state: 'DONE',
+        tool_info: { name: 'run_command', output: 'today', parameters: { CommandLine: 'date' } },
+      },
+    }))).toEqual([{ content: 'today', id: 'agy-tool-1', isError: false, type: 'tool_result' }]);
+    expect(parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: {
+        step_type: 'tool',
+        state: 'DONE',
+        tool_info: { name: 'run_command', output: '/tmp', parameters: { CommandLine: 'pwd' } },
+      },
+    }))).toEqual([{ content: '/tmp', id: 'agy-tool-2', isError: false, type: 'tool_result' }]);
+  });
+
   it('turns task boundaries into the shared task list tool calls', () => {
     const parser = new AntigravityStreamParser();
     const chunks = [

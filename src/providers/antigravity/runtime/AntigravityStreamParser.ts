@@ -20,6 +20,11 @@ interface AntigravityStreamParserOptions {
   taskOffset?: number;
 }
 
+interface AnonymousToolResolution {
+  ambiguous: boolean;
+  id: string | null;
+}
+
 const TOOL_NAME_ALIASES: Record<string, string> = {
   execute_command: 'Bash',
   multi_replace_file_content: 'Edit',
@@ -115,13 +120,17 @@ export class AntigravityStreamParser {
     const explicitId = readFirstIdentifier(toolInfo, ['tool_call_id', 'tool_id', 'id'])
       ?? readFirstIdentifier(step, ['tool_call_id', 'tool_id', 'id']);
     const stepIndex = readFirstIdentifier(step, ['step_index']);
-    const id = explicitId
-      ?? (stepIndex ? `agy-step-${stepIndex}` : this.findOpenToolId(name) ?? `agy-tool-${++this.nextToolId}`);
     const status = readFirstString(toolInfo, ['status', 'state'])
       ?? readFirstString(step, ['status', 'state']);
     const terminal = isTerminalStatus(status);
     const output = readString(readFirstValue(toolInfo, ['output', 'result', 'content'])
       ?? readFirstValue(step, ['output', 'result', 'content'])) ?? '';
+    let id = explicitId ?? (stepIndex ? `agy-step-${stepIndex}` : null);
+    if (!id) {
+      const anonymous = this.resolveAnonymousToolId(name, input, status, terminal);
+      if (anonymous.ambiguous) return [];
+      id = anonymous.id ?? `agy-tool-${++this.nextToolId}`;
+    }
     const chunks: StreamChunk[] = [];
     let state = this.tools.get(id);
 
@@ -299,9 +308,28 @@ export class AntigravityStreamParser {
     return hasToolName && hasToolInput ? step : null;
   }
 
-  private findOpenToolId(name: string): string | null {
-    const entries = [...this.tools.entries()].reverse();
-    return entries.find(([, state]) => state.name === name && !state.resultEmitted)?.[0] ?? null;
+  private resolveAnonymousToolId(
+    name: string,
+    input: Record<string, unknown>,
+    status: string | null,
+    terminal: boolean,
+  ): AnonymousToolResolution {
+    const openIds = [...this.tools.entries()]
+      .filter(([, state]) => state.name === name && !state.resultEmitted)
+      .map(([id]) => id);
+    if (openIds.length === 0) return { ambiguous: false, id: null };
+
+    if (Object.keys(input).length > 0) {
+      if (!terminal && normalizeStatus(status ?? '') === 'active') {
+        return { ambiguous: false, id: null };
+      }
+      const matchingIds = openIds.filter(id => sameRecord(this.tools.get(id)?.input ?? {}, input));
+      if (matchingIds.length === 1) return { ambiguous: false, id: matchingIds[0] };
+      return { ambiguous: terminal && matchingIds.length > 1, id: null };
+    }
+
+    if (openIds.length === 1) return { ambiguous: false, id: openIds[0] };
+    return { ambiguous: terminal, id: null };
   }
 }
 
