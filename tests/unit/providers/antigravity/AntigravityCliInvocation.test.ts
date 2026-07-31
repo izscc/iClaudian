@@ -7,7 +7,7 @@ describe('buildAntigravityPrintArgs', () => {
       continueConversation: false,
       model: null,
       prompt: 'hello',
-    })).toEqual(['-p', 'hello', '--print-timeout', '5m']);
+    })).toEqual(['--output-format', 'stream-json', '-p', 'hello', '--print-timeout', '5m']);
   });
 
   it('uses only the explicit skip-permissions flag in yolo mode', () => {
@@ -16,7 +16,7 @@ describe('buildAntigravityPrintArgs', () => {
       continueConversation: false,
       model: null,
       prompt: 'hello',
-    })).toEqual(['--dangerously-skip-permissions', '-p', 'hello', '--print-timeout', '5m']);
+    })).toEqual(['--dangerously-skip-permissions', '--output-format', 'stream-json', '-p', 'hello', '--print-timeout', '5m']);
   });
 
   it('uses accept-edits mode for auto-edit headless requests', () => {
@@ -32,6 +32,8 @@ describe('buildAntigravityPrintArgs', () => {
       'accept-edits',
       '--model',
       'gemini-3.6-flash-medium',
+      '--output-format',
+      'stream-json',
       '-p',
       'hello',
       '--print-timeout',
@@ -51,6 +53,8 @@ describe('buildAntigravityPrintArgs', () => {
       '--mode',
       'plan',
       '--continue',
+      '--output-format',
+      'stream-json',
       '-p',
       'continue',
       '--print-timeout',

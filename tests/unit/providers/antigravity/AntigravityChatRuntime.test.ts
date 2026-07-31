@@ -56,6 +56,17 @@ function createFakeChild() {
   return child;
 }
 
+function emitSuccessfulStream(child: ReturnType<typeof createFakeChild>, response = 'agy output') {
+  child.stdout.emit('data', `${JSON.stringify({
+    event: 'step_update',
+    step_update: { text_delta: response },
+  })}\n${JSON.stringify({
+    event: 'result',
+    result: { response, status: 'SUCCESS' },
+  })}\n`);
+  child.emit('close', 0, null);
+}
+
 describe('AntigravityChatRuntime model invocation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -65,8 +76,7 @@ describe('AntigravityChatRuntime model invocation', () => {
     spawn.mockImplementation(() => {
       const child = createFakeChild();
       setImmediate(() => {
-        child.stdout.emit('data', 'agy output');
-        child.emit('close', 0, null);
+        emitSuccessfulStream(child);
       });
       return child;
     });
@@ -103,6 +113,63 @@ describe('AntigravityChatRuntime model invocation', () => {
     expect(chunks[chunks.length - 1]).toEqual({ type: 'done' });
   });
 
+  it('streams tool progress and task updates instead of returning raw NDJSON', async () => {
+    spawn.mockImplementation(() => {
+      const child = createFakeChild();
+      setImmediate(() => {
+        const events = [
+          {
+            event: 'step_update',
+            step_update: {
+              state: 'RUNNING',
+              step_index: 1,
+              tool_info: { parameters: { command: 'find . -maxdepth 1' }, tool_name: 'run_command' },
+            },
+          },
+          {
+            event: 'step_update',
+            step_update: {
+              state: 'DONE',
+              step_index: 1,
+              tool_info: { output: 'README.md', parameters: { command: 'find . -maxdepth 1' }, tool_name: 'run_command' },
+            },
+          },
+          {
+            event: 'step_update',
+            step_update: { task_boundary: { task_name: 'Inspect repository', task_status: 'IN_PROGRESS' } },
+          },
+          {
+            event: 'step_update',
+            step_update: { text_delta: 'The repository is ready.' },
+          },
+          {
+            event: 'result',
+            result: { response: 'The repository is ready.', status: 'SUCCESS' },
+          },
+        ];
+        const output = `${events.map(event => JSON.stringify(event)).join('\n')}\n`;
+        child.stdout.emit('data', output.slice(0, 17));
+        child.stdout.emit('data', output.slice(17));
+        child.emit('close', 0, null);
+      });
+      return child;
+    });
+    const runtime = new AntigravityChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: 'inspect' } as any);
+    const chunks = [];
+
+    for await (const chunk of runtime.query(turn)) chunks.push(chunk);
+
+    expect(chunks).toEqual(expect.arrayContaining([
+      { id: 'agy-step-1', input: { command: 'find . -maxdepth 1' }, name: 'Bash', type: 'tool_use' },
+      { content: 'README.md', id: 'agy-step-1', isError: false, type: 'tool_result' },
+      { id: 'agy-task-1', input: { activeForm: 'Inspect repository', subject: 'Inspect repository' }, name: 'TaskCreate', type: 'tool_use' },
+      expect.objectContaining({ name: 'TaskUpdate', type: 'tool_use' }),
+      { content: 'The repository is ready.', type: 'text' },
+    ]));
+    expect(chunks.some(chunk => chunk.type === 'text' && chunk.content.includes('"event"'))).toBe(false);
+  });
+
   it('falls back to prompt history after native continuation fails', async () => {
     let invocation = 0;
     spawn.mockImplementation(() => {
@@ -114,8 +181,7 @@ describe('AntigravityChatRuntime model invocation', () => {
           child.emit('close', 1, null);
           return;
         }
-        child.stdout.emit('data', 'agy output');
-        child.emit('close', 0, null);
+        emitSuccessfulStream(child);
       });
       return child;
     });
@@ -141,8 +207,7 @@ describe('AntigravityChatRuntime model invocation', () => {
           child.emit('error', new Error('spawn failed'));
           return;
         }
-        child.stdout.emit('data', 'agy output');
-        child.emit('close', 0, null);
+        emitSuccessfulStream(child);
       });
       return child;
     });
@@ -170,8 +235,7 @@ describe('AntigravityChatRuntime model invocation', () => {
         });
       } else {
         setImmediate(() => {
-          child.stdout.emit('data', 'agy output');
-          child.emit('close', 0, null);
+          emitSuccessfulStream(child);
         });
       }
       return child;

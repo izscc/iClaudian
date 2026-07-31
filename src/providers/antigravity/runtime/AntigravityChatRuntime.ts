@@ -49,6 +49,7 @@ import { getAntigravityProviderSettings, normalizeAntigravityDiscoveredModels, u
 import { type AntigravityProviderState,getAntigravityState } from '../types';
 import { buildAntigravityPrintArgs } from './AntigravityCliInvocation';
 import { buildAntigravityRuntimeEnv } from './AntigravityRuntimeEnvironment';
+import { AntigravityStreamParser } from './AntigravityStreamParser';
 
 const ANTIGRAVITY_ACP_INITIALIZE_TIMEOUT_MS = 120_000;
 
@@ -345,8 +346,11 @@ export class AntigravityChatRuntime implements ChatRuntime {
     const queue: StreamChunk[] = [];
     const waiters: Array<() => void> = [];
     let done = false;
+    let processError = false;
     let stdout = '';
+    let stdoutBuffer = '';
     let stderr = '';
+    const parser = new AntigravityStreamParser();
 
     const wake = (): void => {
       while (waiters.length) waiters.shift()?.();
@@ -354,6 +358,20 @@ export class AntigravityChatRuntime implements ChatRuntime {
     const push = (chunk: StreamChunk): void => {
       queue.push(chunk);
       wake();
+    };
+    const parseOutput = (text: string, flush: boolean): void => {
+      stdoutBuffer += text;
+      let newlineIndex = stdoutBuffer.indexOf('\n');
+      while (newlineIndex >= 0) {
+        const line = stdoutBuffer.slice(0, newlineIndex);
+        stdoutBuffer = stdoutBuffer.slice(newlineIndex + 1);
+        for (const chunk of parser.parseLine(line)) push(chunk);
+        newlineIndex = stdoutBuffer.indexOf('\n');
+      }
+      if (flush && stdoutBuffer.trim()) {
+        for (const chunk of parser.parseLine(stdoutBuffer)) push(chunk);
+        stdoutBuffer = '';
+      }
     };
     const waitForChunk = async (): Promise<void> => {
       if (queue.length > 0 || done) return;
@@ -371,24 +389,33 @@ export class AntigravityChatRuntime implements ChatRuntime {
     child.stdout.on('data', chunk => {
       const text = String(chunk);
       stdout += text;
-      if (text) push({ type: 'text', content: text });
+      if (text) parseOutput(text, false);
     });
     child.stderr.on('data', chunk => { stderr += String(chunk); });
     child.on('error', error => {
       if (this.printProcess === child) this.printProcess = null;
       this.hasNativeContinuation = false;
+      processError = true;
       push({ type: 'error', content: this.formatRuntimeError(error) });
       done = true;
       wake();
     });
     child.on('close', (code, signal) => {
       if (this.printProcess === child) this.printProcess = null;
-      if (code === 0) {
+      parseOutput('', true);
+      if (processError) {
+        done = true;
+        wake();
+        return;
+      }
+      if (parser.hasFailedResult) {
+        this.hasNativeContinuation = false;
+      } else if (code === 0 && parser.hasSuccessfulResult) {
         this.hasNativeContinuation = true;
         if (!stdout.trim() && stderr.trim()) push({ type: 'notice', content: stderr.trim(), level: 'warning' });
       } else {
         this.hasNativeContinuation = false;
-        const details = [stderr.trim(), stdout.trim()].filter(Boolean).join('\n\n');
+        const details = stderr.trim();
         push({ type: 'error', content: details || `Antigravity CLI exited with code ${code ?? signal ?? 'unknown'}.` });
       }
       done = true;

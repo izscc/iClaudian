@@ -14,6 +14,8 @@ export function buildAntigravityPrintArgs(options: AntigravityPrintArgsOptions):
     ...permissionArgs,
     ...(options.continueConversation ? ['--continue'] : []),
     ...(options.model ? ['--model', options.model] : []),
+    '--output-format',
+    'stream-json',
     '-p',
     options.prompt,
     '--print-timeout',
