@@ -4,6 +4,7 @@ interface AntigravityPrintArgsOptions {
   readonly approvalMode: AntigravityApprovalMode;
   readonly continueConversation: boolean;
   readonly model: string | null;
+  readonly outputFormat?: 'stream-json' | 'text';
   readonly prompt: string;
 }
 
@@ -15,7 +16,7 @@ export function buildAntigravityPrintArgs(options: AntigravityPrintArgsOptions):
     ...(options.continueConversation ? ['--continue'] : []),
     ...(options.model ? ['--model', options.model] : []),
     '--output-format',
-    'stream-json',
+    options.outputFormat ?? 'stream-json',
     '-p',
     options.prompt,
     '--print-timeout',

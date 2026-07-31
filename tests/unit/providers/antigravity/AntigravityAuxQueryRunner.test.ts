@@ -52,6 +52,8 @@ describe('AntigravityAuxQueryRunner', () => {
 
     const args = spawn.mock.calls[0]?.[1] as string[];
     expect(args).not.toContain('--model');
+    expect(args).toContain('--output-format');
+    expect(args[args.indexOf('--output-format') + 1]).toBe('text');
     expect(args).toEqual(expect.arrayContaining(['-p', 'hello']));
   });
 });

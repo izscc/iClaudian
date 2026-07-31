@@ -25,6 +25,7 @@ export class AntigravityAuxQueryRunner implements AuxQueryRunner {
       approvalMode: antigravitySettings.selectedApprovalMode,
       continueConversation: false,
       model: model || null,
+      outputFormat: 'text',
       prompt,
     });
 
