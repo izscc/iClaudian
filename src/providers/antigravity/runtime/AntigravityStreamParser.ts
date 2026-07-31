@@ -4,6 +4,7 @@ type JsonObject = Record<string, unknown>;
 
 interface ToolState {
   input: Record<string, unknown>;
+  name: string;
   output: string;
   resultEmitted: boolean;
 }
@@ -33,6 +34,7 @@ const TOOL_NAME_ALIASES: Record<string, string> = {
 export class AntigravityStreamParser {
   private readonly tasks = new Map<string, TaskState>();
   private readonly tools = new Map<string, ToolState>();
+  private nextToolId = 0;
   private nextTaskId = 0;
   private nextTaskUpdateId = 0;
   private resultErrorEmitted = false;
@@ -97,7 +99,8 @@ export class AntigravityStreamParser {
     const explicitId = readFirstIdentifier(toolInfo, ['tool_call_id', 'tool_id', 'id'])
       ?? readFirstIdentifier(step, ['tool_call_id', 'tool_id', 'id']);
     const stepIndex = readFirstIdentifier(step, ['step_index']);
-    const id = explicitId ?? (stepIndex ? `agy-step-${stepIndex}` : `agy-tool-${this.tools.size + 1}`);
+    const id = explicitId
+      ?? (stepIndex ? `agy-step-${stepIndex}` : this.findOpenToolId(name) ?? `agy-tool-${++this.nextToolId}`);
     const status = readFirstString(toolInfo, ['status', 'state'])
       ?? readFirstString(step, ['status', 'state']);
     const terminal = isTerminalStatus(status);
@@ -107,7 +110,7 @@ export class AntigravityStreamParser {
     let state = this.tools.get(id);
 
     if (!state) {
-      state = { input: {}, output: '', resultEmitted: false };
+      state = { input: {}, name, output: '', resultEmitted: false };
       this.tools.set(id, state);
       state.input = input;
       chunks.push({ id, input, name, type: 'tool_use' });
@@ -209,9 +212,6 @@ export class AntigravityStreamParser {
 
     const chunks: StreamChunk[] = [];
     for (const line of lines) {
-      if (/^\s*(?:#{1,6}\s*)?(?:任务列表|task list)\b/i.test(line)) {
-        this.taskListMode = true;
-      }
       if (!this.taskListMode) continue;
 
       const match = /^\s*(\d+)\.\s+.*?\*\*(.+?)\*\*\s*(?:[-–—:]\s*)?(.+)$/u.exec(line);
@@ -259,6 +259,11 @@ export class AntigravityStreamParser {
     const hasToolInput = ['parameters', 'input', 'arguments', 'args', 'output', 'result', 'content']
       .some(key => step[key] !== undefined);
     return hasToolName && hasToolInput ? step : null;
+  }
+
+  private findOpenToolId(name: string): string | null {
+    const entries = [...this.tools.entries()].reverse();
+    return entries.find(([, state]) => state.name === name && !state.resultEmitted)?.[0] ?? null;
   }
 }
 

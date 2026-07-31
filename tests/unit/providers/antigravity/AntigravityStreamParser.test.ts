@@ -45,6 +45,27 @@ describe('AntigravityStreamParser', () => {
     ]);
   });
 
+  it('keeps an anonymous tool result attached to its active tool call', () => {
+    const parser = new AntigravityStreamParser();
+    const started = parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: {
+        state: 'ACTIVE',
+        tool_info: { name: 'run_command', parameters: { CommandLine: 'date' } },
+      },
+    }));
+    const completed = parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: {
+        state: 'DONE',
+        tool_info: { name: 'run_command', output: 'today' },
+      },
+    }));
+
+    expect(started[0]).toEqual({ id: 'agy-tool-1', input: { command: 'date' }, name: 'Bash', type: 'tool_use' });
+    expect(completed).toEqual([{ content: 'today', id: 'agy-tool-1', isError: false, type: 'tool_result' }]);
+  });
+
   it('turns task boundaries into the shared task list tool calls', () => {
     const parser = new AntigravityStreamParser();
     const chunks = [
