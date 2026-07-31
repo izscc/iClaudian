@@ -409,7 +409,7 @@ function parseTaskListStatus(summary: string): 'DONE' | 'IN_PROGRESS' | 'TODO' |
   if (normalized.includes('已完成') || normalized.includes('✅') || /\bcompleted?\b/i.test(normalized)) {
     return 'DONE';
   }
-  if (normalized.includes('待处理') || normalized.includes('创建') || normalized.includes('🟡') || /\b(?:pending|todo)\b/i.test(normalized)) {
+  if (normalized.includes('待处理') || normalized.includes('未开始') || normalized.includes('创建') || normalized.includes('🟡') || /\b(?:not[\s-]+started|pending|todo)\b/i.test(normalized)) {
     return 'TODO';
   }
   return null;
@@ -419,6 +419,7 @@ function isTaskActionLabel(value: string): boolean {
   const normalized = value.toLowerCase();
   return normalized.includes('创建任务')
     || normalized.includes('更新状态')
+    || normalized.includes('状态更新')
     || normalized.includes('完成任务')
     || normalized.includes('create task')
     || normalized.includes('update status')

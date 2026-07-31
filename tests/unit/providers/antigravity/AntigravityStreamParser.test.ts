@@ -97,9 +97,9 @@ describe('AntigravityStreamParser', () => {
   it('extracts Antigravity task_list.md responses into the shared task list', () => {
     const parser = new AntigravityStreamParser();
     const response = [
-      '1. **创建任务**：在 `task_list.md` 中添加任务 `Inspect repository` (`[ ]`)',
-      '2. **更新状态**：将其标记为进行中 (`[/]`)',
-      '3. **完成任务**：将其标记为已完成 (`[x]`)',
+      '1. **创建任务**：`Inspect repository`（未开始）',
+      '2. **状态更新**：标记为 进行中（In Progress）',
+      '3. **状态更新**：标记为 已完成（Completed）',
     ].join('\n');
     const chunks = [
       ...parser.parseLine(JSON.stringify({
