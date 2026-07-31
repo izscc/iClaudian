@@ -332,8 +332,8 @@ export class AntigravityChatRuntime implements ChatRuntime {
         prompt: this.buildPrintPrompt(turn, previousMessages, useNativeContinuation),
         taskOffset,
       });
-    } catch (error) {
-      yield { type: 'error', content: this.formatRuntimeError(error) };
+    } catch {
+      yield { type: 'error', content: this.formatRuntimeError(null) };
     }
     yield { type: 'done' };
   }
@@ -354,9 +354,7 @@ export class AntigravityChatRuntime implements ChatRuntime {
     const waiters: Array<() => void> = [];
     let done = false;
     let processError = false;
-    let stdout = '';
     let stdoutBuffer = '';
-    let stderr = '';
     const parser = new AntigravityStreamParser({ taskOffset: params.taskOffset });
 
     const wake = (): void => {
@@ -395,15 +393,14 @@ export class AntigravityChatRuntime implements ChatRuntime {
     child.stderr.setEncoding('utf-8');
     child.stdout.on('data', chunk => {
       const text = String(chunk);
-      stdout += text;
       if (text) parseOutput(text, false);
     });
-    child.stderr.on('data', chunk => { stderr += String(chunk); });
-    child.on('error', error => {
+    child.stderr.on('data', () => {});
+    child.on('error', () => {
       if (this.printProcess === child) this.printProcess = null;
       this.hasNativeContinuation = false;
       processError = true;
-      push({ type: 'error', content: this.formatRuntimeError(error) });
+      push({ type: 'error', content: this.formatRuntimeError(null) });
       done = true;
       wake();
     });
@@ -419,11 +416,10 @@ export class AntigravityChatRuntime implements ChatRuntime {
         this.hasNativeContinuation = false;
       } else if (code === 0 && parser.hasSuccessfulResult) {
         this.hasNativeContinuation = true;
-        if (!stdout.trim() && stderr.trim()) push({ type: 'notice', content: stderr.trim(), level: 'warning' });
       } else {
         this.hasNativeContinuation = false;
-        const details = stderr.trim();
-        push({ type: 'error', content: details || `Antigravity CLI exited with code ${code ?? signal ?? 'unknown'}.` });
+        const reason = code === null ? `signal ${signal ?? 'unknown'}` : `code ${code}`;
+        push({ type: 'error', content: `Antigravity CLI exited without a successful structured response (${reason}).` });
       }
       done = true;
       wake();
@@ -614,19 +610,8 @@ export class AntigravityChatRuntime implements ChatRuntime {
     return path.resolve(cwd, rawPath);
   }
 
-  private formatRuntimeError(error: unknown): string {
-    const baseMessage = error instanceof Error ? error.message : 'Antigravity request failed';
-    const stderr = this.process?.getStderrSnapshot();
-    const stdout = this.stdoutBuffer.trim();
-    
-    let message = baseMessage;
-    if (stdout) {
-      message += `\n\n[STDOUT]\n${stdout}`;
-    }
-    if (stderr) {
-      message += `\n\n[STDERR]\n${stderr}`;
-    }
-    return message;
+  private formatRuntimeError(_error: unknown): string {
+    return 'Antigravity CLI request failed before returning a structured response.';
   }
 
   private clearActiveSession(): void {

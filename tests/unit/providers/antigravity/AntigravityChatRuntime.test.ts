@@ -257,6 +257,29 @@ describe('AntigravityChatRuntime model invocation', () => {
     expect(spawn.mock.calls[2]?.[1]).not.toContain('--continue');
   });
 
+  it('does not surface unstructured stderr as a chat error', async () => {
+    spawn.mockImplementation(() => {
+      const child = createFakeChild();
+      setImmediate(() => {
+        child.stderr.emit('data', 'DEBUG token=SECRET path=/Users/alice/.config/agy/log.txt');
+        child.emit('close', 1, null);
+      });
+      return child;
+    });
+    const runtime = new AntigravityChatRuntime(createMockPlugin());
+    const turn = runtime.prepareTurn({ text: 'hello' } as any);
+    const chunks = [];
+
+    for await (const chunk of runtime.query(turn)) chunks.push(chunk);
+
+    expect(chunks).toContainEqual({
+      type: 'error',
+      content: 'Antigravity CLI exited without a successful structured response (code 1).',
+    });
+    expect(chunks.some(chunk => JSON.stringify(chunk).includes('SECRET'))).toBe(false);
+    expect(chunks.some(chunk => JSON.stringify(chunk).includes('/Users/alice'))).toBe(false);
+  });
+
   it('falls back to prompt history after cancellation', async () => {
     let invocation = 0;
     spawn.mockImplementation(() => {

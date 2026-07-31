@@ -116,6 +116,21 @@ describe('AntigravityStreamParser', () => {
     }))).toEqual([{ content: '/tmp', id: 'agy-tool-2', isError: false, type: 'tool_result' }]);
   });
 
+  it('gives concurrent parameterless anonymous tools distinct IDs', () => {
+    const parser = new AntigravityStreamParser();
+    const first = parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: { step_type: 'tool', state: 'ACTIVE', tool_info: { name: 'wait' } },
+    }));
+    const second = parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: { step_type: 'tool', state: 'ACTIVE', tool_info: { name: 'wait' } },
+    }));
+
+    expect(first[0]).toEqual({ id: 'agy-tool-1', input: {}, name: 'wait', type: 'tool_use' });
+    expect(second[0]).toEqual({ id: 'agy-tool-2', input: {}, name: 'wait', type: 'tool_use' });
+  });
+
   it('turns task boundaries into the shared task list tool calls', () => {
     const parser = new AntigravityStreamParser();
     const chunks = [
@@ -246,6 +261,23 @@ describe('AntigravityStreamParser', () => {
     expect(parser.parseLine(JSON.stringify({
       event: 'init',
       init: { tools: ['run_command'] },
+    }))).toEqual([]);
+  });
+
+  it('requires canonical step types before exposing stream data', () => {
+    const parser = new AntigravityStreamParser();
+
+    expect(parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: { step_type: 'agent-response', text_delta: 'hidden alias' },
+    }))).toEqual([]);
+    expect(parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: { step_type: 'TASK BOUNDARY', task_boundary: { task_name: 'hidden alias' } },
+    }))).toEqual([]);
+    expect(parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: { step_type: 'TOOL', tool_name: 'run_command', parameters: { CommandLine: 'hidden alias' } },
     }))).toEqual([]);
   });
 });

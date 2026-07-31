@@ -84,7 +84,7 @@ export class AntigravityStreamParser {
 
   private parseStepUpdate(step: JsonObject): StreamChunk[] {
     const chunks: StreamChunk[] = [];
-    const stepType = normalizeStatus(readString(step.step_type) ?? '');
+    const stepType = readString(step.step_type) ?? '';
     const textDelta = stepType === 'agent_response'
       ? readString(step.text_delta)
       : null;
@@ -319,10 +319,9 @@ export class AntigravityStreamParser {
       .map(([id]) => id);
     if (openIds.length === 0) return { ambiguous: false, id: null };
 
+    if (!terminal && status !== null) return { ambiguous: false, id: null };
+
     if (Object.keys(input).length > 0) {
-      if (!terminal && normalizeStatus(status ?? '') === 'active') {
-        return { ambiguous: false, id: null };
-      }
       const matchingIds = openIds.filter(id => sameRecord(this.tools.get(id)?.input ?? {}, input));
       if (matchingIds.length === 1) return { ambiguous: false, id: matchingIds[0] };
       return { ambiguous: terminal && matchingIds.length > 1, id: null };
