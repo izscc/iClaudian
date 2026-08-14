@@ -66,6 +66,9 @@ gpt-4.1
 Antigravity CLI 1.1.5 及以上版本提供稳定的 `--model` 参数和 `models` 子命令；iClaudian 会把选择的模型 ID 直接传给 `agy -p`，不再修改全局的 `~/.gemini/antigravity-cli/settings.json`。当前预置模型 ID 为：
 
 ```text
+gemini-3.7-flash-medium
+gemini-3.7-flash-high
+gemini-3.7-flash-low
 gemini-3.6-flash-medium
 gemini-3.6-flash-high
 gemini-3.6-flash-low
@@ -79,7 +82,7 @@ claude-opus-4-6-thinking
 gpt-oss-120b-medium
 ```
 
-旧配置中的模型显示名称会自动迁移到对应的 CLI 模型 ID；未指定 effort 的 `gemini-3.6-flash` 默认归一化为 `gemini-3.6-flash-medium`。
+旧配置中的模型显示名称会自动迁移到对应的 CLI 模型 ID；未指定 effort 的 `gemini-3.7-flash`、`gemini-3.6-flash` 默认归一化为对应的 medium 版本。
 
 ### Freebuff 内置模型
 
