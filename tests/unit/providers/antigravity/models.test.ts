@@ -12,6 +12,12 @@ describe('Antigravity model aliases', () => {
   it('uses Gemini 3.7 Flash Medium as the built-in fast default', () => {
     expect(ANTIGRAVITY_FALLBACK_MODELS[0].rawId).toBe('gemini-3.7-flash-medium');
     expect(antigravityChatUIConfig.getModelOptions({})[0].label).toBe('Gemini 3.7 Flash (Medium)');
+    expect(antigravityChatUIConfig.getModelOptions({}).map(option => option.value)).toEqual([
+      'antigravity:gemini-3.7-flash-medium',
+      'antigravity:gemini-3.7-flash-high',
+      'antigravity:gemini-3.1-pro-high',
+      'antigravity:claude-opus-4-6-thinking',
+    ]);
   });
 
   it('keeps the Gemini 3.7 fallback ahead of a stale discovered catalog', () => {
@@ -24,7 +30,7 @@ describe('Antigravity model aliases', () => {
     });
 
     expect(options[0]?.value).toBe('antigravity:gemini-3.7-flash-medium');
-    expect(options.some(option => option.value === 'antigravity:gemini-3.5-flash-medium')).toBe(true);
+    expect(options.some(option => option.value === 'antigravity:gemini-3.5-flash-medium')).toBe(false);
   });
 
   it('normalizes legacy saved selections without changing the chosen model', () => {

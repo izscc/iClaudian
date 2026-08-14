@@ -145,7 +145,7 @@ export const antigravitySettingsTabRenderer: ProviderSettingsTabRenderer = {
       .setName(tt('settings.antigravity.customVisibleModels.name'))
       .setDesc(tt('settings.antigravity.customVisibleModels.desc'));
     modelText.addTextArea(text => {
-      text.setPlaceholder('gemini-3.7-flash-medium\ngemini-3.7-flash-high\nclaude-sonnet-4-6')
+      text.setPlaceholder('gemini-3.7-flash-medium\ngemini-3.7-flash-high\nclaude-opus-4-6-thinking')
         .setValue(visibleModels.join('\n'))
         .onChange(async (value) => {
           const models = value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);

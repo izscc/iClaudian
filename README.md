@@ -68,18 +68,8 @@ Antigravity CLI 1.1.5 及以上版本提供稳定的 `--model` 参数和 `models
 ```text
 gemini-3.7-flash-medium
 gemini-3.7-flash-high
-gemini-3.7-flash-low
-gemini-3.6-flash-medium
-gemini-3.6-flash-high
-gemini-3.6-flash-low
-gemini-3.5-flash-medium
-gemini-3.5-flash-high
-gemini-3.5-flash-low
 gemini-3.1-pro-high
-gemini-3.1-pro-low
-claude-sonnet-4-6
 claude-opus-4-6-thinking
-gpt-oss-120b-medium
 ```
 
 旧配置中的模型显示名称会自动迁移到对应的 CLI 模型 ID；未指定 effort 的 `gemini-3.7-flash`、`gemini-3.6-flash` 默认归一化为对应的 medium 版本。

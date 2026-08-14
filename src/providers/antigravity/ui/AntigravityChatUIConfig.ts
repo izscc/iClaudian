@@ -30,11 +30,18 @@ const FALLBACK_MODELS: ProviderUIOption[] = [
     ...(model.description ? { description: model.description } : {}),
   })),
 ];
-const SYNTHETIC_MODEL: ProviderUIOption = {
-  value: ANTIGRAVITY_SYNTHETIC_MODEL_ID,
-  label: 'Antigravity',
-  description: 'Antigravity CLI default model',
-};
+const HIDDEN_DEFAULT_MODEL_VALUES = new Set([
+  'gemini-3.7-flash-low',
+  'gemini-3.6-flash-medium',
+  'gemini-3.6-flash-high',
+  'gemini-3.6-flash-low',
+  'gemini-3.5-flash-medium',
+  'gemini-3.5-flash-high',
+  'gemini-3.5-flash-low',
+  'gemini-3.1-pro-low',
+  'claude-sonnet-4-6',
+  'gpt-oss-120b-medium',
+].map(encodeAntigravityModelId));
 
 export const antigravityChatUIConfig: ProviderChatUIConfig = {
   getModelOptions(settings): ProviderUIOption[] {
@@ -51,10 +58,10 @@ export const antigravityChatUIConfig: ProviderChatUIConfig = {
         ...(model?.description ? { description: model.description } : {}),
       }];
     });
-    if (antigravitySettings.visibleModels.length > 0) return options.length > 0 ? options : [...FALLBACK_MODELS, SYNTHETIC_MODEL];
+    if (antigravitySettings.visibleModels.length > 0) return options.length > 0 ? options : FALLBACK_MODELS;
     const fallbackValues = new Set(FALLBACK_MODELS.map(model => model.value));
-    const discoveredExtras = options.filter(model => !fallbackValues.has(model.value));
-    return [...FALLBACK_MODELS, ...discoveredExtras, SYNTHETIC_MODEL];
+    const discoveredExtras = options.filter(model => !fallbackValues.has(model.value) && !HIDDEN_DEFAULT_MODEL_VALUES.has(model.value));
+    return [...FALLBACK_MODELS, ...discoveredExtras];
   },
 
   ownsModel(model: string): boolean { return isAntigravityModelSelectionId(model); },
