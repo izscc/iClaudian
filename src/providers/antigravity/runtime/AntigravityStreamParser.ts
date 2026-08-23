@@ -276,7 +276,13 @@ export class AntigravityStreamParser {
   private parseResult(result: JsonObject): StreamChunk[] {
     const status = readString(result.status)?.toLowerCase();
     const response = readString(result.response) ?? '';
-    if (status === 'success' || status === 'succeeded' || status === 'completed') {
+    const error = readString(result.error);
+    const recoveredArtifactWrite = Boolean(
+      response
+      && error?.includes('cortex tool write_to_file')
+      && error.includes('is not a valid artifact path; artifacts must be in '),
+    );
+    if (status === 'success' || status === 'succeeded' || status === 'completed' || recoveredArtifactWrite) {
       this.successfulResult = true;
       if (!response || response === this.responseText) return this.parseTaskListText('', true);
       if (response.startsWith(this.responseText)) {
@@ -297,8 +303,8 @@ export class AntigravityStreamParser {
     this.failedResult = true;
     if (this.resultErrorEmitted) return [];
     this.resultErrorEmitted = true;
-    const error = readString(result.error) || response || `Antigravity CLI returned status ${result.status ?? 'ERROR'}.`;
-    return [{ content: error, type: 'error' }];
+    const message = error || response || `Antigravity CLI returned status ${result.status ?? 'ERROR'}.`;
+    return [{ content: message, type: 'error' }];
   }
 
   private readDirectToolInfo(step: JsonObject): JsonObject | null {

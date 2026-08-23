@@ -214,6 +214,26 @@ describe('AntigravityStreamParser', () => {
     expect(parser.hasSuccessfulResult).toBe(false);
   });
 
+  it('does not append a recovered artifact-path error after a successful response', () => {
+    const parser = new AntigravityStreamParser();
+
+    expect(parser.parseLine(JSON.stringify({
+      event: 'step_update',
+      step_update: { step_type: 'agent_response', text_delta: 'RECOVERED_OK' },
+    }))).toEqual([{ type: 'text', content: 'RECOVERED_OK' }]);
+
+    expect(parser.parseLine(JSON.stringify({
+      event: 'result',
+      result: {
+        error: 'declaring permissions: cortex tool write_to_file: /vault/note.md is not a valid artifact path; artifacts must be in /brain/session/',
+        response: 'RECOVERED_OK\n',
+        status: 'ERROR',
+      },
+    }))).toEqual([{ type: 'text', content: '\n' }]);
+    expect(parser.hasFailedResult).toBe(false);
+    expect(parser.hasSuccessfulResult).toBe(true);
+  });
+
   it('ignores text deltas from non-response steps and preserves task offsets', () => {
     const parser = new AntigravityStreamParser({ taskOffset: 2 });
 
