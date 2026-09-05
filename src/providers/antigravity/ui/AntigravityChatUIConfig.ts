@@ -31,7 +31,7 @@ const FALLBACK_MODELS: ProviderUIOption[] = [
   })),
 ];
 const HIDDEN_DEFAULT_MODEL_VALUES = new Set([
-  'gemini-3.7-flash-low',
+  'gemini-3.8-flash-low',
   'gemini-3.6-flash-medium',
   'gemini-3.6-flash-high',
   'gemini-3.6-flash-low',

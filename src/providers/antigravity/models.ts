@@ -7,14 +7,14 @@ export const ANTIGRAVITY_MODEL_PREFIX = 'antigravity:';
  */
 export const ANTIGRAVITY_FALLBACK_MODELS = [
   {
-    rawId: 'gemini-3.7-flash-medium',
-    label: 'Gemini 3.7 Flash (Medium)',
-    description: 'Antigravity Gemini 3.7 Flash - Medium Effort',
+    rawId: 'gemini-3.8-flash-medium',
+    label: 'Gemini 3.8 Flash (Medium)',
+    description: 'Antigravity Gemini 3.8 Flash - Medium Effort',
   },
   {
-    rawId: 'gemini-3.7-flash-high',
-    label: 'Gemini 3.7 Flash (High)',
-    description: 'Antigravity Gemini 3.7 Flash - High Effort',
+    rawId: 'gemini-3.8-flash-high',
+    label: 'Gemini 3.8 Flash (High)',
+    description: 'Antigravity Gemini 3.8 Flash - High Effort',
   },
   {
     rawId: 'gemini-3.1-pro-high',
@@ -29,10 +29,17 @@ export const ANTIGRAVITY_FALLBACK_MODELS = [
 ] as const;
 
 const ANTIGRAVITY_MODEL_ALIASES = new Map<string, string>([
-  ['gemini 3.7 flash (medium)', 'gemini-3.7-flash-medium'],
-  ['gemini 3.7 flash (high)', 'gemini-3.7-flash-high'],
-  ['gemini 3.7 flash (low)', 'gemini-3.7-flash-low'],
-  ['gemini-3.7-flash', 'gemini-3.7-flash-medium'],
+  ['gemini 3.8 flash (medium)', 'gemini-3.8-flash-medium'],
+  ['gemini 3.8 flash (high)', 'gemini-3.8-flash-high'],
+  ['gemini 3.8 flash (low)', 'gemini-3.8-flash-low'],
+  ['gemini-3.8-flash', 'gemini-3.8-flash-medium'],
+  ['gemini 3.7 flash (medium)', 'gemini-3.8-flash-medium'],
+  ['gemini 3.7 flash (high)', 'gemini-3.8-flash-high'],
+  ['gemini 3.7 flash (low)', 'gemini-3.8-flash-low'],
+  ['gemini-3.7-flash-medium', 'gemini-3.8-flash-medium'],
+  ['gemini-3.7-flash-high', 'gemini-3.8-flash-high'],
+  ['gemini-3.7-flash-low', 'gemini-3.8-flash-low'],
+  ['gemini-3.7-flash', 'gemini-3.8-flash-medium'],
   ['gemini 3.6 flash (medium)', 'gemini-3.6-flash-medium'],
   ['gemini 3.6 flash (high)', 'gemini-3.6-flash-high'],
   ['gemini 3.6 flash (low)', 'gemini-3.6-flash-low'],

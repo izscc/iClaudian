@@ -9,18 +9,18 @@ import { getAntigravityProviderSettings, normalizeAntigravityVisibleModels, upda
 import { antigravityChatUIConfig } from '@/providers/antigravity/ui/AntigravityChatUIConfig';
 
 describe('Antigravity model aliases', () => {
-  it('uses Gemini 3.7 Flash Medium as the built-in fast default', () => {
-    expect(ANTIGRAVITY_FALLBACK_MODELS[0].rawId).toBe('gemini-3.7-flash-medium');
-    expect(antigravityChatUIConfig.getModelOptions({})[0].label).toBe('Gemini 3.7 Flash (Medium)');
+  it('uses Gemini 3.8 Flash Medium as the built-in fast default', () => {
+    expect(ANTIGRAVITY_FALLBACK_MODELS[0].rawId).toBe('gemini-3.8-flash-medium');
+    expect(antigravityChatUIConfig.getModelOptions({})[0].label).toBe('Gemini 3.8 Flash (Medium)');
     expect(antigravityChatUIConfig.getModelOptions({}).map(option => option.value)).toEqual([
-      'antigravity:gemini-3.7-flash-medium',
-      'antigravity:gemini-3.7-flash-high',
+      'antigravity:gemini-3.8-flash-medium',
+      'antigravity:gemini-3.8-flash-high',
       'antigravity:gemini-3.1-pro-high',
       'antigravity:claude-opus-4-6-thinking',
     ]);
   });
 
-  it('keeps the Gemini 3.7 fallback ahead of a stale discovered catalog', () => {
+  it('keeps the Gemini 3.8 fallback ahead of a stale discovered catalog', () => {
     const options = antigravityChatUIConfig.getModelOptions({
       providerConfigs: {
         antigravity: {
@@ -29,7 +29,7 @@ describe('Antigravity model aliases', () => {
       },
     });
 
-    expect(options[0]?.value).toBe('antigravity:gemini-3.7-flash-medium');
+    expect(options[0]?.value).toBe('antigravity:gemini-3.8-flash-medium');
     expect(options.some(option => option.value === 'antigravity:gemini-3.5-flash-medium')).toBe(false);
   });
 
@@ -70,7 +70,8 @@ describe('Antigravity model aliases', () => {
   });
 
   it('normalizes legacy display labels to the canonical CLI model IDs', () => {
-    expect(encodeAntigravityModelId('Gemini 3.7 Flash (Medium)')).toBe('antigravity:gemini-3.7-flash-medium');
+    expect(encodeAntigravityModelId('Gemini 3.8 Flash (Medium)')).toBe('antigravity:gemini-3.8-flash-medium');
+    expect(encodeAntigravityModelId('Gemini 3.7 Flash (Medium)')).toBe('antigravity:gemini-3.8-flash-medium');
     expect(decodeAntigravityModelId('antigravity:Gemini 3.5 Flash (Low)')).toBe('gemini-3.5-flash-low');
     expect(normalizeAntigravityVisibleModels(['Gemini 3.5 Flash (High)'])).toEqual(['gemini-3.5-flash-high']);
   });
