@@ -69,8 +69,6 @@ export function findCodexBinaryPath(
     ? [
       path.join(home, 'Applications', 'Codex.app', 'Contents', 'Resources'),
       '/Applications/Codex.app/Contents/Resources',
-      path.join(home, 'Applications', 'Codex.app', 'Contents', 'MacOS'),
-      '/Applications/Codex.app/Contents/MacOS',
       path.join(home, '.local', 'bin'),
     ]
     : platform === 'win32'

@@ -52,6 +52,27 @@ describe('CodexBinaryLocator', () => {
     expect(findCodexBinaryPath('', 'darwin')).toBe(appBinary);
   });
 
+  it('ignores the macOS app executable when a user-local CLI is available', () => {
+    process.env.HOME = tempDir;
+    const appExecutable = path.join(tempDir, 'Applications', 'Codex.app', 'Contents', 'MacOS', 'codex');
+    const localBinary = path.join(tempDir, '.local', 'bin', 'codex');
+    fs.mkdirSync(path.dirname(appExecutable), { recursive: true });
+    fs.mkdirSync(path.dirname(localBinary), { recursive: true });
+    fs.writeFileSync(appExecutable, '');
+    fs.writeFileSync(localBinary, '');
+
+    expect(findCodexBinaryPath('', 'darwin')).toBe(localBinary);
+  });
+
+  it('never returns the macOS app executable as an automatic CLI candidate', () => {
+    process.env.HOME = tempDir;
+    const appExecutable = path.join(tempDir, 'Applications', 'Codex.app', 'Contents', 'MacOS', 'codex');
+    fs.mkdirSync(path.dirname(appExecutable), { recursive: true });
+    fs.writeFileSync(appExecutable, '');
+
+    expect(findCodexBinaryPath('', 'darwin')).not.toBe(appExecutable);
+  });
+
   it('honors an explicit runtime PATH before the macOS Codex app bundle', () => {
     process.env.HOME = tempDir;
     const explicitDir = path.join(tempDir, 'explicit-bin');
